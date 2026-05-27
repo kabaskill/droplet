@@ -21,3 +21,4 @@
   - Dockerfiles/env examples for frontend and backend.
   - Keycloak realm import with `citizen`, `analyst`, and `municipality` roles.
   - Short architecture note in `docs/prototype-architecture.md`.
+- Updated the backend PostgreSQL driver pin to a Python 3.14-compatible 3.2.x release for local smoke testing.
