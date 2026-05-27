@@ -1,0 +1,62 @@
+{
+  "realm": "droplet",
+  "enabled": true,
+  "displayName": "Droplet",
+  "roles": {
+    "realm": [
+      {
+        "name": "citizen",
+        "description": "Basic regional visibility"
+      },
+      {
+        "name": "analyst",
+        "description": "Advanced environmental analytics"
+      },
+      {
+        "name": "municipality",
+        "description": "Municipal operational access"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "droplet-frontend",
+      "name": "Droplet Frontend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "analyst",
+      "enabled": true,
+      "email": "analyst@droplet.local",
+      "firstName": "Droplet",
+      "lastName": "Analyst",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "droplet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "citizen",
+        "analyst",
+        "municipality"
+      ]
+    }
+  ]
+}
