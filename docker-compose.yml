@@ -5,7 +5,7 @@ services:
     environment:
       VITE_API_BASE_URL: /api
       VITE_API_PROXY_TARGET: http://backend:5000
-      VITE_AUTH_MODE: demo
+      VITE_AUTH_MODE: ${VITE_AUTH_MODE:-demo}
       VITE_DEMO_FALLBACK: "true"
       VITE_KEYCLOAK_CLIENT_ID: droplet-frontend
       VITE_KEYCLOAK_REALM: droplet
@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      AUTH_MODE: demo
+      AUTH_MODE: ${AUTH_MODE:-demo}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       CORS_ORIGINS: http://localhost:5173
