@@ -74,14 +74,24 @@ def _completed_response(
     if isinstance(refresh_result, int):
         refresh_result = {
             "created": refresh_result,
+            "deleted": 0,
             "processed": refresh_result,
             "skipped": 0,
             "updated": 0,
+        }
+    else:
+        refresh_result = {
+            "created": refresh_result.get("created", 0),
+            "deleted": refresh_result.get("deleted", 0),
+            "processed": refresh_result.get("processed", 0),
+            "skipped": refresh_result.get("skipped", 0),
+            "updated": refresh_result.get("updated", 0),
         }
 
     response = {
         "snapshotRefresh": refresh_result,
         "snapshotsCreated": refresh_result["created"],
+        "snapshotsDeleted": refresh_result["deleted"],
         "snapshotsProcessed": refresh_result["processed"],
         "snapshotsSkipped": refresh_result["skipped"],
         "snapshotsUpdated": refresh_result["updated"],

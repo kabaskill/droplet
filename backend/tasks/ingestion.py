@@ -1,7 +1,8 @@
+import os
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 
 from backend.cache.redis_client import delete_cache_keys, delete_cache_pattern
 from backend.domain.snapshots import ComputedSnapshot, EnvironmentalReading, compute_snapshot
@@ -38,6 +39,7 @@ def _refresh_reservoir_snapshots() -> dict[str, int]:
 def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, int]:
     result = {
         "created": 0,
+        "deleted": 0,
         "processed": len(readings),
         "skipped": 0,
         "updated": 0,
@@ -73,7 +75,9 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
             )
             result["created"] += 1
 
-    if result["created"] or result["updated"]:
+        result["deleted"] = _prune_expired_snapshots(session)
+
+    if result["created"] or result["updated"] or result["deleted"]:
         delete_cache_keys([
             "droplet:analytics:summary:v1",
             "droplet:snapshots:latest:v1",
@@ -82,6 +86,20 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
         delete_cache_pattern("droplet:snapshots:history:*:v1")
 
     return result
+
+
+def _prune_expired_snapshots(session) -> int:
+    retention_days = int(os.getenv("SNAPSHOT_RETENTION_DAYS", "30"))
+
+    if retention_days <= 0:
+        return 0
+
+    cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+    result = session.execute(
+        delete(ReservoirSnapshot).where(ReservoirSnapshot.timestamp < cutoff)
+    )
+
+    return result.rowcount or 0
 
 
 def _normalize_observation_time(reading: EnvironmentalReading) -> EnvironmentalReading:

@@ -44,3 +44,4 @@
 - Added a source health read model and dashboard panel for provider coverage, water/weather coverage, fallback use, and stale region visibility.
 - Updated ingestion to derive persisted trend direction from each region's previous observation instead of relying only on absolute threshold rules.
 - Added a Celery beat scheduler service that refreshes reservoir snapshots on a configurable interval while preserving manual refresh.
+- Added configurable snapshot retention cleanup during ingestion so old persisted observations are pruned and reported in refresh results.

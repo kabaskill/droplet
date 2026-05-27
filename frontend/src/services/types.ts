@@ -69,11 +69,13 @@ export type RefreshSnapshotsResult = {
   error?: string
   snapshotRefresh?: {
     created: number
+    deleted: number
     processed: number
     skipped: number
     updated: number
   }
   snapshotsCreated?: number
+  snapshotsDeleted?: number
   snapshotsProcessed?: number
   snapshotsSkipped?: number
   snapshotsUpdated?: number

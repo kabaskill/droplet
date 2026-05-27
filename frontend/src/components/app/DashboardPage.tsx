@@ -161,9 +161,9 @@ function refreshResultMessage(result: RefreshSnapshotsResult | undefined) {
     return null
   }
 
-  const { created, skipped, updated } = result.snapshotRefresh
+  const { created, deleted, skipped, updated } = result.snapshotRefresh
 
-  return `Created ${created} · Updated ${updated} · Skipped ${skipped}`
+  return `Created ${created} · Updated ${updated} · Skipped ${skipped} · Deleted ${deleted}`
 }
 
 function refreshErrorMessage(error: Error | null) {

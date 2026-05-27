@@ -123,11 +123,13 @@ export function refreshSnapshots() {
     () => ({
       snapshotRefresh: {
         created: demoSnapshots.length,
+        deleted: 0,
         processed: demoSnapshots.length,
         skipped: 0,
         updated: 0,
       },
       snapshotsCreated: demoSnapshots.length,
+      snapshotsDeleted: 0,
       snapshotsProcessed: demoSnapshots.length,
       snapshotsSkipped: 0,
       snapshotsUpdated: 0,
