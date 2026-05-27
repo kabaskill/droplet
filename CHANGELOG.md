@@ -50,3 +50,4 @@
 - Fixed Keycloak frontend startup by reusing the initialized client, deriving user details from token claims, and loading auth mode from the backend config endpoint.
 - Added a cached Open-Meteo forecast outlook read model with snapshot-derived fallback and a dashboard panel for 48-hour regional pressure estimates.
 - Added frontend resilience handling with API-aware retry rules, a global workspace error boundary, and dashboard notices for live read model failures.
+- Added role-aware snapshot history depth so municipality users can review up to 30 observations while basic users remain capped at 14.

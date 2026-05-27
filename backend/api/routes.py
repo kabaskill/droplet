@@ -45,11 +45,16 @@ def snapshots():
 @api_bp.get("/snapshots/<region_id>")
 @require_auth()
 def region_snapshots(region_id: str):
+    history_limit = _snapshot_history_limit(
+        g.current_user["roles"],
+        request.args.get("limit"),
+    )
+
     return jsonify(
         read_through_json(
-            f"droplet:snapshots:history:{region_id}:v1",
+            f"droplet:snapshots:history:{region_id}:limit:{history_limit}:v1",
             120,
-            lambda: snapshot_history(region_id),
+            lambda: snapshot_history(region_id, limit=history_limit),
         )
     )
 
@@ -118,3 +123,18 @@ def ai_analyze():
         return jsonify({"error": "snapshot is required"}), 400
 
     return jsonify(analyze_snapshot_payload(snapshot))
+
+
+def _snapshot_history_limit(roles: list[str], requested_limit: str | None) -> int:
+    maximum_limit = 30 if "municipality" in roles else 14
+    default_limit = maximum_limit
+
+    if requested_limit is None:
+        return default_limit
+
+    try:
+        parsed_limit = int(requested_limit)
+    except ValueError:
+        return default_limit
+
+    return max(1, min(parsed_limit, maximum_limit))

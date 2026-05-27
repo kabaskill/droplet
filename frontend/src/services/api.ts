@@ -139,9 +139,11 @@ export function fetchLatestSnapshots() {
   )
 }
 
-export function fetchSnapshotHistory(regionId: string) {
+export function fetchSnapshotHistory(regionId: string, limit: number) {
+  const params = new URLSearchParams({ limit: `${limit}` })
+
   return withFallback(
-    () => requestJson<ReservoirSnapshot[]>(`/snapshots/${regionId}`),
+    () => requestJson<ReservoirSnapshot[]>(`/snapshots/${regionId}?${params}`),
     () => getDemoSnapshotHistory(regionId)
   )
 }

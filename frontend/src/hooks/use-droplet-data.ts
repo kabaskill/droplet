@@ -11,6 +11,7 @@ import {
   fetchSnapshotHistory,
   refreshSnapshots,
 } from "@/services/api"
+import { useAuthStore } from "@/features/auth/auth-store"
 import type { ReservoirSnapshot } from "@/services/types"
 
 export function useRegions() {
@@ -28,10 +29,15 @@ export function useLatestSnapshots() {
 }
 
 export function useSnapshotHistory(regionId: string | null) {
+  const canViewExtendedHistory = useAuthStore((state) =>
+    state.hasAnyRole(["municipality"])
+  )
+  const limit = canViewExtendedHistory ? 30 : 14
+
   return useQuery({
     enabled: Boolean(regionId),
-    queryFn: () => fetchSnapshotHistory(regionId ?? ""),
-    queryKey: ["snapshots", "history", regionId],
+    queryFn: () => fetchSnapshotHistory(regionId ?? "", limit),
+    queryKey: ["snapshots", "history", regionId, limit],
   })
 }
 
