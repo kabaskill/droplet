@@ -36,6 +36,10 @@ AUTH_MODE=keycloak
 VITE_AUTH_MODE=keycloak
 ```
 
+The frontend normally reads `/api/auth/config` from the backend during startup,
+so the backend auth mode is the source of truth. `VITE_AUTH_MODE` remains a
+fallback for local startup when that endpoint is not yet reachable.
+
 Local realm users:
 
 | Username | Password | Roles |

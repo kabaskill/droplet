@@ -1,39 +1,63 @@
-import Keycloak, {
-  type KeycloakProfile,
-  type KeycloakTokenParsed,
-} from "keycloak-js"
+import Keycloak, { type KeycloakTokenParsed } from "keycloak-js"
 
+import type { AuthConfig } from "@/features/auth/auth-config"
 import type { AuthUser, DropletRole } from "@/features/auth/types"
 
 let keycloak: Keycloak | null = null
+let initialization: Promise<KeycloakSession> | null = null
+let clientKey: string | null = null
 
 const dropletRoles: DropletRole[] = ["citizen", "analyst", "municipality"]
 
-function getClient() {
+type KeycloakSession = {
+  token: string | null
+  user: AuthUser | null
+}
+
+function getClient(config: AuthConfig) {
+  const nextClientKey = `${config.url}|${config.realm}|${config.clientId}`
+
   if (keycloak) {
+    if (clientKey !== nextClientKey) {
+      throw new Error("Keycloak client configuration changed after initialization")
+    }
+
     return keycloak
   }
 
   keycloak = new Keycloak({
-    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? "droplet-frontend",
-    realm: import.meta.env.VITE_KEYCLOAK_REALM ?? "droplet",
-    url: import.meta.env.VITE_KEYCLOAK_URL ?? "http://localhost:8080",
+    clientId: config.clientId,
+    realm: config.realm,
+    url: config.url,
   })
+  clientKey = nextClientKey
 
   return keycloak
 }
 
-function roleList(token?: KeycloakTokenParsed): DropletRole[] {
+function activeClient() {
+  return keycloak
+}
+
+function roleList(token: KeycloakTokenParsed | undefined, clientId: string): DropletRole[] {
   const realmRoles = token?.realm_access?.roles ?? []
-  const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? "droplet-frontend"
   const clientRoles = token?.resource_access?.[clientId]?.roles ?? []
   const roles = new Set([...realmRoles, ...clientRoles])
 
   return dropletRoles.filter((role) => roles.has(role))
 }
 
-export async function initializeKeycloakSession() {
-  const client = getClient()
+export async function initializeKeycloakSession(config: AuthConfig) {
+  initialization ??= initializeClientSession(config).catch((error: unknown) => {
+    initialization = null
+    throw error
+  })
+
+  return initialization
+}
+
+async function initializeClientSession(config: AuthConfig): Promise<KeycloakSession> {
+  const client = getClient(config)
   const authenticated = await client.init({
     checkLoginIframe: false,
     onLoad: "check-sso",
@@ -44,32 +68,41 @@ export async function initializeKeycloakSession() {
     return { token: null, user: null }
   }
 
-  const profile: KeycloakProfile = await client.loadUserProfile()
+  return sessionFromToken(client, config.clientId)
+}
+
+function sessionFromToken(client: Keycloak, clientId: string): KeycloakSession {
+  const parsedToken = client.tokenParsed
   const token = client.token ?? null
+  const givenName = parsedToken?.given_name
+  const familyName = parsedToken?.family_name
+  const tokenName = [givenName, familyName].filter(Boolean).join(" ").trim()
   const user: AuthUser = {
-    email: profile.email,
-    name: profile.firstName
-      ? `${profile.firstName} ${profile.lastName ?? ""}`.trim()
-      : profile.username ?? "Droplet user",
-    roles: roleList(client.tokenParsed),
-    subject: client.subject ?? profile.id ?? "keycloak-user",
+    email: parsedToken?.email,
+    name:
+      tokenName ||
+      parsedToken?.name ||
+      parsedToken?.preferred_username ||
+      "Droplet user",
+    roles: roleList(client.tokenParsed, clientId),
+    subject: client.subject ?? parsedToken?.sub ?? "keycloak-user",
   }
 
   return { token, user }
 }
 
-export async function loginWithKeycloak() {
-  await getClient().login()
+export async function loginWithKeycloak(config: AuthConfig) {
+  await getClient(config).login()
 }
 
 export async function logoutFromKeycloak() {
-  await getClient().logout()
+  await activeClient()?.logout()
 }
 
 export async function refreshKeycloakToken() {
-  const client = getClient()
+  const client = activeClient()
 
-  if (!client.authenticated || !client.token) {
+  if (!client?.authenticated || !client.token) {
     return null
   }
 

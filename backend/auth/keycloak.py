@@ -20,16 +20,11 @@ def auth_mode() -> str:
 
 
 def auth_config() -> dict[str, str]:
-    keycloak_url = os.getenv(
-        "KEYCLOAK_PUBLIC_URL",
-        os.getenv("KEYCLOAK_URL", "http://localhost:8080"),
-    ).rstrip("/")
-
     return {
         "authMode": auth_mode(),
         "clientId": os.getenv("KEYCLOAK_CLIENT_ID", "droplet-frontend"),
         "realm": os.getenv("KEYCLOAK_REALM", "droplet"),
-        "url": keycloak_url,
+        "url": public_keycloak_url(),
     }
 
 
@@ -42,18 +37,26 @@ def demo_user() -> dict[str, Any]:
     }
 
 
+def internal_keycloak_url() -> str:
+    return os.getenv("KEYCLOAK_URL", "http://localhost:8080").rstrip("/")
+
+
+def public_keycloak_url() -> str:
+    return os.getenv("KEYCLOAK_PUBLIC_URL", internal_keycloak_url()).rstrip("/")
+
+
 @lru_cache(maxsize=1)
 def jwks_client() -> PyJWKClient:
-    keycloak_url = os.getenv("KEYCLOAK_URL", "http://localhost:8080").rstrip("/")
     realm = os.getenv("KEYCLOAK_REALM", "droplet")
-    return PyJWKClient(f"{keycloak_url}/realms/{realm}/protocol/openid-connect/certs")
+    return PyJWKClient(
+        f"{internal_keycloak_url()}/realms/{realm}/protocol/openid-connect/certs"
+    )
 
 
 def validate_access_token(token: str) -> dict[str, Any]:
-    keycloak_url = os.getenv("KEYCLOAK_URL", "http://localhost:8080").rstrip("/")
     realm = os.getenv("KEYCLOAK_REALM", "droplet")
     client_id = os.getenv("KEYCLOAK_CLIENT_ID", "droplet-frontend")
-    issuer = f"{keycloak_url}/realms/{realm}"
+    issuer = f"{public_keycloak_url()}/realms/{realm}"
 
     try:
         signing_key = jwks_client().get_signing_key_from_jwt(token)
@@ -65,7 +68,7 @@ def validate_access_token(token: str) -> dict[str, Any]:
             issuer=issuer,
             options={"verify_exp": True},
         )
-    except jwt.InvalidAudienceError:
+    except (jwt.InvalidAudienceError, jwt.MissingRequiredClaimError):
         signing_key = jwks_client().get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,

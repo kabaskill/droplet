@@ -5,22 +5,27 @@ import {
   loginWithKeycloak,
   logoutFromKeycloak,
 } from "@/features/auth/keycloak"
+import {
+  fallbackAuthConfig,
+  fetchAuthConfig,
+  type AuthConfig,
+  type AuthMode,
+} from "@/features/auth/auth-config"
 import type { AuthStatus, AuthUser, DropletRole } from "@/features/auth/types"
 
 type AuthState = {
+  config: AuthConfig
   error: string | null
   hasAnyRole: (roles: DropletRole[]) => boolean
   initialize: () => Promise<void>
   login: () => Promise<void>
   logout: () => Promise<void>
-  mode: "demo" | "keycloak"
+  mode: AuthMode
   rejectSession: (message: string) => void
   status: AuthStatus
   token: string | null
   user: AuthUser | null
 }
-
-const mode = import.meta.env.VITE_AUTH_MODE ?? "demo"
 
 const demoUser: AuthUser = {
   email: "analyst@droplet.local",
@@ -30,6 +35,7 @@ const demoUser: AuthUser = {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
+  config: fallbackAuthConfig,
   error: null,
   hasAnyRole: (roles) => {
     const activeRoles = get().user?.roles ?? []
@@ -38,14 +44,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   initialize: async () => {
     set({ error: null, status: "loading" })
+    const config = await resolveAuthConfig()
+    set({ config, mode: config.authMode })
 
-    if (mode === "demo") {
+    if (config.authMode === "demo") {
       set({ status: "authenticated", token: "demo-token", user: demoUser })
       return
     }
 
     try {
-      const session = await initializeKeycloakSession()
+      const session = await initializeKeycloakSession(config)
       set({
         status: session.user ? "authenticated" : "unauthenticated",
         token: session.token,
@@ -61,21 +69,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   login: async () => {
-    if (mode === "demo") {
+    const config = get().config
+
+    if (config.authMode === "demo") {
       set({ error: null, status: "authenticated", token: "demo-token", user: demoUser })
       return
     }
 
-    await loginWithKeycloak()
+    await loginWithKeycloak(config)
   },
   logout: async () => {
-    if (mode === "keycloak") {
+    if (get().mode === "keycloak") {
       await logoutFromKeycloak()
     }
 
     set({ error: null, status: "unauthenticated", token: null, user: null })
   },
-  mode,
+  mode: fallbackAuthConfig.authMode,
   rejectSession: (message) => {
     set({ error: message, status: "unauthenticated", token: null, user: null })
   },
@@ -83,3 +93,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
 }))
+
+async function resolveAuthConfig() {
+  try {
+    return await fetchAuthConfig()
+  } catch {
+    return fallbackAuthConfig
+  }
+}
