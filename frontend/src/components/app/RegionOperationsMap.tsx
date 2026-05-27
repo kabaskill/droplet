@@ -6,15 +6,81 @@ import {
   snapshotFreshnessStatus,
 } from "@/services/snapshot-freshness"
 import type { Region, ReservoirSnapshot } from "@/services/types"
+import type { MapLayer } from "@/stores/app-store"
 
 type RegionOperationsMapProps = {
+  activeLayer: MapLayer
   onSelectRegion: (regionId: string) => void
   regions: Region[]
   selectedRegionId: string | null
   snapshots: ReservoirSnapshot[]
 }
 
-function riskClass(snapshot?: ReservoirSnapshot) {
+type LayerConfig = {
+  description: string
+  label: string
+  metric: (snapshot: ReservoirSnapshot) => number
+  shortLabel: string
+}
+
+const layerConfigs: Record<MapLayer, LayerConfig> = {
+  confidence: {
+    description: "Confidence and visibility quality across observed basins",
+    label: "Confidence",
+    metric: (snapshot) => snapshot.confidenceScore,
+    shortLabel: "Conf.",
+  },
+  rainfall: {
+    description: "Rainfall pressure contribution across observed basins",
+    label: "Rainfall",
+    metric: (snapshot) => snapshot.rainfallIndex,
+    shortLabel: "Rain",
+  },
+  "water-level": {
+    description: "Normalized river and reservoir level pressure by basin",
+    label: "Water level",
+    metric: (snapshot) => snapshot.waterLevel,
+    shortLabel: "Water",
+  },
+}
+
+function layerStatus(snapshot: ReservoirSnapshot, activeLayer: MapLayer) {
+  if (activeLayer === "confidence") {
+    if (snapshot.confidenceScore < 70 || snapshot.visibilityScore < 58) {
+      return "critical"
+    }
+
+    if (snapshot.confidenceScore < 82 || snapshot.visibilityScore < 68) {
+      return "watch"
+    }
+
+    return "healthy"
+  }
+
+  if (activeLayer === "rainfall") {
+    if (snapshot.rainfallIndex >= 70) {
+      return "critical"
+    }
+
+    if (snapshot.rainfallIndex >= 45) {
+      return "watch"
+    }
+
+    return "healthy"
+  }
+
+  if (snapshot.waterLevel >= 72) {
+    return "critical"
+  }
+
+  if (snapshot.waterLevel <= 42 || snapshot.evaporationPressure >= 62) {
+    return "watch"
+  }
+
+  return "healthy"
+}
+
+function riskClass(snapshot: ReservoirSnapshot | undefined, activeLayer: MapLayer) {
   if (!snapshot) {
     return "border-border bg-muted"
   }
@@ -23,11 +89,11 @@ function riskClass(snapshot?: ReservoirSnapshot) {
     return "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
   }
 
-  if (snapshot.waterLevel > 72 || snapshot.evaporationPressure > 62) {
+  if (layerStatus(snapshot, activeLayer) === "critical") {
     return "border-red-300 bg-red-50 text-red-950 dark:bg-red-950/30 dark:text-red-100"
   }
 
-  if (snapshot.confidenceScore < 74 || snapshot.visibilityScore < 64) {
+  if (layerStatus(snapshot, activeLayer) === "watch") {
     return "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
   }
 
@@ -35,12 +101,14 @@ function riskClass(snapshot?: ReservoirSnapshot) {
 }
 
 export function RegionOperationsMap({
+  activeLayer,
   onSelectRegion,
   regions,
   selectedRegionId,
   snapshots,
 }: RegionOperationsMapProps) {
   const [isPending, startTransition] = useTransition()
+  const activeLayerConfig = layerConfigs[activeLayer]
 
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
@@ -48,11 +116,11 @@ export function RegionOperationsMap({
         <div className="min-w-0">
           <h2 className="font-medium">Regional state</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Basin snapshots grouped for operational review
+            {activeLayerConfig.description}
           </p>
         </div>
         <span className="rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-          {isPending ? "Selecting" : `${regions.length} regions`}
+          {isPending ? "Selecting" : `${activeLayerConfig.label} layer`}
         </span>
       </div>
 
@@ -61,13 +129,14 @@ export function RegionOperationsMap({
           const snapshot = snapshots.find((item) => item.regionId === region.id)
           const selected = selectedRegionId === region.id
           const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
+          const primaryValue = snapshot ? activeLayerConfig.metric(snapshot) : 0
 
           return (
             <button
               aria-pressed={selected}
               className={cn(
-                "min-h-36 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
-                riskClass(snapshot),
+                "min-h-44 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
+                riskClass(snapshot, activeLayer),
                 selected && "ring-2 ring-primary/40"
               )}
               key={region.id}
@@ -93,24 +162,62 @@ export function RegionOperationsMap({
                 </span>
               </div>
 
-              <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <div className="opacity-70">Water</div>
-                  <div className="font-semibold">{snapshot?.waterLevel ?? 0}%</div>
+              <div className="mt-5">
+                <div className="flex items-end justify-between gap-2">
+                  <div className="text-xs opacity-75">
+                    {activeLayerConfig.shortLabel}
+                  </div>
+                  <div className="text-2xl font-semibold">{primaryValue}%</div>
                 </div>
-                <div>
-                  <div className="opacity-70">Rain</div>
-                  <div className="font-semibold">{snapshot?.rainfallIndex ?? 0}%</div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/70">
+                  <div
+                    className="h-full rounded-full bg-current"
+                    style={{ width: `${primaryValue}%` }}
+                  />
                 </div>
-                <div>
-                  <div className="opacity-70">Conf.</div>
-                  <div className="font-semibold">{snapshot?.confidenceScore ?? 0}%</div>
-                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
+                <MetricPill
+                  active={activeLayer === "water-level"}
+                  label="Water"
+                  value={snapshot?.waterLevel ?? 0}
+                />
+                <MetricPill
+                  active={activeLayer === "rainfall"}
+                  label="Rain"
+                  value={snapshot?.rainfallIndex ?? 0}
+                />
+                <MetricPill
+                  active={activeLayer === "confidence"}
+                  label="Conf."
+                  value={snapshot?.confidenceScore ?? 0}
+                />
               </div>
             </button>
           )
         })}
       </div>
     </section>
+  )
+}
+
+type MetricPillProps = {
+  active: boolean
+  label: string
+  value: number
+}
+
+function MetricPill({ active, label, value }: MetricPillProps) {
+  return (
+    <div
+      className={cn(
+        "rounded-sm bg-background/50 px-1.5 py-1",
+        active && "bg-background/80"
+      )}
+    >
+      <div className="opacity-70">{label}</div>
+      <div className="font-semibold">{value}%</div>
+    </div>
   )
 }

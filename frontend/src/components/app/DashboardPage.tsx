@@ -36,6 +36,7 @@ const emptyRegions: Region[] = []
 const emptySnapshots: ReservoirSnapshot[] = []
 
 export function DashboardPage() {
+  const activeLayer = useAppStore((state) => state.activeLayer)
   const selectedRegionId = useAppStore((state) => state.selectedRegionId)
   const setSelectedRegionId = useAppStore((state) => state.setSelectedRegionId)
   const regionsQuery = useRegions()
@@ -167,6 +168,7 @@ export function DashboardPage() {
               </section>
             ) : null}
             <RegionOperationsMap
+              activeLayer={activeLayer}
               regions={regions}
               selectedRegionId={activeRegion?.id ?? null}
               snapshots={snapshots}

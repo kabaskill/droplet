@@ -51,3 +51,4 @@
 - Added a cached Open-Meteo forecast outlook read model with snapshot-derived fallback and a dashboard panel for 48-hour regional pressure estimates.
 - Added frontend resilience handling with API-aware retry rules, a global workspace error boundary, and dashboard notices for live read model failures.
 - Added role-aware snapshot history depth so municipality users can review up to 30 observations while basic users remain capped at 14.
+- Wired the dashboard map layer selector into regional state cards so water, rainfall, and confidence views change card emphasis and primary metrics.
