@@ -73,7 +73,7 @@ def seed_demo_data() -> None:
 
         session.flush()
 
-        now = datetime.now(UTC)
+        history_end = datetime.now(UTC) - timedelta(hours=6)
 
         for region_id, reading in READINGS.items():
             for index in range(9):
@@ -93,7 +93,7 @@ def seed_demo_data() -> None:
                         rainfall_index=snapshot.rainfall_index,
                         region_id=region_id,
                         source=snapshot.source,
-                        timestamp=now - timedelta(days=8 - index),
+                        timestamp=history_end - timedelta(days=8 - index),
                         trend=snapshot.trend,
                         visibility_score=snapshot.visibility_score,
                         water_level=snapshot.water_level,

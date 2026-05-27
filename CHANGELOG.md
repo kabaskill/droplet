@@ -27,3 +27,9 @@
 - Added Redis read-through caching for region, snapshot, and analytics read models with worker cache invalidation after snapshot refreshes.
 - Added a protected snapshot refresh command that queues the ingestion worker and lets the frontend refresh cached snapshot and analytics queries.
 - Bounded Celery publish timeouts so snapshot refresh falls back quickly when the broker is unreachable.
+- Added live environmental ingestion for snapshot refreshes:
+  - Fetches Pegelonline W water-level measurements for the configured German basin stations.
+  - Fetches Open-Meteo current weather and recent precipitation context for the same regions.
+  - Normalizes live water levels against Pegelonline characteristic values when available, then persists computed snapshots through the existing worker pipeline.
+  - Keeps fallback environmental readings so refreshes still produce snapshots when an external API is temporarily unavailable.
+  - Backdates seeded history slightly so a successful ingestion refresh becomes the latest snapshot in fresh databases.

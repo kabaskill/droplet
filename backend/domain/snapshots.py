@@ -13,6 +13,8 @@ class EnvironmentalReading:
     source: str
     temperature_c: float
     water_level_cm: float
+    observed_at: datetime | None = None
+    normalized_water_level: float | None = None
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,11 @@ class ComputedSnapshot:
 
 def compute_snapshot(reading: EnvironmentalReading) -> ComputedSnapshot:
     rainfall_index = clamp((reading.rainfall_mm / 45) * 100)
-    water_level = clamp((reading.water_level_cm / 650) * 100)
+    water_level = (
+        clamp(reading.normalized_water_level)
+        if reading.normalized_water_level is not None
+        else clamp((reading.water_level_cm / 650) * 100)
+    )
     evaporation_pressure = clamp(
         ((reading.temperature_c - 5) * 2.3) + ((100 - reading.humidity_percent) * 0.55)
     )
@@ -50,7 +56,7 @@ def compute_snapshot(reading: EnvironmentalReading) -> ComputedSnapshot:
         evaporation_pressure=round(evaporation_pressure),
         rainfall_index=round(rainfall_index),
         source=reading.source,
-        timestamp=datetime.now(UTC),
+        timestamp=reading.observed_at or datetime.now(UTC),
         trend=trend,
         visibility_score=round(visibility_score),
         water_level=round(water_level),

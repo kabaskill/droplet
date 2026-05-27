@@ -4,7 +4,7 @@ from typing import Any
 from redis import Redis
 from redis.exceptions import RedisError
 
-from backend.tasks.ingestion import refresh_demo_snapshots
+from backend.tasks.ingestion import refresh_reservoir_snapshots
 
 
 def broker_available() -> bool:
@@ -27,7 +27,7 @@ def broker_available() -> bool:
 
 def enqueue_snapshot_refresh() -> dict[str, Any]:
     if not broker_available():
-        snapshots_created = refresh_demo_snapshots()
+        snapshots_created = refresh_reservoir_snapshots()
 
         return {
             "snapshotsCreated": snapshots_created,
@@ -35,9 +35,9 @@ def enqueue_snapshot_refresh() -> dict[str, Any]:
         }
 
     try:
-        result = refresh_demo_snapshots.delay()
+        result = refresh_reservoir_snapshots.delay()
     except Exception:
-        snapshots_created = refresh_demo_snapshots()
+        snapshots_created = refresh_reservoir_snapshots()
 
         return {
             "snapshotsCreated": snapshots_created,
