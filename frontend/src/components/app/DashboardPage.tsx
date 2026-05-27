@@ -5,7 +5,7 @@ import {
   MapsIcon,
 } from "@hugeicons/core-free-icons"
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { AppShell } from "@/components/app/AppShell"
@@ -14,6 +14,7 @@ import { MetricTile } from "@/components/app/MetricTile"
 import { RegionComparisonPanel } from "@/components/app/RegionComparisonPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
+import { RegionalFilterBar } from "@/components/app/RegionalFilterBar"
 import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
 import {
   useAnalyticsSummary,
@@ -26,6 +27,10 @@ import {
   useSnapshotHistory,
 } from "@/hooks/use-droplet-data"
 import { isDropletApiError } from "@/services/api"
+import {
+  filterRegions,
+  regionalFilterCounts,
+} from "@/services/regional-filters"
 import { useAppStore } from "@/stores/app-store"
 import type {
   RefreshSnapshotsResult,
@@ -39,7 +44,9 @@ const emptySnapshots: ReservoirSnapshot[] = []
 export function DashboardPage() {
   const activeLayer = useAppStore((state) => state.activeLayer)
   const comparisonMode = useAppStore((state) => state.comparisonMode)
+  const regionalFilter = useAppStore((state) => state.regionalFilter)
   const selectedRegionId = useAppStore((state) => state.selectedRegionId)
+  const setRegionalFilter = useAppStore((state) => state.setRegionalFilter)
   const setSelectedRegionId = useAppStore((state) => state.setSelectedRegionId)
   const regionsQuery = useRegions()
   const snapshotsQuery = useLatestSnapshots()
@@ -53,6 +60,14 @@ export function DashboardPage() {
 
   const regions = regionsQuery.data ?? emptyRegions
   const snapshots = snapshotsQuery.data ?? emptySnapshots
+  const filteredRegions = useMemo(
+    () => filterRegions(regions, snapshots, regionalFilter),
+    [regions, snapshots, regionalFilter]
+  )
+  const filterCounts = useMemo(
+    () => regionalFilterCounts(regions, snapshots),
+    [regions, snapshots]
+  )
 
   useEffect(() => {
     const updateNow = () => setNow(Date.now())
@@ -64,10 +79,22 @@ export function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (!selectedRegionId && regions[0]) {
-      setSelectedRegionId(regions[0].id)
+    if (!regions[0]) {
+      return
     }
-  }, [regions, selectedRegionId, setSelectedRegionId])
+
+    if (!selectedRegionId) {
+      setSelectedRegionId(regions[0].id)
+      return
+    }
+
+    if (
+      filteredRegions.length > 0 &&
+      !filteredRegions.some(({ region }) => region.id === selectedRegionId)
+    ) {
+      setSelectedRegionId(filteredRegions[0].region.id)
+    }
+  }, [filteredRegions, regions, selectedRegionId, setSelectedRegionId])
 
   const activeRegion =
     regions.find((region) => region.id === selectedRegionId) ?? regions[0] ?? null
@@ -134,7 +161,11 @@ export function DashboardPage() {
             icon={MapsIcon}
             label="Regions"
             tone="blue"
-            value={`${summary?.regionsObserved ?? regions.length}`}
+            value={
+              regionalFilter === "all"
+                ? `${summary?.regionsObserved ?? regions.length}`
+                : `${filteredRegions.length}/${regions.length}`
+            }
           />
           <MetricTile
             icon={DropletIcon}
@@ -169,19 +200,22 @@ export function DashboardPage() {
                 <div className="mt-1">{operationalError}</div>
               </section>
             ) : null}
+            <RegionalFilterBar
+              activeFilter={regionalFilter}
+              counts={filterCounts}
+              onChange={setRegionalFilter}
+            />
             <RegionOperationsMap
               activeLayer={activeLayer}
-              regions={regions}
+              filteredRegions={filteredRegions}
               selectedRegionId={activeRegion?.id ?? null}
-              snapshots={snapshots}
               onSelectRegion={setSelectedRegionId}
             />
             {comparisonMode ? (
               <RegionComparisonPanel
                 activeLayer={activeLayer}
-                regions={regions}
+                filteredRegions={filteredRegions}
                 selectedRegionId={activeRegion?.id ?? null}
-                snapshots={snapshots}
                 onSelectRegion={setSelectedRegionId}
               />
             ) : null}
