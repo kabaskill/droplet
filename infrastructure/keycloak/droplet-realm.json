@@ -40,6 +40,23 @@
   ],
   "users": [
     {
+      "username": "citizen",
+      "enabled": true,
+      "email": "citizen@droplet.local",
+      "firstName": "Droplet",
+      "lastName": "Citizen",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "droplet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "citizen"
+      ]
+    },
+    {
       "username": "analyst",
       "enabled": true,
       "email": "analyst@droplet.local",
@@ -55,6 +72,24 @@
       "realmRoles": [
         "citizen",
         "analyst",
+        "municipality"
+      ]
+    },
+    {
+      "username": "municipality",
+      "enabled": true,
+      "email": "municipality@droplet.local",
+      "firstName": "Droplet",
+      "lastName": "Municipality",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "droplet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "citizen",
         "municipality"
       ]
     }

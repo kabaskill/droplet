@@ -22,15 +22,15 @@ def require_auth(roles: list[str] | None = None) -> Callable[[F], F]:
                 scheme, _, token = auth_header.partition(" ")
 
                 if scheme.lower() != "bearer" or not token:
-                    return jsonify({"error": "missing bearer token"}), 401
+                    return jsonify({"code": "unauthenticated", "error": "missing bearer token"}), 401
 
                 try:
                     current_user = validate_access_token(token)
                 except AuthError as exc:
-                    return jsonify({"error": str(exc)}), 401
+                    return jsonify({"code": "unauthenticated", "error": str(exc)}), 401
 
             if required_roles and not required_roles.intersection(current_user["roles"]):
-                return jsonify({"error": "insufficient role"}), 403
+                return jsonify({"code": "forbidden", "error": "insufficient role"}), 403
 
             g.current_user = current_user
             return view(*args, **kwargs)

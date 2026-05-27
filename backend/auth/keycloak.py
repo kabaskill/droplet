@@ -11,7 +11,26 @@ class AuthError(Exception):
 
 
 def auth_mode() -> str:
-    return os.getenv("AUTH_MODE", "demo")
+    mode = os.getenv("AUTH_MODE", "demo").lower()
+
+    if mode not in {"demo", "keycloak"}:
+        return "demo"
+
+    return mode
+
+
+def auth_config() -> dict[str, str]:
+    keycloak_url = os.getenv(
+        "KEYCLOAK_PUBLIC_URL",
+        os.getenv("KEYCLOAK_URL", "http://localhost:8080"),
+    ).rstrip("/")
+
+    return {
+        "authMode": auth_mode(),
+        "clientId": os.getenv("KEYCLOAK_CLIENT_ID", "droplet-frontend"),
+        "realm": os.getenv("KEYCLOAK_REALM", "droplet"),
+        "url": keycloak_url,
+    }
 
 
 def demo_user() -> dict[str, Any]:

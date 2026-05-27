@@ -11,4 +11,7 @@ External APIs
   -> React operational workspace
 ```
 
-The first prototype slice runs in demo auth mode by default. Keycloak realm, client, roles, and a demo user are included so the app can be switched to OIDC validation by setting `VITE_AUTH_MODE=keycloak` and `AUTH_MODE=keycloak`.
+The prototype runs in demo auth mode by default. Keycloak realm, client, roles,
+and local test users are included so the app can be switched to OIDC validation
+by setting `VITE_AUTH_MODE=keycloak` and `AUTH_MODE=keycloak`. See
+`docs/auth.md` for local users and role behavior.

@@ -65,3 +65,15 @@ export async function loginWithKeycloak() {
 export async function logoutFromKeycloak() {
   await getClient().logout()
 }
+
+export async function refreshKeycloakToken() {
+  const client = getClient()
+
+  if (!client.authenticated || !client.token) {
+    return null
+  }
+
+  await client.updateToken(30)
+
+  return client.token ?? null
+}

@@ -14,6 +14,7 @@ type AuthState = {
   login: () => Promise<void>
   logout: () => Promise<void>
   mode: "demo" | "keycloak"
+  rejectSession: (message: string) => void
   status: AuthStatus
   token: string | null
   user: AuthUser | null
@@ -75,6 +76,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ error: null, status: "unauthenticated", token: null, user: null })
   },
   mode,
+  rejectSession: (message) => {
+    set({ error: message, status: "unauthenticated", token: null, user: null })
+  },
   status: "loading",
   token: null,
   user: null,

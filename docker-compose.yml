@@ -26,6 +26,7 @@ services:
       CORS_ORIGINS: http://localhost:5173
       DATABASE_URL: postgresql+psycopg://droplet:droplet@postgres:5432/droplet
       KEYCLOAK_CLIENT_ID: droplet-frontend
+      KEYCLOAK_PUBLIC_URL: http://localhost:8080
       KEYCLOAK_REALM: droplet
       KEYCLOAK_URL: http://keycloak:8080
       REDIS_URL: redis://redis:6379/0

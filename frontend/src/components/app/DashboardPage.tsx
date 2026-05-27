@@ -84,6 +84,12 @@ export function DashboardPage() {
   const refreshMessage = refreshSnapshots.isError
     ? refreshErrorMessage(refreshSnapshots.error)
     : refreshResultMessage(refreshSnapshots.data)
+  const accessError = firstAccessError([
+    analyticsQuery.error,
+    sourceHealthQuery.error,
+    ingestionStatusQuery.error,
+    refreshSnapshots.error,
+  ])
   const handleRefresh = () => {
     refreshSnapshots.mutate(undefined, {
       onSuccess: () => {
@@ -133,6 +139,11 @@ export function DashboardPage() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="grid gap-4">
+            {accessError ? (
+              <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
+                {accessError}
+              </section>
+            ) : null}
             <RegionOperationsMap
               regions={regions}
               selectedRegionId={activeRegion?.id ?? null}
@@ -175,4 +186,18 @@ function refreshResultMessage(result: RefreshSnapshotsResult | undefined) {
 
 function refreshErrorMessage(error: Error | null) {
   return error?.message ?? "Refresh failed"
+}
+
+function firstAccessError(errors: unknown[]) {
+  for (const error of errors) {
+    if (!(error instanceof Error)) {
+      continue
+    }
+
+    if (error.message === "insufficient role") {
+      return "Your current role can view regions, but analyst or municipality access is required for this operation."
+    }
+  }
+
+  return null
 }

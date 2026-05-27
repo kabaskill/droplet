@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/features/auth/auth-store"
+import { refreshKeycloakToken } from "@/features/auth/keycloak"
 import {
   demoRegions,
   demoSnapshots,
@@ -23,8 +24,18 @@ const demoFallback = import.meta.env.VITE_DEMO_FALLBACK !== "false"
 const refreshPollIntervalMs = 1_500
 const refreshPollMaxAttempts = 40
 
+class DropletApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = "DropletApiError"
+    this.status = status
+  }
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = useAuthStore.getState().token
+  const token = await activeAccessToken()
   const headers = new Headers(init?.headers)
   headers.set("Accept", "application/json")
 
@@ -42,10 +53,37 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    throw new Error(`Droplet API returned ${response.status}`)
+    const message = await responseErrorMessage(response)
+
+    if (response.status === 401) {
+      useAuthStore.getState().rejectSession(message)
+    }
+
+    throw new DropletApiError(response.status, message)
   }
 
   return response.json() as Promise<T>
+}
+
+async function activeAccessToken() {
+  const auth = useAuthStore.getState()
+
+  if (auth.mode !== "keycloak") {
+    return auth.token
+  }
+
+  try {
+    const token = await refreshKeycloakToken()
+
+    if (token) {
+      useAuthStore.setState({ token })
+    }
+
+    return token
+  } catch {
+    auth.rejectSession("Authentication session expired")
+    return null
+  }
 }
 
 async function withFallback<T>(
@@ -55,12 +93,30 @@ async function withFallback<T>(
   try {
     return await request()
   } catch (error) {
-    if (!demoFallback) {
+    if (!demoFallback || isAuthError(error)) {
       throw error
     }
 
     return fallback()
   }
+}
+
+async function responseErrorMessage(response: Response) {
+  try {
+    const payload = await response.json()
+
+    if (typeof payload?.error === "string") {
+      return payload.error
+    }
+  } catch {
+    return `Droplet API returned ${response.status}`
+  }
+
+  return `Droplet API returned ${response.status}`
+}
+
+function isAuthError(error: unknown) {
+  return error instanceof DropletApiError && [401, 403].includes(error.status)
 }
 
 export function fetchRegions() {
