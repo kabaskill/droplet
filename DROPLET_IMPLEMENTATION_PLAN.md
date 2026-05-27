@@ -85,7 +85,7 @@ The platform prioritizes:
 - TanStack Query
 - TanStack Router
 - TailwindCSS
-- lucide-react for icons
+- hugeicons-react for icons
 - shadcn/ui for selected accessible UI primitives
 - PWA plugin (optional, last priority, don't attempt to implement if not asked by the developer)
 
@@ -288,11 +288,11 @@ Focus on:
 
 # Frontend UI Component Strategy
 
-Use lucide-react and shadcn/ui pragmatically.
+Use hugeicons-react and shadcn/ui pragmatically.
 
 ## Icons
 
-Use lucide-react as the default icon library.
+Use hugeicons-react as the default icon library.
 
 Recommended icon direction:
 - clean
@@ -734,7 +734,7 @@ Use Codex for:
 - TanStack Query hooks
 - Keycloak integration helpers
 - Flask endpoint structure
-- lucide-react icon usage
+- hugeicons-react icon usage
 - shadcn/ui primitive setup and wiring
 
 ---
@@ -821,7 +821,7 @@ Tasks:
 - detail panel
 - charts
 - responsive layout
-- lucide-react icon integration
+- hugeicons-react icon integration
 - selective shadcn/ui primitive usage
 - loading states
 - stale data indicators
