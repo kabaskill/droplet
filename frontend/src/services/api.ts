@@ -16,6 +16,8 @@ import type {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api"
 const demoFallback = import.meta.env.VITE_DEMO_FALLBACK !== "false"
+const refreshPollIntervalMs = 1_500
+const refreshPollMaxAttempts = 40
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const token = useAuthStore.getState().token
@@ -98,10 +100,17 @@ export function analyzeSnapshot(snapshot: ReservoirSnapshot) {
 
 export function refreshSnapshots() {
   return withFallback(
-    () =>
-      requestJson<RefreshSnapshotsResult>("/snapshots/refresh", {
+    async () => {
+      const refresh = await requestJson<RefreshSnapshotsResult>("/snapshots/refresh", {
         method: "POST",
-      }),
+      })
+
+      if (refresh.status !== "queued" || !refresh.taskId) {
+        return refresh
+      }
+
+      return pollSnapshotRefresh(refresh.taskId)
+    },
     () => ({
       snapshotRefresh: {
         created: demoSnapshots.length,
@@ -116,4 +125,28 @@ export function refreshSnapshots() {
       status: "completed" as const,
     })
   )
+}
+
+async function pollSnapshotRefresh(taskId: string): Promise<RefreshSnapshotsResult> {
+  for (let attempt = 0; attempt < refreshPollMaxAttempts; attempt += 1) {
+    await delay(refreshPollIntervalMs)
+
+    const result = await requestJson<RefreshSnapshotsResult>(
+      `/snapshots/refresh/${taskId}`
+    )
+
+    if (result.status === "completed") {
+      return result
+    }
+
+    if (result.status === "failed") {
+      throw new Error(result.error ?? "Snapshot refresh failed")
+    }
+  }
+
+  throw new Error("Snapshot refresh did not complete in time")
+}
+
+function delay(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }

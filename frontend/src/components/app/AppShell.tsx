@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 type AppShellProps = {
   children: ReactNode
   onRefresh: () => void
+  refreshMessage?: string | null
   refreshing: boolean
   stale: boolean
   syncing: boolean
@@ -33,6 +34,7 @@ const layers: { id: MapLayer; label: string }[] = [
 export function AppShell({
   children,
   onRefresh,
+  refreshMessage,
   refreshing,
   stale,
   syncing,
@@ -112,7 +114,9 @@ export function AppShell({
                 )}
               >
                 <ProductIcon icon={stale ? WifiOffIcon : RefreshIcon} size={14} />
-                <span>{syncing ? "Syncing" : stale ? "Stale" : "Current"}</span>
+                <span>
+                  {refreshing ? "Refreshing" : syncing ? "Syncing" : stale ? "Stale" : "Current"}
+                </span>
               </div>
 
               <Button
@@ -122,8 +126,14 @@ export function AppShell({
                 onClick={onRefresh}
               >
                 <ProductIcon icon={RefreshIcon} />
-                Refresh
+                {refreshing ? "Refreshing" : "Refresh"}
               </Button>
+
+              {refreshMessage ? (
+                <div className="hidden h-8 max-w-72 items-center rounded-md border bg-card px-2 text-xs text-muted-foreground md:flex">
+                  <span className="truncate">{refreshMessage}</span>
+                </div>
+              ) : null}
 
               <div className="hidden h-8 items-center gap-2 rounded-md border bg-card px-2 text-xs text-muted-foreground sm:flex">
                 <ProductIcon icon={UserShieldIcon} size={14} />

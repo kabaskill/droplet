@@ -20,7 +20,11 @@ import {
   useSnapshotHistory,
 } from "@/hooks/use-droplet-data"
 import { useAppStore } from "@/stores/app-store"
-import type { Region, ReservoirSnapshot } from "@/services/types"
+import type {
+  RefreshSnapshotsResult,
+  Region,
+  ReservoirSnapshot,
+} from "@/services/types"
 
 const emptyRegions: Region[] = []
 const emptySnapshots: ReservoirSnapshot[] = []
@@ -68,6 +72,9 @@ export function DashboardPage() {
       now - snapshotsQuery.dataUpdatedAt > 1000 * 60 * 5)
   const syncing =
     regionsQuery.isFetching || snapshotsQuery.isFetching || analyticsQuery.isFetching
+  const refreshMessage = refreshSnapshots.isError
+    ? refreshErrorMessage(refreshSnapshots.error)
+    : refreshResultMessage(refreshSnapshots.data)
   const handleRefresh = () => {
     refreshSnapshots.mutate(undefined, {
       onSuccess: () => {
@@ -79,6 +86,7 @@ export function DashboardPage() {
 
   return (
     <AppShell
+      refreshMessage={refreshMessage}
       refreshing={refreshSnapshots.isPending}
       stale={stale}
       syncing={syncing}
@@ -138,4 +146,18 @@ export function DashboardPage() {
       </main>
     </AppShell>
   )
+}
+
+function refreshResultMessage(result: RefreshSnapshotsResult | undefined) {
+  if (!result?.snapshotRefresh || result.status !== "completed") {
+    return null
+  }
+
+  const { created, skipped, updated } = result.snapshotRefresh
+
+  return `Created ${created} · Updated ${updated} · Skipped ${skipped}`
+}
+
+function refreshErrorMessage(error: Error | null) {
+  return error?.message ?? "Refresh failed"
 }

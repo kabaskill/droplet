@@ -6,7 +6,7 @@ from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import analyze_snapshot_payload
 from backend.services.analytics import build_analytics_summary
-from backend.services.ingestion import enqueue_snapshot_refresh
+from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
 
 api_bp = Blueprint("api", __name__)
 
@@ -60,6 +60,12 @@ def region_snapshots(region_id: str):
 @require_auth(roles=["analyst", "municipality"])
 def refresh_snapshots():
     return jsonify(enqueue_snapshot_refresh()), 202
+
+
+@api_bp.get("/snapshots/refresh/<task_id>")
+@require_auth(roles=["analyst", "municipality"])
+def refresh_snapshot_status(task_id: str):
+    return jsonify(snapshot_refresh_status(task_id))
 
 
 @api_bp.get("/analytics/summary")

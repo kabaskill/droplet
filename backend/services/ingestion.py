@@ -5,6 +5,7 @@ from redis import Redis
 from redis.exceptions import RedisError
 
 from backend.tasks.ingestion import refresh_reservoir_snapshots
+from backend.workers.celery_app import celery_app
 
 
 def broker_available() -> bool:
@@ -40,7 +41,36 @@ def enqueue_snapshot_refresh() -> dict[str, Any]:
     }
 
 
-def _completed_response(refresh_result: dict[str, int] | int) -> dict[str, Any]:
+def snapshot_refresh_status(task_id: str) -> dict[str, Any]:
+    task_result = celery_app.AsyncResult(task_id)
+    state = task_result.state
+
+    if state == "SUCCESS":
+        return _completed_response(task_result.result, task_id)
+
+    if state == "FAILURE":
+        return {
+            "error": str(task_result.result),
+            "status": "failed",
+            "taskId": task_id,
+        }
+
+    if state in {"STARTED", "RETRY"}:
+        return {
+            "status": "running",
+            "taskId": task_id,
+        }
+
+    return {
+        "status": "queued",
+        "taskId": task_id,
+    }
+
+
+def _completed_response(
+    refresh_result: dict[str, int] | int,
+    task_id: str | None = None,
+) -> dict[str, Any]:
     if isinstance(refresh_result, int):
         refresh_result = {
             "created": refresh_result,
@@ -49,7 +79,7 @@ def _completed_response(refresh_result: dict[str, int] | int) -> dict[str, Any]:
             "updated": 0,
         }
 
-    return {
+    response = {
         "snapshotRefresh": refresh_result,
         "snapshotsCreated": refresh_result["created"],
         "snapshotsProcessed": refresh_result["processed"],
@@ -57,3 +87,8 @@ def _completed_response(refresh_result: dict[str, int] | int) -> dict[str, Any]:
         "snapshotsUpdated": refresh_result["updated"],
         "status": "completed",
     }
+
+    if task_id:
+        response["taskId"] = task_id
+
+    return response

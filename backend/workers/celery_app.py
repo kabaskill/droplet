@@ -15,3 +15,4 @@ celery_app.conf.broker_transport_options = {
     "socket_timeout": 1,
 }
 celery_app.conf.task_publish_retry = False
+celery_app.conf.task_track_started = True

@@ -39,3 +39,4 @@
   - Parses recent hourly ZIP products for temperature, humidity, and 24-hour rainfall totals.
   - Falls back to Open-Meteo weather only when DWD source products are unavailable.
 - Made snapshot ingestion idempotent by updating or skipping existing region/timestamp observations instead of appending duplicate history rows.
+- Added refresh task status polling so the frontend waits for queued Celery ingestion to finish before refetching snapshots and shows created/updated/skipped counts.
