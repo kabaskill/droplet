@@ -8,3 +8,4 @@ celery_app = Celery(
     broker=os.getenv("CELERY_BROKER_URL", os.getenv("REDIS_URL", "redis://localhost:6379/0")),
     include=["backend.tasks.ingestion"],
 )
+celery_app.conf.broker_connection_retry_on_startup = True

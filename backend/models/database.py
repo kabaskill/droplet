@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
 
 
 engine = create_engine(
-    os.getenv("DATABASE_URL", "sqlite:///droplet.db"),
+    os.getenv("DATABASE_URL", "sqlite:////tmp/droplet.db"),
     pool_pre_ping=True,
 )
 SessionLocal = scoped_session(

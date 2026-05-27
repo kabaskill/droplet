@@ -22,3 +22,5 @@
   - Keycloak realm import with `citizen`, `analyst`, and `municipality` roles.
   - Short architecture note in `docs/prototype-architecture.md`.
 - Updated the backend PostgreSQL driver pin to a Python 3.14-compatible 3.2.x release for local smoke testing.
+- Branded the Vite document shell with Droplet title/favicon and reduced container runtime warnings for the worker.
+- Moved the backend fallback SQLite database path to `/tmp` so the non-root container user can run without a database URL.
