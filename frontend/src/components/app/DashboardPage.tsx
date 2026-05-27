@@ -4,6 +4,7 @@ import {
   DropletIcon,
   MapsIcon,
 } from "@hugeicons/core-free-icons"
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
@@ -15,6 +16,7 @@ import {
   useAnalyticsSummary,
   useLatestSnapshots,
   useRegions,
+  useRefreshSnapshots,
   useSnapshotHistory,
 } from "@/hooks/use-droplet-data"
 import { useAppStore } from "@/stores/app-store"
@@ -29,6 +31,8 @@ export function DashboardPage() {
   const regionsQuery = useRegions()
   const snapshotsQuery = useLatestSnapshots()
   const analyticsQuery = useAnalyticsSummary()
+  const refreshSnapshots = useRefreshSnapshots()
+  const queryClient = useQueryClient()
   const [now, setNow] = useState(0)
 
   const regions = regionsQuery.data ?? emptyRegions
@@ -64,9 +68,22 @@ export function DashboardPage() {
       now - snapshotsQuery.dataUpdatedAt > 1000 * 60 * 5)
   const syncing =
     regionsQuery.isFetching || snapshotsQuery.isFetching || analyticsQuery.isFetching
+  const handleRefresh = () => {
+    refreshSnapshots.mutate(undefined, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
+        void queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      },
+    })
+  }
 
   return (
-    <AppShell stale={stale} syncing={syncing}>
+    <AppShell
+      refreshing={refreshSnapshots.isPending}
+      stale={stale}
+      syncing={syncing}
+      onRefresh={handleRefresh}
+    >
       <main className="mx-auto grid max-w-7xl gap-4 p-4 md:p-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricTile

@@ -36,3 +36,9 @@ export type AiAnalysisResult = {
   riskLevel: "high" | "low" | "medium"
   summary: string
 }
+
+export type RefreshSnapshotsResult = {
+  snapshotsCreated?: number
+  status: "completed" | "queued"
+  taskId?: string
+}

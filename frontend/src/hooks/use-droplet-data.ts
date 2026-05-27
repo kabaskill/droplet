@@ -6,6 +6,7 @@ import {
   fetchLatestSnapshots,
   fetchRegions,
   fetchSnapshotHistory,
+  refreshSnapshots,
 } from "@/services/api"
 import type { ReservoirSnapshot } from "@/services/types"
 
@@ -41,5 +42,11 @@ export function useAnalyticsSummary() {
 export function useAiAnalysis() {
   return useMutation({
     mutationFn: (snapshot: ReservoirSnapshot) => analyzeSnapshot(snapshot),
+  })
+}
+
+export function useRefreshSnapshots() {
+  return useMutation({
+    mutationFn: refreshSnapshots,
   })
 }

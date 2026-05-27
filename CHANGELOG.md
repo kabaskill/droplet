@@ -25,3 +25,5 @@
 - Branded the Vite document shell with Droplet title/favicon and reduced container runtime warnings for the worker.
 - Moved the backend fallback SQLite database path to `/tmp` so the non-root container user can run without a database URL.
 - Added Redis read-through caching for region, snapshot, and analytics read models with worker cache invalidation after snapshot refreshes.
+- Added a protected snapshot refresh command that queues the ingestion worker and lets the frontend refresh cached snapshot and analytics queries.
+- Bounded Celery publish timeouts so snapshot refresh falls back quickly when the broker is unreachable.

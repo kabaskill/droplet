@@ -9,6 +9,7 @@ import {
 import type {
   AiAnalysisResult,
   AnalyticsSummary,
+  RefreshSnapshotsResult,
   Region,
   ReservoirSnapshot,
 } from "@/services/types"
@@ -92,5 +93,15 @@ export function analyzeSnapshot(snapshot: ReservoirSnapshot) {
         method: "POST",
       }),
     () => getDemoAiAnalysis(snapshot)
+  )
+}
+
+export function refreshSnapshots() {
+  return withFallback(
+    () =>
+      requestJson<RefreshSnapshotsResult>("/snapshots/refresh", {
+        method: "POST",
+      }),
+    () => ({ snapshotsCreated: demoSnapshots.length, status: "completed" as const })
   )
 }

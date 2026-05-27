@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 
 type AppShellProps = {
   children: ReactNode
+  onRefresh: () => void
+  refreshing: boolean
   stale: boolean
   syncing: boolean
 }
@@ -28,7 +30,13 @@ const layers: { id: MapLayer; label: string }[] = [
   { id: "confidence", label: "Confidence" },
 ]
 
-export function AppShell({ children, stale, syncing }: AppShellProps) {
+export function AppShell({
+  children,
+  onRefresh,
+  refreshing,
+  stale,
+  syncing,
+}: AppShellProps) {
   const activeLayer = useAppStore((state) => state.activeLayer)
   const setActiveLayer = useAppStore((state) => state.setActiveLayer)
   const logout = useAuthStore((state) => state.logout)
@@ -106,6 +114,16 @@ export function AppShell({ children, stale, syncing }: AppShellProps) {
                 <ProductIcon icon={stale ? WifiOffIcon : RefreshIcon} size={14} />
                 <span>{syncing ? "Syncing" : stale ? "Stale" : "Current"}</span>
               </div>
+
+              <Button
+                disabled={refreshing}
+                size="lg"
+                variant="outline"
+                onClick={onRefresh}
+              >
+                <ProductIcon icon={RefreshIcon} />
+                Refresh
+              </Button>
 
               <div className="hidden h-8 items-center gap-2 rounded-md border bg-card px-2 text-xs text-muted-foreground sm:flex">
                 <ProductIcon icon={UserShieldIcon} size={14} />
