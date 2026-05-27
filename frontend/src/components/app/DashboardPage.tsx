@@ -24,6 +24,7 @@ import {
   useSourceHealth,
   useSnapshotHistory,
 } from "@/hooks/use-droplet-data"
+import { isDropletApiError } from "@/services/api"
 import { useAppStore } from "@/stores/app-store"
 import type {
   RefreshSnapshotsResult,
@@ -95,6 +96,15 @@ export function DashboardPage() {
     forecastOutlookQuery.error,
     refreshSnapshots.error,
   ])
+  const operationalError = firstOperationalError([
+    regionsQuery.error,
+    snapshotsQuery.error,
+    historyQuery.error,
+    analyticsQuery.error,
+    sourceHealthQuery.error,
+    ingestionStatusQuery.error,
+    forecastOutlookQuery.error,
+  ])
   const handleRefresh = () => {
     refreshSnapshots.mutate(undefined, {
       onSuccess: () => {
@@ -148,6 +158,12 @@ export function DashboardPage() {
             {accessError ? (
               <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
                 {accessError}
+              </section>
+            ) : null}
+            {operationalError ? (
+              <section className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 shadow-sm dark:bg-red-950/30 dark:text-red-200">
+                <div className="font-medium">Live read model unavailable</div>
+                <div className="mt-1">{operationalError}</div>
               </section>
             ) : null}
             <RegionOperationsMap
@@ -208,6 +224,30 @@ function firstAccessError(errors: unknown[]) {
     if (error.message === "insufficient role") {
       return "Your current role can view regions, but analyst or municipality access is required for this operation."
     }
+  }
+
+  return null
+}
+
+function firstOperationalError(errors: unknown[]) {
+  for (const error of errors) {
+    if (!(error instanceof Error)) {
+      continue
+    }
+
+    if (isDropletApiError(error) && [401, 403].includes(error.status)) {
+      continue
+    }
+
+    if (error.message === "insufficient role") {
+      continue
+    }
+
+    if (isDropletApiError(error)) {
+      return `${error.message} (${error.status})`
+    }
+
+    return error.message
   }
 
   return null

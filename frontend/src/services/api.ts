@@ -26,8 +26,8 @@ const demoFallback = import.meta.env.VITE_DEMO_FALLBACK !== "false"
 const refreshPollIntervalMs = 1_500
 const refreshPollMaxAttempts = 40
 
-class DropletApiError extends Error {
-  status: number
+export class DropletApiError extends Error {
+  readonly status: number
 
   constructor(status: number, message: string) {
     super(message)
@@ -118,7 +118,11 @@ async function responseErrorMessage(response: Response) {
 }
 
 function isAuthError(error: unknown) {
-  return error instanceof DropletApiError && [401, 403].includes(error.status)
+  return isDropletApiError(error) && [401, 403].includes(error.status)
+}
+
+export function isDropletApiError(error: unknown): error is DropletApiError {
+  return error instanceof DropletApiError
 }
 
 export function fetchRegions() {
