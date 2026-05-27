@@ -2,6 +2,8 @@ import os
 
 from celery import Celery
 
+refresh_interval_minutes = int(os.getenv("SNAPSHOT_REFRESH_INTERVAL_MINUTES", "30"))
+
 celery_app = Celery(
     "droplet",
     backend=os.getenv("CELERY_RESULT_BACKEND", os.getenv("REDIS_URL", "redis://localhost:6379/1")),
@@ -16,3 +18,9 @@ celery_app.conf.broker_transport_options = {
 }
 celery_app.conf.task_publish_retry = False
 celery_app.conf.task_track_started = True
+celery_app.conf.beat_schedule = {
+    "refresh-reservoir-snapshots": {
+        "task": "droplet.refresh_reservoir_snapshots",
+        "schedule": refresh_interval_minutes * 60,
+    },
+}

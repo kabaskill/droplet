@@ -43,3 +43,4 @@
 - Added snapshot freshness metadata and source badges so region cards and detail panels show current/stale/old source age and the active water/weather providers.
 - Added a source health read model and dashboard panel for provider coverage, water/weather coverage, fallback use, and stale region visibility.
 - Updated ingestion to derive persisted trend direction from each region's previous observation instead of relying only on absolute threshold rules.
+- Added a Celery beat scheduler service that refreshes reservoir snapshots on a configurable interval while preserving manual refresh.
