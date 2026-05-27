@@ -1,3 +1,4 @@
+from backend.cache.redis_client import delete_cache_keys, delete_cache_pattern
 from backend.domain.snapshots import EnvironmentalReading, compute_snapshot
 from backend.models.database import session_scope
 from backend.models.entities import ReservoirSnapshot
@@ -30,5 +31,11 @@ def refresh_demo_snapshots() -> int:
                     water_level=snapshot.water_level,
                 )
             )
+
+    delete_cache_keys([
+        "droplet:analytics:summary:v1",
+        "droplet:snapshots:latest:v1",
+    ])
+    delete_cache_pattern("droplet:snapshots:history:*:v1")
 
     return len(readings)

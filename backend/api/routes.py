@@ -1,6 +1,7 @@
 from flask import Blueprint, g, jsonify, request
 
 from backend.auth.decorators import require_auth
+from backend.cache.redis_client import read_through_json
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import analyze_snapshot_payload
@@ -29,25 +30,41 @@ def auth_me():
 @api_bp.get("/regions")
 @require_auth()
 def regions():
-    return jsonify(list_regions())
+    return jsonify(
+        read_through_json("droplet:regions:v1", 3600, list_regions)
+    )
 
 
 @api_bp.get("/snapshots")
 @require_auth()
 def snapshots():
-    return jsonify(latest_snapshots())
+    return jsonify(
+        read_through_json("droplet:snapshots:latest:v1", 120, latest_snapshots)
+    )
 
 
 @api_bp.get("/snapshots/<region_id>")
 @require_auth()
 def region_snapshots(region_id: str):
-    return jsonify(snapshot_history(region_id))
+    return jsonify(
+        read_through_json(
+            f"droplet:snapshots:history:{region_id}:v1",
+            120,
+            lambda: snapshot_history(region_id),
+        )
+    )
 
 
 @api_bp.get("/analytics/summary")
 @require_auth(roles=["analyst", "municipality"])
 def analytics_summary():
-    return jsonify(build_analytics_summary())
+    return jsonify(
+        read_through_json(
+            "droplet:analytics:summary:v1",
+            120,
+            build_analytics_summary,
+        )
+    )
 
 
 @api_bp.post("/ai/analyze")
