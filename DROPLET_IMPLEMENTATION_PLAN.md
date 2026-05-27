@@ -83,9 +83,11 @@ The platform prioritizes:
 - TypeScript
 - Zustand
 - TanStack Query
+- TanStack Router
 - TailwindCSS
-- React Router
-- PWA plugin
+- lucide-react for icons
+- shadcn/ui for selected accessible UI primitives
+- PWA plugin (optional, last priority, don't attempt to implement if not asked by the developer)
 
 ---
 
@@ -156,6 +158,8 @@ This demonstrates:
 
 # Data Sources (Maximum 3)
 
+- IMPORTANT: If there's any ambiguity or errors about getting access to these APIs consult the developer for the fix.
+
 ## 1. Deutscher Wetterdienst (DWD)
 
 Purpose:
@@ -195,6 +199,7 @@ Used for:
 - future environmental pressure estimates
 
 ---
+
 
 # Frontend State Strategy
 
@@ -278,6 +283,66 @@ Focus on:
 - mobile ergonomics
 - efficient navigation
 - readable metrics
+
+---
+
+# Frontend UI Component Strategy
+
+Use lucide-react and shadcn/ui pragmatically.
+
+## Icons
+
+Use lucide-react as the default icon library.
+
+Recommended icon direction:
+- clean
+- minimal
+- operational
+- enterprise-friendly
+- readable at small sizes
+
+Suggested icons:
+- Droplets
+- CloudRain
+- Activity
+- Map
+- Database
+- Server
+- ShieldCheck
+- WifiOff
+- RefreshCw
+- Brain
+- AlertTriangle
+
+## shadcn/ui Usage
+
+Use shadcn/ui selectively as a component accelerator, not as the full visual identity of the app.
+
+Use shadcn/ui for accessible primitives:
+- Button
+- Card
+- Badge
+- Tabs
+- Dialog
+- Sheet
+- DropdownMenu
+- Tooltip
+- Skeleton
+- Alert
+- Progress
+
+Avoid using shadcn/ui to define:
+- the main product layout
+- the Germany map experience
+- the reservoir visualization
+- the visual identity of Droplet
+- the full dashboard composition
+
+Rule:
+
+> shadcn/ui provides primitives. Droplet provides the product experience.
+
+This keeps development fast without making the app feel like a generic shadcn dashboard.
 
 ---
 
@@ -615,6 +680,8 @@ project-root/
 frontend/
 ├── app/
 ├── components/
+│   ├── ui/          # shadcn/ui primitives
+│   └── app/         # custom Droplet product components
 ├── features/
 │   ├── auth/
 │   ├── map/
@@ -650,8 +717,7 @@ backend/
 
 Primary coding assistant:
 
-- Codex via OpenCode
-- Codex via Cursor
+- Codex CLI with GPT 5.5
 
 IMPORTANT:
 The AI coding agent should NOT attempt everything.
@@ -668,6 +734,8 @@ Use Codex for:
 - TanStack Query hooks
 - Keycloak integration helpers
 - Flask endpoint structure
+- lucide-react icon usage
+- shadcn/ui primitive setup and wiring
 
 ---
 
@@ -677,9 +745,9 @@ The human developer should manually handle:
 
 ### Assets
 - Germany SVG map
-- icons
 - visual references
 - branding
+- final icon choices if a specific visual metaphor is preferred
 
 ---
 
@@ -688,6 +756,7 @@ The human developer should manually handle:
 - UX prioritization
 - visual hierarchy
 - architecture tradeoffs
+- where shadcn/ui should stop and custom Droplet components should begin
 
 ---
 
@@ -752,6 +821,8 @@ Tasks:
 - detail panel
 - charts
 - responsive layout
+- lucide-react icon integration
+- selective shadcn/ui primitive usage
 - loading states
 - stale data indicators
 
@@ -825,6 +896,7 @@ Avoid:
 - Kubernetes
 - complex GIS systems
 - perfect design systems
+- turning the app into a generic shadcn dashboard
 - advanced AI agents
 - real-time websockets
 - pixel-perfect visual polish
