@@ -42,3 +42,4 @@
 - Added refresh task status polling so the frontend waits for queued Celery ingestion to finish before refetching snapshots and shows created/updated/skipped counts.
 - Added snapshot freshness metadata and source badges so region cards and detail panels show current/stale/old source age and the active water/weather providers.
 - Added a source health read model and dashboard panel for provider coverage, water/weather coverage, fallback use, and stale region visibility.
+- Updated ingestion to derive persisted trend direction from each region's previous observation instead of relying only on absolute threshold rules.

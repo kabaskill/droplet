@@ -1,7 +1,7 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 
 from backend.cache.redis_client import delete_cache_keys, delete_cache_pattern
 from backend.domain.snapshots import ComputedSnapshot, EnvironmentalReading, compute_snapshot
@@ -46,6 +46,7 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
     with session_scope() as session:
         for region_id, reading in readings.items():
             snapshot = compute_snapshot(_normalize_observation_time(reading))
+            snapshot = _with_historical_trend(session, region_id, snapshot)
             existing_snapshot = session.scalars(
                 select(ReservoirSnapshot)
                 .where(
@@ -107,6 +108,36 @@ def _snapshot_entity(
         visibility_score=snapshot.visibility_score,
         water_level=snapshot.water_level,
     )
+
+
+def _with_historical_trend(
+    session,
+    region_id: str,
+    snapshot: ComputedSnapshot,
+) -> ComputedSnapshot:
+    previous_snapshot = session.scalars(
+        select(ReservoirSnapshot)
+        .where(
+            ReservoirSnapshot.region_id == region_id,
+            ReservoirSnapshot.timestamp < snapshot.timestamp,
+        )
+        .order_by(desc(ReservoirSnapshot.timestamp))
+        .limit(1)
+    ).first()
+
+    if previous_snapshot is None:
+        return snapshot
+
+    water_level_delta = snapshot.water_level - round(previous_snapshot.water_level)
+
+    if water_level_delta >= 3:
+        trend = "rising"
+    elif water_level_delta <= -3:
+        trend = "falling"
+    else:
+        trend = "stable"
+
+    return replace(snapshot, trend=trend)
 
 
 def _apply_snapshot(
