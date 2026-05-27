@@ -1,4 +1,6 @@
 export type TrendDirection = "falling" | "rising" | "stable"
+export type SnapshotFreshnessStatus = "current" | "old" | "stale"
+export type SnapshotSourceKind = "fallback" | "model" | "water" | "weather"
 
 export type Region = {
   basin: string
@@ -11,12 +13,18 @@ export type Region = {
 }
 
 export type ReservoirSnapshot = {
+  ageMinutes?: number
   confidenceScore: number
   evaporationPressure: number
+  freshnessStatus?: SnapshotFreshnessStatus
   id?: number
   rainfallIndex: number
   regionId: string
   source: string
+  sources?: {
+    kind: SnapshotSourceKind
+    label: string
+  }[]
   timestamp: string
   trend: TrendDirection
   visibilityScore: number

@@ -40,3 +40,4 @@
   - Falls back to Open-Meteo weather only when DWD source products are unavailable.
 - Made snapshot ingestion idempotent by updating or skipping existing region/timestamp observations instead of appending duplicate history rows.
 - Added refresh task status polling so the frontend waits for queued Celery ingestion to finish before refetching snapshots and shows created/updated/skipped counts.
+- Added snapshot freshness metadata and source badges so region cards and detail panels show current/stale/old source age and the active water/weather providers.

@@ -1,6 +1,10 @@
 import { useTransition } from "react"
 
 import { cn } from "@/lib/utils"
+import {
+  freshnessLabel,
+  snapshotFreshnessStatus,
+} from "@/services/snapshot-freshness"
 import type { Region, ReservoirSnapshot } from "@/services/types"
 
 type RegionOperationsMapProps = {
@@ -13,6 +17,10 @@ type RegionOperationsMapProps = {
 function riskClass(snapshot?: ReservoirSnapshot) {
   if (!snapshot) {
     return "border-border bg-muted"
+  }
+
+  if (snapshotFreshnessStatus(snapshot) === "old") {
+    return "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
   }
 
   if (snapshot.waterLevel > 72 || snapshot.evaporationPressure > 62) {
@@ -52,6 +60,7 @@ export function RegionOperationsMap({
         {regions.map((region) => {
           const snapshot = snapshots.find((item) => item.regionId === region.id)
           const selected = selectedRegionId === region.id
+          const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
 
           return (
             <button
@@ -70,7 +79,14 @@ export function RegionOperationsMap({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{region.name}</div>
-                  <div className="mt-1 truncate text-xs opacity-75">{region.basin}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs opacity-75">
+                    <span className="truncate">{region.basin}</span>
+                    {snapshot && freshnessStatus ? (
+                      <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium capitalize">
+                        {freshnessStatus} · {freshnessLabel(snapshot)}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <span className="shrink-0 rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium">
                   {region.code}
