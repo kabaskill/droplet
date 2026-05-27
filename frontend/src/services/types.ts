@@ -13,6 +13,7 @@ export type Region = {
 export type ReservoirSnapshot = {
   confidenceScore: number
   evaporationPressure: number
+  id?: number
   rainfallIndex: number
   regionId: string
   source: string

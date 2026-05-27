@@ -17,6 +17,7 @@ def snapshot_to_read_model(snapshot: ReservoirSnapshot) -> dict:
     return {
         "confidenceScore": round(snapshot.confidence_score),
         "evaporationPressure": round(snapshot.evaporation_pressure),
+        "id": snapshot.id,
         "rainfallIndex": round(snapshot.rainfall_index),
         "regionId": snapshot.region_id,
         "source": snapshot.source,

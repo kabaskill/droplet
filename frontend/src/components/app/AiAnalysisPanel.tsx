@@ -52,8 +52,11 @@ export function AiAnalysisPanel({ snapshot }: AiAnalysisPanelProps) {
               <p className="mt-3 text-sm leading-6">{analysis.data.summary}</p>
             </div>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              {analysis.data.recommendations.map((recommendation) => (
-                <li className="rounded-md bg-muted px-3 py-2" key={recommendation}>
+              {analysis.data.recommendations.map((recommendation, index) => (
+                <li
+                  className="rounded-md bg-muted px-3 py-2"
+                  key={`${recommendation}-${index}`}
+                >
                   {recommendation}
                 </li>
               ))}

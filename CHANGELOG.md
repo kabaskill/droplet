@@ -33,3 +33,4 @@
   - Normalizes live water levels against Pegelonline characteristic values when available, then persists computed snapshots through the existing worker pipeline.
   - Keeps fallback environmental readings so refreshes still produce snapshots when an external API is temporarily unavailable.
   - Backdates seeded history slightly so a successful ingestion refresh becomes the latest snapshot in fresh databases.
+- Exposed snapshot IDs in API read models and used stable frontend list keys for repeated live measurement timestamps.

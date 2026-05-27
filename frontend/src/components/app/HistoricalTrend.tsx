@@ -15,8 +15,11 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
       </div>
 
       <div className="flex h-36 items-end gap-2">
-        {points.map((point) => (
-          <div className="flex min-w-0 flex-1 flex-col items-center gap-1" key={point.timestamp}>
+        {points.map((point, index) => (
+          <div
+            className="flex min-w-0 flex-1 flex-col items-center gap-1"
+            key={point.id ?? `${point.regionId}-${point.timestamp}-${index}`}
+          >
             <div className="flex h-28 w-full items-end rounded-sm bg-muted">
               <div
                 className="w-full rounded-sm bg-primary"
