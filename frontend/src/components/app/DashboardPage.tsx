@@ -11,6 +11,7 @@ import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { AppShell } from "@/components/app/AppShell"
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
 import { MetricTile } from "@/components/app/MetricTile"
+import { RegionComparisonPanel } from "@/components/app/RegionComparisonPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
 import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
@@ -37,6 +38,7 @@ const emptySnapshots: ReservoirSnapshot[] = []
 
 export function DashboardPage() {
   const activeLayer = useAppStore((state) => state.activeLayer)
+  const comparisonMode = useAppStore((state) => state.comparisonMode)
   const selectedRegionId = useAppStore((state) => state.selectedRegionId)
   const setSelectedRegionId = useAppStore((state) => state.setSelectedRegionId)
   const regionsQuery = useRegions()
@@ -174,6 +176,15 @@ export function DashboardPage() {
               snapshots={snapshots}
               onSelectRegion={setSelectedRegionId}
             />
+            {comparisonMode ? (
+              <RegionComparisonPanel
+                activeLayer={activeLayer}
+                regions={regions}
+                selectedRegionId={activeRegion?.id ?? null}
+                snapshots={snapshots}
+                onSelectRegion={setSelectedRegionId}
+              />
+            ) : null}
             <SourceHealthPanel
               ingestionStatus={ingestionStatusQuery.data ?? null}
               sourceHealth={sourceHealthQuery.data ?? null}

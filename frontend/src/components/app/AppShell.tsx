@@ -2,6 +2,7 @@ import {
   Activity02Icon,
   DatabaseSyncIcon,
   DropletIcon,
+  GitCompareIcon,
   Logout01Icon,
   MapsIcon,
   RefreshIcon,
@@ -40,7 +41,9 @@ export function AppShell({
   syncing,
 }: AppShellProps) {
   const activeLayer = useAppStore((state) => state.activeLayer)
+  const comparisonMode = useAppStore((state) => state.comparisonMode)
   const setActiveLayer = useAppStore((state) => state.setActiveLayer)
+  const setComparisonMode = useAppStore((state) => state.setComparisonMode)
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
 
@@ -106,6 +109,19 @@ export function AppShell({
                   </button>
                 ))}
               </div>
+
+              <Button
+                aria-pressed={comparisonMode}
+                className={cn(
+                  comparisonMode && "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+                size="lg"
+                variant="outline"
+                onClick={() => setComparisonMode(!comparisonMode)}
+              >
+                <ProductIcon icon={GitCompareIcon} />
+                Compare
+              </Button>
 
               <div
                 className={cn(
