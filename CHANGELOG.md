@@ -34,3 +34,7 @@
   - Keeps fallback environmental readings so refreshes still produce snapshots when an external API is temporarily unavailable.
   - Backdates seeded history slightly so a successful ingestion refresh becomes the latest snapshot in fresh databases.
 - Exposed snapshot IDs in API read models and used stable frontend list keys for repeated live measurement timestamps.
+- Added DWD CDC recent hourly ingestion as the primary weather source:
+  - Selects nearest active DWD temperature/humidity and precipitation stations per configured region.
+  - Parses recent hourly ZIP products for temperature, humidity, and 24-hour rainfall totals.
+  - Falls back to Open-Meteo weather only when DWD source products are unavailable.
