@@ -1,6 +1,7 @@
 import type {
   AiAnalysisResult,
   AnalyticsSummary,
+  ForecastOutlook,
   IngestionStatus,
   Region,
   ReservoirSnapshot,
@@ -221,5 +222,36 @@ export function getDemoAiAnalysis(snapshot: ReservoirSnapshot): AiAnalysisResult
     summary: elevated
       ? "The current snapshot shows elevated pressure and needs analyst review."
       : "The current snapshot is broadly stable with acceptable confidence.",
+  }
+}
+
+export function getDemoForecastOutlook(): ForecastOutlook {
+  return {
+    coverage: 100,
+    generatedAt: timestamp,
+    horizonHours: 48,
+    regions: demoSnapshots.map((snapshot) => {
+      const pressureScore = Math.max(
+        snapshot.rainfallIndex,
+        snapshot.evaporationPressure
+      )
+
+      return {
+        evaporationPressure: snapshot.evaporationPressure,
+        forecastRainfallMm: Math.round((snapshot.rainfallIndex / 100) * 180) / 10,
+        maxTemperatureC: null,
+        minHumidityPercent: null,
+        pressureScore,
+        regionId: snapshot.regionId,
+        riskLevel: pressureScore >= 70 ? "high" : pressureScore >= 45 ? "medium" : "low",
+        source: "Demo forecast estimate",
+        sourceKind: "forecast",
+        summary:
+          pressureScore >= 45
+            ? "Moderate forecast pressure; keep this basin in normal review cadence."
+            : "Forecast pressure is low for the next operating window.",
+        trend: snapshot.trend,
+      }
+    }),
   }
 }

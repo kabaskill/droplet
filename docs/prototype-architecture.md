@@ -11,6 +11,11 @@ External APIs
   -> React operational workspace
 ```
 
+Forecast outlooks are read models too: the backend fetches Open-Meteo hourly
+forecast data, converts it into a 48-hour regional pressure estimate, caches the
+result in Redis, and falls back to persisted snapshots if forecast coverage is
+temporarily unavailable.
+
 The prototype runs in demo auth mode by default. Keycloak realm, client, roles,
 and local test users are included so the app can be switched to OIDC validation
 by setting `VITE_AUTH_MODE=keycloak` and `AUTH_MODE=keycloak`. See

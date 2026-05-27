@@ -7,6 +7,7 @@ from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import analyze_snapshot_payload
 from backend.services.analytics import build_analytics_summary
+from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
 from backend.services.ingestion_status import last_ingestion_status
 from backend.services.source_health import build_source_health
@@ -91,6 +92,18 @@ def source_health():
             "droplet:sources:health:v1",
             120,
             build_source_health,
+        )
+    )
+
+
+@api_bp.get("/forecasts/outlook")
+@require_auth(roles=["analyst", "municipality"])
+def forecast_outlook():
+    return jsonify(
+        read_through_json(
+            "droplet:forecasts:outlook:v1",
+            900,
+            build_forecast_outlook,
         )
     )
 

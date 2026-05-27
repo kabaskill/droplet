@@ -48,3 +48,4 @@
 - Added ingestion run status tracking in Redis with an API and dashboard display for the latest manual or scheduled refresh outcome.
 - Hardened auth mode handling with mode-aware backend config, structured auth errors, Keycloak role test users, frontend auth-error handling, and local auth documentation.
 - Fixed Keycloak frontend startup by reusing the initialized client, deriving user details from token claims, and loading auth mode from the backend config endpoint.
+- Added a cached Open-Meteo forecast outlook read model with snapshot-derived fallback and a dashboard panel for 48-hour regional pressure estimates.

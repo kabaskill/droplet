@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import {
   analyzeSnapshot,
   fetchAnalyticsSummary,
+  fetchForecastOutlook,
   fetchIngestionStatus,
   fetchLatestSnapshots,
   fetchRegions,
@@ -52,6 +53,13 @@ export function useIngestionStatus() {
   return useQuery({
     queryFn: fetchIngestionStatus,
     queryKey: ["ingestion", "status"],
+  })
+}
+
+export function useForecastOutlook() {
+  return useQuery({
+    queryFn: fetchForecastOutlook,
+    queryKey: ["forecasts", "outlook"],
   })
 }
 

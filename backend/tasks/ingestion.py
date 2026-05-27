@@ -95,6 +95,7 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
     if result["created"] or result["updated"] or result["deleted"]:
         delete_cache_keys([
             "droplet:analytics:summary:v1",
+            "droplet:forecasts:outlook:v1",
             "droplet:snapshots:latest:v1",
             "droplet:sources:health:v1",
         ])

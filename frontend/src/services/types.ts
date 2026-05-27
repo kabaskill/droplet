@@ -81,6 +81,27 @@ export type AiAnalysisResult = {
   summary: string
 }
 
+export type ForecastRegionOutlook = {
+  evaporationPressure: number
+  forecastRainfallMm: number
+  maxTemperatureC: number | null
+  minHumidityPercent: number | null
+  pressureScore: number
+  regionId: string
+  riskLevel: "high" | "low" | "medium"
+  source: string
+  sourceKind: "fallback" | "forecast"
+  summary: string
+  trend: TrendDirection
+}
+
+export type ForecastOutlook = {
+  coverage: number
+  generatedAt: string
+  horizonHours: number
+  regions: ForecastRegionOutlook[]
+}
+
 export type RefreshSnapshotsResult = {
   error?: string
   snapshotRefresh?: {

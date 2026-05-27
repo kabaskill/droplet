@@ -9,12 +9,14 @@ import { useEffect, useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { AppShell } from "@/components/app/AppShell"
+import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
 import { MetricTile } from "@/components/app/MetricTile"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
 import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
 import {
   useAnalyticsSummary,
+  useForecastOutlook,
   useIngestionStatus,
   useLatestSnapshots,
   useRegions,
@@ -40,6 +42,7 @@ export function DashboardPage() {
   const analyticsQuery = useAnalyticsSummary()
   const sourceHealthQuery = useSourceHealth()
   const ingestionStatusQuery = useIngestionStatus()
+  const forecastOutlookQuery = useForecastOutlook()
   const refreshSnapshots = useRefreshSnapshots()
   const queryClient = useQueryClient()
   const [now, setNow] = useState(0)
@@ -80,7 +83,8 @@ export function DashboardPage() {
     snapshotsQuery.isFetching ||
     analyticsQuery.isFetching ||
     sourceHealthQuery.isFetching ||
-    ingestionStatusQuery.isFetching
+    ingestionStatusQuery.isFetching ||
+    forecastOutlookQuery.isFetching
   const refreshMessage = refreshSnapshots.isError
     ? refreshErrorMessage(refreshSnapshots.error)
     : refreshResultMessage(refreshSnapshots.data)
@@ -88,6 +92,7 @@ export function DashboardPage() {
     analyticsQuery.error,
     sourceHealthQuery.error,
     ingestionStatusQuery.error,
+    forecastOutlookQuery.error,
     refreshSnapshots.error,
   ])
   const handleRefresh = () => {
@@ -95,6 +100,7 @@ export function DashboardPage() {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
         void queryClient.invalidateQueries({ queryKey: ["analytics"] })
+        void queryClient.invalidateQueries({ queryKey: ["forecasts"] })
         void queryClient.invalidateQueries({ queryKey: ["sources"] })
         void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
       },
@@ -153,6 +159,11 @@ export function DashboardPage() {
             <SourceHealthPanel
               ingestionStatus={ingestionStatusQuery.data ?? null}
               sourceHealth={sourceHealthQuery.data ?? null}
+            />
+            <ForecastOutlookPanel
+              outlook={forecastOutlookQuery.data ?? null}
+              regions={regions}
+              selectedRegionId={activeRegion?.id ?? null}
             />
             <AiAnalysisPanel snapshot={activeSnapshot} />
           </div>

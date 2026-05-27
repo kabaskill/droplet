@@ -5,6 +5,7 @@ import {
   demoSnapshots,
   getDemoAiAnalysis,
   getDemoAnalyticsSummary,
+  getDemoForecastOutlook,
   getDemoIngestionStatus,
   getDemoSnapshotHistory,
   getDemoSourceHealth,
@@ -12,6 +13,7 @@ import {
 import type {
   AiAnalysisResult,
   AnalyticsSummary,
+  ForecastOutlook,
   IngestionStatus,
   RefreshSnapshotsResult,
   Region,
@@ -158,6 +160,13 @@ export function fetchIngestionStatus() {
   return withFallback(
     () => requestJson<IngestionStatus>("/ingestion/status"),
     getDemoIngestionStatus
+  )
+}
+
+export function fetchForecastOutlook() {
+  return withFallback(
+    () => requestJson<ForecastOutlook>("/forecasts/outlook"),
+    getDemoForecastOutlook
   )
 }
 
