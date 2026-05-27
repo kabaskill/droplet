@@ -4,12 +4,14 @@ import {
   demoSnapshots,
   getDemoAiAnalysis,
   getDemoAnalyticsSummary,
+  getDemoIngestionStatus,
   getDemoSnapshotHistory,
   getDemoSourceHealth,
 } from "@/services/demo-data"
 import type {
   AiAnalysisResult,
   AnalyticsSummary,
+  IngestionStatus,
   RefreshSnapshotsResult,
   Region,
   ReservoirSnapshot,
@@ -93,6 +95,13 @@ export function fetchSourceHealth() {
   return withFallback(
     () => requestJson<SourceHealth>("/sources/health"),
     getDemoSourceHealth
+  )
+}
+
+export function fetchIngestionStatus() {
+  return withFallback(
+    () => requestJson<IngestionStatus>("/ingestion/status"),
+    getDemoIngestionStatus
   )
 }
 

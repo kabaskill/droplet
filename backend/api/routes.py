@@ -7,6 +7,7 @@ from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import analyze_snapshot_payload
 from backend.services.analytics import build_analytics_summary
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
+from backend.services.ingestion_status import last_ingestion_status
 from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
@@ -67,6 +68,12 @@ def refresh_snapshots():
 @require_auth(roles=["analyst", "municipality"])
 def refresh_snapshot_status(task_id: str):
     return jsonify(snapshot_refresh_status(task_id))
+
+
+@api_bp.get("/ingestion/status")
+@require_auth(roles=["analyst", "municipality"])
+def ingestion_status():
+    return jsonify(last_ingestion_status())
 
 
 @api_bp.get("/analytics/summary")

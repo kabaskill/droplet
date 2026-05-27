@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import {
   analyzeSnapshot,
   fetchAnalyticsSummary,
+  fetchIngestionStatus,
   fetchLatestSnapshots,
   fetchRegions,
   fetchSourceHealth,
@@ -44,6 +45,13 @@ export function useSourceHealth() {
   return useQuery({
     queryFn: fetchSourceHealth,
     queryKey: ["sources", "health"],
+  })
+}
+
+export function useIngestionStatus() {
+  return useQuery({
+    queryFn: fetchIngestionStatus,
+    queryKey: ["ingestion", "status"],
   })
 }
 

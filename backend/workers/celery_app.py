@@ -20,6 +20,7 @@ celery_app.conf.task_publish_retry = False
 celery_app.conf.task_track_started = True
 celery_app.conf.beat_schedule = {
     "refresh-reservoir-snapshots": {
+        "args": ("scheduled",),
         "task": "droplet.refresh_reservoir_snapshots",
         "schedule": refresh_interval_minutes * 60,
     },

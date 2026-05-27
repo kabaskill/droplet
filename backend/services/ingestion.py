@@ -28,12 +28,12 @@ def broker_available() -> bool:
 
 def enqueue_snapshot_refresh() -> dict[str, Any]:
     if not broker_available():
-        return _completed_response(refresh_reservoir_snapshots())
+        return _completed_response(refresh_reservoir_snapshots("manual"))
 
     try:
-        result = refresh_reservoir_snapshots.delay()
+        result = refresh_reservoir_snapshots.delay("manual")
     except Exception:
-        return _completed_response(refresh_reservoir_snapshots())
+        return _completed_response(refresh_reservoir_snapshots("manual"))
 
     return {
         "status": "queued",

@@ -15,6 +15,7 @@ import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
 import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
 import {
   useAnalyticsSummary,
+  useIngestionStatus,
   useLatestSnapshots,
   useRegions,
   useRefreshSnapshots,
@@ -38,6 +39,7 @@ export function DashboardPage() {
   const snapshotsQuery = useLatestSnapshots()
   const analyticsQuery = useAnalyticsSummary()
   const sourceHealthQuery = useSourceHealth()
+  const ingestionStatusQuery = useIngestionStatus()
   const refreshSnapshots = useRefreshSnapshots()
   const queryClient = useQueryClient()
   const [now, setNow] = useState(0)
@@ -77,7 +79,8 @@ export function DashboardPage() {
     regionsQuery.isFetching ||
     snapshotsQuery.isFetching ||
     analyticsQuery.isFetching ||
-    sourceHealthQuery.isFetching
+    sourceHealthQuery.isFetching ||
+    ingestionStatusQuery.isFetching
   const refreshMessage = refreshSnapshots.isError
     ? refreshErrorMessage(refreshSnapshots.error)
     : refreshResultMessage(refreshSnapshots.data)
@@ -87,6 +90,7 @@ export function DashboardPage() {
         void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
         void queryClient.invalidateQueries({ queryKey: ["analytics"] })
         void queryClient.invalidateQueries({ queryKey: ["sources"] })
+        void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
       },
     })
   }
@@ -135,7 +139,10 @@ export function DashboardPage() {
               snapshots={snapshots}
               onSelectRegion={setSelectedRegionId}
             />
-            <SourceHealthPanel sourceHealth={sourceHealthQuery.data ?? null} />
+            <SourceHealthPanel
+              ingestionStatus={ingestionStatusQuery.data ?? null}
+              sourceHealth={sourceHealthQuery.data ?? null}
+            />
             <AiAnalysisPanel snapshot={activeSnapshot} />
           </div>
 

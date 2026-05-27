@@ -6,13 +6,17 @@ import type { IconSvgElement } from "@hugeicons/react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { cn } from "@/lib/utils"
-import type { SourceHealth } from "@/services/types"
+import type { IngestionStatus, SourceHealth } from "@/services/types"
 
 type SourceHealthPanelProps = {
+  ingestionStatus: IngestionStatus | null
   sourceHealth: SourceHealth | null
 }
 
-export function SourceHealthPanel({ sourceHealth }: SourceHealthPanelProps) {
+export function SourceHealthPanel({
+  ingestionStatus,
+  sourceHealth,
+}: SourceHealthPanelProps) {
   const fallbackCount = sourceHealth?.fallbackRegions.length ?? 0
   const staleCount = sourceHealth
     ? sourceHealth.freshnessMix.old + sourceHealth.freshnessMix.stale
@@ -94,6 +98,8 @@ export function SourceHealthPanel({ sourceHealth }: SourceHealthPanelProps) {
             .join(", ")}
         </div>
       ) : null}
+
+      <IngestionRunStatus ingestionStatus={ingestionStatus} />
     </section>
   )
 }
@@ -132,6 +138,52 @@ function CoverageMetric({ icon, label, value }: CoverageMetricProps) {
           />
         </div>
       </div>
+    </div>
+  )
+}
+
+type IngestionRunStatusProps = {
+  ingestionStatus: IngestionStatus | null
+}
+
+function IngestionRunStatus({ ingestionStatus }: IngestionRunStatusProps) {
+  if (!ingestionStatus || ingestionStatus.status === "unknown") {
+    return (
+      <div className="mt-3 rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
+        Waiting for ingestion run status
+      </div>
+    )
+  }
+
+  const refresh = ingestionStatus.snapshotRefresh
+  const completedAt = ingestionStatus.completedAt
+    ? new Date(ingestionStatus.completedAt).toLocaleString("en-DE")
+    : "In progress"
+
+  return (
+    <div
+      className={cn(
+        "mt-3 rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground",
+        ingestionStatus.status === "failed" &&
+          "border-red-200 bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-200",
+        ingestionStatus.status === "running" &&
+          "border-sky-200 bg-sky-50 text-sky-900 dark:bg-sky-950/30 dark:text-sky-200"
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium capitalize">
+          Last ingestion: {ingestionStatus.status} · {ingestionStatus.trigger}
+        </span>
+        <span>{completedAt}</span>
+      </div>
+      {ingestionStatus.status === "failed" ? (
+        <div className="mt-1 truncate">{ingestionStatus.error}</div>
+      ) : (
+        <div className="mt-1">
+          Created {refresh.created} · Updated {refresh.updated} · Skipped{" "}
+          {refresh.skipped} · Deleted {refresh.deleted}
+        </div>
+      )}
     </div>
   )
 }

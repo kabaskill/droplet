@@ -1,6 +1,7 @@
 import type {
   AiAnalysisResult,
   AnalyticsSummary,
+  IngestionStatus,
   Region,
   ReservoirSnapshot,
   SourceHealth,
@@ -181,6 +182,24 @@ export function getDemoSourceHealth(): SourceHealth {
     staleRegions: [],
     waterCoverage: 80,
     weatherCoverage: 100,
+  }
+}
+
+export function getDemoIngestionStatus(): IngestionStatus {
+  return {
+    completedAt: timestamp,
+    durationMs: 1200,
+    error: "",
+    snapshotRefresh: {
+      created: demoSnapshots.length,
+      deleted: 0,
+      processed: demoSnapshots.length,
+      skipped: 0,
+      updated: 0,
+    },
+    startedAt: timestamp,
+    status: "completed",
+    trigger: "manual",
   }
 }
 

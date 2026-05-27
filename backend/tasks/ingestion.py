@@ -9,6 +9,11 @@ from backend.domain.snapshots import ComputedSnapshot, EnvironmentalReading, com
 from backend.models.database import session_scope
 from backend.models.entities import ReservoirSnapshot
 from backend.services.environmental_sources import fetch_environmental_readings
+from backend.services.ingestion_status import (
+    record_ingestion_completed,
+    record_ingestion_failed,
+    record_ingestion_started,
+)
 from backend.workers.celery_app import celery_app
 
 FALLBACK_READINGS = {
@@ -21,19 +26,29 @@ FALLBACK_READINGS = {
 
 
 @celery_app.task(name="droplet.refresh_reservoir_snapshots")
-def refresh_reservoir_snapshots() -> dict[str, int]:
-    return _refresh_reservoir_snapshots()
+def refresh_reservoir_snapshots(trigger: str = "manual") -> dict[str, int]:
+    return _refresh_reservoir_snapshots(trigger)
 
 
 @celery_app.task(name="droplet.refresh_demo_snapshots")
 def refresh_demo_snapshots() -> dict[str, int]:
-    return _refresh_reservoir_snapshots()
+    return _refresh_reservoir_snapshots("manual")
 
 
-def _refresh_reservoir_snapshots() -> dict[str, int]:
-    readings = fetch_environmental_readings(FALLBACK_READINGS)
+def _refresh_reservoir_snapshots(trigger: str) -> dict[str, int]:
+    started_at = datetime.now(UTC)
+    record_ingestion_started(trigger, started_at)
 
-    return _persist_readings(readings)
+    try:
+        readings = fetch_environmental_readings(FALLBACK_READINGS)
+        result = _persist_readings(readings)
+    except Exception as exc:
+        record_ingestion_failed(trigger, started_at, exc)
+        raise
+
+    record_ingestion_completed(trigger, started_at, result)
+
+    return result
 
 
 def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, int]:

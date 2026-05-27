@@ -45,3 +45,4 @@
 - Updated ingestion to derive persisted trend direction from each region's previous observation instead of relying only on absolute threshold rules.
 - Added a Celery beat scheduler service that refreshes reservoir snapshots on a configurable interval while preserving manual refresh.
 - Added configurable snapshot retention cleanup during ingestion so old persisted observations are pruned and reported in refresh results.
+- Added ingestion run status tracking in Redis with an API and dashboard display for the latest manual or scheduled refresh outcome.

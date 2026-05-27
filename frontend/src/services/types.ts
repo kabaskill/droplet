@@ -59,6 +59,22 @@ export type SourceHealth = {
   weatherCoverage: number
 }
 
+export type IngestionStatus = {
+  completedAt: string
+  durationMs: number
+  error: string
+  snapshotRefresh: {
+    created: number
+    deleted: number
+    processed: number
+    skipped: number
+    updated: number
+  }
+  startedAt: string
+  status: "completed" | "failed" | "running" | "unknown"
+  trigger: "manual" | "scheduled" | "unknown"
+}
+
 export type AiAnalysisResult = {
   recommendations: string[]
   riskLevel: "high" | "low" | "medium"
