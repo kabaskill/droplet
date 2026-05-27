@@ -40,6 +40,25 @@ export type AnalyticsSummary = {
   trendMix: Record<TrendDirection, number>
 }
 
+export type SourceHealth = {
+  fallbackRegions: string[]
+  freshnessMix: Record<SnapshotFreshnessStatus, number>
+  generatedAt: string
+  providerCoverage: {
+    kind: SnapshotSourceKind
+    label: string
+    regions: number
+  }[]
+  regionsObserved: number
+  staleRegions: {
+    ageMinutes: number
+    freshnessStatus: SnapshotFreshnessStatus
+    regionId: string
+  }[]
+  waterCoverage: number
+  weatherCoverage: number
+}
+
 export type AiAnalysisResult = {
   recommendations: string[]
   riskLevel: "high" | "low" | "medium"

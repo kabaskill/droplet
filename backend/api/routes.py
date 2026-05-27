@@ -7,6 +7,7 @@ from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import analyze_snapshot_payload
 from backend.services.analytics import build_analytics_summary
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
+from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
 
@@ -76,6 +77,18 @@ def analytics_summary():
             "droplet:analytics:summary:v1",
             120,
             build_analytics_summary,
+        )
+    )
+
+
+@api_bp.get("/sources/health")
+@require_auth(roles=["analyst", "municipality"])
+def source_health():
+    return jsonify(
+        read_through_json(
+            "droplet:sources:health:v1",
+            120,
+            build_source_health,
         )
     )
 

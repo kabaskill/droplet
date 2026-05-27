@@ -5,6 +5,7 @@ import {
   getDemoAiAnalysis,
   getDemoAnalyticsSummary,
   getDemoSnapshotHistory,
+  getDemoSourceHealth,
 } from "@/services/demo-data"
 import type {
   AiAnalysisResult,
@@ -12,6 +13,7 @@ import type {
   RefreshSnapshotsResult,
   Region,
   ReservoirSnapshot,
+  SourceHealth,
 } from "@/services/types"
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api"
@@ -84,6 +86,13 @@ export function fetchAnalyticsSummary() {
   return withFallback(
     () => requestJson<AnalyticsSummary>("/analytics/summary"),
     getDemoAnalyticsSummary
+  )
+}
+
+export function fetchSourceHealth() {
+  return withFallback(
+    () => requestJson<SourceHealth>("/sources/health"),
+    getDemoSourceHealth
   )
 }
 

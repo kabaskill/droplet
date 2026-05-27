@@ -3,6 +3,7 @@ import type {
   AnalyticsSummary,
   Region,
   ReservoirSnapshot,
+  SourceHealth,
 } from "@/services/types"
 
 const timestamp = new Date().toISOString()
@@ -147,6 +148,39 @@ export function getDemoAnalyticsSummary(): AnalyticsSummary {
       rising: 2,
       stable: 1,
     },
+  }
+}
+
+export function getDemoSourceHealth(): SourceHealth {
+  return {
+    fallbackRegions: [],
+    freshnessMix: {
+      current: demoSnapshots.length,
+      old: 0,
+      stale: 0,
+    },
+    generatedAt: timestamp,
+    providerCoverage: [
+      {
+        kind: "water",
+        label: "Pegelonline",
+        regions: 4,
+      },
+      {
+        kind: "weather",
+        label: "DWD",
+        regions: 4,
+      },
+      {
+        kind: "weather",
+        label: "Open-Meteo",
+        regions: 3,
+      },
+    ],
+    regionsObserved: demoSnapshots.length,
+    staleRegions: [],
+    waterCoverage: 80,
+    weatherCoverage: 100,
   }
 }
 

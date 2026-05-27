@@ -5,6 +5,7 @@ import {
   fetchAnalyticsSummary,
   fetchLatestSnapshots,
   fetchRegions,
+  fetchSourceHealth,
   fetchSnapshotHistory,
   refreshSnapshots,
 } from "@/services/api"
@@ -36,6 +37,13 @@ export function useAnalyticsSummary() {
   return useQuery({
     queryFn: fetchAnalyticsSummary,
     queryKey: ["analytics", "summary"],
+  })
+}
+
+export function useSourceHealth() {
+  return useQuery({
+    queryFn: fetchSourceHealth,
+    queryKey: ["sources", "health"],
   })
 }
 

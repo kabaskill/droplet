@@ -76,6 +76,7 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
         delete_cache_keys([
             "droplet:analytics:summary:v1",
             "droplet:snapshots:latest:v1",
+            "droplet:sources:health:v1",
         ])
         delete_cache_pattern("droplet:snapshots:history:*:v1")
 

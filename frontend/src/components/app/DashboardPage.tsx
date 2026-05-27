@@ -12,11 +12,13 @@ import { AppShell } from "@/components/app/AppShell"
 import { MetricTile } from "@/components/app/MetricTile"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
+import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
 import {
   useAnalyticsSummary,
   useLatestSnapshots,
   useRegions,
   useRefreshSnapshots,
+  useSourceHealth,
   useSnapshotHistory,
 } from "@/hooks/use-droplet-data"
 import { useAppStore } from "@/stores/app-store"
@@ -35,6 +37,7 @@ export function DashboardPage() {
   const regionsQuery = useRegions()
   const snapshotsQuery = useLatestSnapshots()
   const analyticsQuery = useAnalyticsSummary()
+  const sourceHealthQuery = useSourceHealth()
   const refreshSnapshots = useRefreshSnapshots()
   const queryClient = useQueryClient()
   const [now, setNow] = useState(0)
@@ -71,7 +74,10 @@ export function DashboardPage() {
       now > 0 &&
       now - snapshotsQuery.dataUpdatedAt > 1000 * 60 * 5)
   const syncing =
-    regionsQuery.isFetching || snapshotsQuery.isFetching || analyticsQuery.isFetching
+    regionsQuery.isFetching ||
+    snapshotsQuery.isFetching ||
+    analyticsQuery.isFetching ||
+    sourceHealthQuery.isFetching
   const refreshMessage = refreshSnapshots.isError
     ? refreshErrorMessage(refreshSnapshots.error)
     : refreshResultMessage(refreshSnapshots.data)
@@ -80,6 +86,7 @@ export function DashboardPage() {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
         void queryClient.invalidateQueries({ queryKey: ["analytics"] })
+        void queryClient.invalidateQueries({ queryKey: ["sources"] })
       },
     })
   }
@@ -128,6 +135,7 @@ export function DashboardPage() {
               snapshots={snapshots}
               onSelectRegion={setSelectedRegionId}
             />
+            <SourceHealthPanel sourceHealth={sourceHealthQuery.data ?? null} />
             <AiAnalysisPanel snapshot={activeSnapshot} />
           </div>
 
