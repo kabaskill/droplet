@@ -38,3 +38,4 @@
   - Selects nearest active DWD temperature/humidity and precipitation stations per configured region.
   - Parses recent hourly ZIP products for temperature, humidity, and 24-hour rainfall totals.
   - Falls back to Open-Meteo weather only when DWD source products are unavailable.
+- Made snapshot ingestion idempotent by updating or skipping existing region/timestamp observations instead of appending duplicate history rows.

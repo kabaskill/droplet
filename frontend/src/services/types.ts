@@ -39,7 +39,16 @@ export type AiAnalysisResult = {
 }
 
 export type RefreshSnapshotsResult = {
+  snapshotRefresh?: {
+    created: number
+    processed: number
+    skipped: number
+    updated: number
+  }
   snapshotsCreated?: number
+  snapshotsProcessed?: number
+  snapshotsSkipped?: number
+  snapshotsUpdated?: number
   status: "completed" | "queued"
   taskId?: string
 }

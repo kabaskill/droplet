@@ -27,24 +27,33 @@ def broker_available() -> bool:
 
 def enqueue_snapshot_refresh() -> dict[str, Any]:
     if not broker_available():
-        snapshots_created = refresh_reservoir_snapshots()
-
-        return {
-            "snapshotsCreated": snapshots_created,
-            "status": "completed",
-        }
+        return _completed_response(refresh_reservoir_snapshots())
 
     try:
         result = refresh_reservoir_snapshots.delay()
     except Exception:
-        snapshots_created = refresh_reservoir_snapshots()
-
-        return {
-            "snapshotsCreated": snapshots_created,
-            "status": "completed",
-        }
+        return _completed_response(refresh_reservoir_snapshots())
 
     return {
         "status": "queued",
         "taskId": result.id,
+    }
+
+
+def _completed_response(refresh_result: dict[str, int] | int) -> dict[str, Any]:
+    if isinstance(refresh_result, int):
+        refresh_result = {
+            "created": refresh_result,
+            "processed": refresh_result,
+            "skipped": 0,
+            "updated": 0,
+        }
+
+    return {
+        "snapshotRefresh": refresh_result,
+        "snapshotsCreated": refresh_result["created"],
+        "snapshotsProcessed": refresh_result["processed"],
+        "snapshotsSkipped": refresh_result["skipped"],
+        "snapshotsUpdated": refresh_result["updated"],
+        "status": "completed",
     }

@@ -102,6 +102,18 @@ export function refreshSnapshots() {
       requestJson<RefreshSnapshotsResult>("/snapshots/refresh", {
         method: "POST",
       }),
-    () => ({ snapshotsCreated: demoSnapshots.length, status: "completed" as const })
+    () => ({
+      snapshotRefresh: {
+        created: demoSnapshots.length,
+        processed: demoSnapshots.length,
+        skipped: 0,
+        updated: 0,
+      },
+      snapshotsCreated: demoSnapshots.length,
+      snapshotsProcessed: demoSnapshots.length,
+      snapshotsSkipped: 0,
+      snapshotsUpdated: 0,
+      status: "completed" as const,
+    })
   )
 }
