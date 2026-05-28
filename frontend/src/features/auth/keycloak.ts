@@ -99,6 +99,20 @@ export async function logoutFromKeycloak() {
   await activeClient()?.logout()
 }
 
+export async function openKeycloakAccount(config: AuthConfig) {
+  const client = getClient(config)
+
+  if (!client.authenticated) {
+    await client.login({
+      redirectUri: window.location.href,
+    })
+    return
+  }
+
+  await client.updateToken(30)
+  await client.accountManagement()
+}
+
 export async function refreshKeycloakToken() {
   const client = activeClient()
 

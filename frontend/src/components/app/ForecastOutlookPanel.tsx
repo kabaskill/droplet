@@ -62,7 +62,7 @@ export function ForecastOutlookPanel({
       statusTone={outlook && outlook.coverage < 100 ? "warning" : "default"}
     >
       {activeOutlook && outlook ? (
-        <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="grid gap-4">
           <div className="rounded-md border bg-background p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -95,7 +95,7 @@ export function ForecastOutlookPanel({
           </div>
 
           <div className="grid gap-3">
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-2">
               <ForecastMetric
                 icon={CloudMidRainIcon}
                 label="Rainfall"
@@ -184,10 +184,10 @@ function ForecastOutlookShell({
 function ForecastOutlookSkeleton() {
   return (
     <ForecastOutlookShell statusLabel="Loading">
-      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid gap-4">
         <SkeletonBlock className="h-56" />
         <div className="grid gap-3">
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: 3 }, (_, index) => (
               <SkeletonBlock className="h-24" key={index} />
             ))}
@@ -209,12 +209,12 @@ type ForecastMetricProps = {
 
 function ForecastMetric({ icon, label, value }: ForecastMetricProps) {
   return (
-    <div className="rounded-md border bg-background p-3">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <ProductIcon icon={icon} size={14} />
-        <span>{label}</span>
+    <div className="min-w-0 rounded-md border bg-background p-3">
+      <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+        <ProductIcon className="shrink-0" icon={icon} size={14} />
+        <span className="truncate">{label}</span>
       </div>
-      <div className="mt-2 text-lg font-semibold">{value}</div>
+      <div className="mt-2 whitespace-nowrap text-base font-semibold">{value}</div>
     </div>
   )
 }
@@ -226,7 +226,7 @@ type ForecastRowProps = {
 
 function ForecastRow({ outlook, regionName }: ForecastRowProps) {
   return (
-    <div className="grid gap-2 rounded-md border bg-background px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_72px_80px] sm:items-center">
+    <div className="grid gap-2 rounded-md border bg-background px-3 py-2 text-sm min-[380px]:grid-cols-[minmax(0,1fr)_72px_80px] min-[380px]:items-center">
       <div className="min-w-0">
         <div className="truncate font-medium">{regionName}</div>
         <div className="truncate text-xs text-muted-foreground">

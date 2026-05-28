@@ -3,107 +3,62 @@ import {
   Alert01Icon,
   Cancel01Icon,
   DatabaseSyncIcon,
-  DropletIcon,
   MapsIcon,
 } from "@hugeicons/core-free-icons"
-import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 
-import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
-import { AppShell } from "@/components/app/AppShell"
 import {
   MetricTileSkeleton,
   OperationsMapSkeleton,
-  RegionalFilterSkeleton,
   RegionDetailSkeleton,
 } from "@/components/app/DashboardSkeletons"
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
-import { MetricTile } from "@/components/app/MetricTile"
 import { ProductIcon } from "@/components/app/ProductIcon"
-import { ReadModelFreshnessPanel } from "@/components/app/ReadModelFreshnessPanel"
-import { RegionComparisonPanel } from "@/components/app/RegionComparisonPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
-import { RegionQuickSwitcher } from "@/components/app/RegionQuickSwitcher"
-import { RegionalFilterBar } from "@/components/app/RegionalFilterBar"
-import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
 import { Button } from "@/components/ui/button"
-import {
-  useAnalyticsSummary,
-  useForecastOutlook,
-  useIngestionStatus,
-  useLatestSnapshots,
-  useRegions,
-  useRefreshSnapshots,
-  useSourceHealth,
-  useSnapshotHistory,
-} from "@/hooks/use-droplet-data"
-import { isDropletApiError } from "@/services/api"
-import {
-  filterRegions,
-  regionalFilterCounts,
-} from "@/services/regional-filters"
+import { useDashboardData, panelErrorMessage } from "@/components/app/dashboard-data"
 import { useAppStore } from "@/stores/app-store"
 import type {
-  RefreshSnapshotsResult,
+  AnalyticsSummary,
   Region,
   ReservoirSnapshot,
+  TrendDirection,
 } from "@/services/types"
 
-const emptyRegions: Region[] = []
-const emptySnapshots: ReservoirSnapshot[] = []
-
-function currentOnlineState() {
-  return typeof navigator === "undefined" ? true : navigator.onLine
-}
-
 export function DashboardPage() {
-  const activeLayer = useAppStore((state) => state.activeLayer)
-  const comparisonMode = useAppStore((state) => state.comparisonMode)
+  const {
+    accessError,
+    activeLayer,
+    activeRegion,
+    activeSnapshot,
+    analyticsQuery,
+    allRegions,
+    filterCounts,
+    filteredRegions,
+    forecastOutlookQuery,
+    operationalError,
+    regionReadModelLoading,
+    regions,
+    selectedRegionId,
+    setRegionalFilter,
+    setSelectedRegionId,
+  } = useDashboardData()
   const regionalFilter = useAppStore((state) => state.regionalFilter)
-  const selectedRegionId = useAppStore((state) => state.selectedRegionId)
-  const setRegionalFilter = useAppStore((state) => state.setRegionalFilter)
-  const setSelectedRegionId = useAppStore((state) => state.setSelectedRegionId)
-  const regionsQuery = useRegions()
-  const snapshotsQuery = useLatestSnapshots()
-  const analyticsQuery = useAnalyticsSummary()
-  const sourceHealthQuery = useSourceHealth()
-  const ingestionStatusQuery = useIngestionStatus()
-  const forecastOutlookQuery = useForecastOutlook()
-  const refreshSnapshots = useRefreshSnapshots()
-  const queryClient = useQueryClient()
+  const setActiveLayer = useAppStore((state) => state.setActiveLayer)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
-  const [now, setNow] = useState(0)
   const [online, setOnline] = useState(currentOnlineState)
-
-  const regions = regionsQuery.data ?? emptyRegions
-  const snapshots = snapshotsQuery.data ?? emptySnapshots
+  const summary = analyticsQuery.data
   const metricsLoading = analyticsQuery.isPending && !analyticsQuery.data
-  const regionReadModelLoading =
-    (regionsQuery.isPending && regions.length === 0) ||
-    (snapshotsQuery.isPending && snapshots.length === 0)
-  const sourceHealthLoading = sourceHealthQuery.isPending && !sourceHealthQuery.data
-  const ingestionStatusLoading =
-    ingestionStatusQuery.isPending && !ingestionStatusQuery.data
   const forecastOutlookLoading =
     forecastOutlookQuery.isPending && !forecastOutlookQuery.data
-  const filteredRegions = useMemo(
-    () => filterRegions(regions, snapshots, regionalFilter),
-    [regions, snapshots, regionalFilter]
+  const dominantTrend = useMemo(
+    () => dominantTrendDirection(summary?.trendMix),
+    [summary?.trendMix]
   )
-  const filterCounts = useMemo(
-    () => regionalFilterCounts(regions, snapshots),
-    [regions, snapshots]
-  )
-
-  useEffect(() => {
-    const updateNow = () => setNow(Date.now())
-    updateNow()
-
-    const intervalId = window.setInterval(updateNow, 60_000)
-
-    return () => window.clearInterval(intervalId)
-  }, [])
+  const latestSnapshotTime = activeSnapshot?.timestamp
+    ? new Date(activeSnapshot.timestamp).toLocaleString("en-DE")
+    : "Waiting for snapshots"
 
   useEffect(() => {
     const updateOnlineState = () => setOnline(currentOnlineState())
@@ -117,280 +72,186 @@ export function DashboardPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!regions[0]) {
-      return
-    }
-
-    if (!selectedRegionId) {
-      setSelectedRegionId(regions[0].id)
-      return
-    }
-
-    if (
-      filteredRegions.length > 0 &&
-      !filteredRegions.some(({ region }) => region.id === selectedRegionId)
-    ) {
-      setSelectedRegionId(filteredRegions[0].region.id)
-    }
-  }, [filteredRegions, regions, selectedRegionId, setSelectedRegionId])
-
-  const activeRegion =
-    regions.find((region) => region.id === selectedRegionId) ?? regions[0] ?? null
-  const activeSnapshot =
-    snapshots.find((snapshot) => snapshot.regionId === activeRegion?.id) ??
-    snapshots[0] ??
-    null
-  const historyQuery = useSnapshotHistory(activeRegion?.id ?? null)
-  const summary = analyticsQuery.data
-  const stale =
-    !online ||
-    (snapshotsQuery.dataUpdatedAt > 0 &&
-      now > 0 &&
-      now - snapshotsQuery.dataUpdatedAt > 1000 * 60 * 5)
-  const syncing =
-    regionsQuery.isFetching ||
-    snapshotsQuery.isFetching ||
-    analyticsQuery.isFetching ||
-    sourceHealthQuery.isFetching ||
-    ingestionStatusQuery.isFetching ||
-    forecastOutlookQuery.isFetching
-  const freshnessItems = [
-    {
-      error: Boolean(regionsQuery.error),
-      isFetching: regionsQuery.isFetching,
-      label: "States",
-      updatedAt: regionsQuery.dataUpdatedAt,
-    },
-    {
-      error: Boolean(snapshotsQuery.error),
-      isFetching: snapshotsQuery.isFetching,
-      label: "Snapshots",
-      updatedAt: snapshotsQuery.dataUpdatedAt,
-    },
-    {
-      error: Boolean(analyticsQuery.error),
-      isFetching: analyticsQuery.isFetching,
-      label: "Analytics",
-      updatedAt: analyticsQuery.dataUpdatedAt,
-    },
-    {
-      error: Boolean(sourceHealthQuery.error),
-      isFetching: sourceHealthQuery.isFetching,
-      label: "Source health",
-      updatedAt: sourceHealthQuery.dataUpdatedAt,
-    },
-    {
-      error: Boolean(forecastOutlookQuery.error),
-      isFetching: forecastOutlookQuery.isFetching,
-      label: "Forecast",
-      updatedAt: forecastOutlookQuery.dataUpdatedAt,
-    },
-  ]
-  const refreshMessage = refreshSnapshots.isError
-    ? refreshErrorMessage(refreshSnapshots.error)
-    : refreshResultMessage(refreshSnapshots.data)
-  const accessError = firstAccessError([
-    analyticsQuery.error,
-    sourceHealthQuery.error,
-    ingestionStatusQuery.error,
-    forecastOutlookQuery.error,
-    refreshSnapshots.error,
-  ])
-  const operationalError = firstOperationalError([
-    regionsQuery.error,
-    snapshotsQuery.error,
-  ])
-  const handleRefresh = () => {
-    refreshSnapshots.mutate(undefined, {
-      onSuccess: () => {
-        retryReadModels(queryClient)
-      },
-    })
-  }
-  const handleRetryReadModels = () => retryReadModels(queryClient)
-  const handleSelectRegion = (regionId: string) => {
-    setSelectedRegionId(regionId)
-  }
-
   return (
-    <AppShell
-      refreshMessage={refreshMessage}
-      refreshing={refreshSnapshots.isPending}
-      stale={stale}
-      syncing={syncing}
-      onRefresh={handleRefresh}
-    >
-      <main className="mx-auto grid max-w-7xl gap-4 p-4 pb-28 md:p-6 xl:pb-6">
-        {!online ? <OfflineCachedDataNotice /> : null}
+    <main className="mx-auto grid max-w-7xl gap-4 p-4 pb-28 md:p-6 xl:pb-6">
+      {!online ? <OfflineCachedDataNotice /> : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {metricsLoading ? (
-            Array.from({ length: 4 }, (_, index) => (
-              <MetricTileSkeleton key={index} />
-            ))
+      <section className="grid gap-3 lg:grid-cols-3">
+        {metricsLoading ? (
+          Array.from({ length: 3 }, (_, index) => <MetricTileSkeleton key={index} />)
+        ) : (
+          <>
+            <SummaryCard
+              icon={MapsIcon}
+              label="Map outlook"
+              value={`${summary?.regionsObserved ?? regions.length}/${regions.length || 0}`}
+              detail={`${summary?.elevatedRiskRegions ?? 0} elevated · ${activeLayerLabel(activeLayer)} layer`}
+            />
+            <SummaryCard
+              icon={Activity02Icon}
+              label="Trends"
+              value={dominantTrend.label}
+              detail={`${dominantTrend.count} states · ${dominantTrend.description}`}
+            />
+            <SummaryCard
+              icon={DatabaseSyncIcon}
+              label="Freshness"
+              value={online ? "Online" : "Offline"}
+              detail={latestSnapshotTime}
+            />
+          </>
+        )}
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid gap-4">
+          {accessError ? (
+            <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
+              {accessError}
+            </section>
+          ) : null}
+          {operationalError ? (
+            <section className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 shadow-sm dark:bg-red-950/30 dark:text-red-200">
+              <div className="font-medium">Core read model unavailable</div>
+              <div className="mt-1">{operationalError}</div>
+            </section>
+          ) : null}
+          {panelErrorMessage(analyticsQuery.error) ? (
+            <section className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
+              <div className="font-medium">Analytics summary unavailable</div>
+              <div className="mt-1 text-xs leading-5">
+                State map and snapshot details remain available from the latest
+                snapshot read model.
+              </div>
+            </section>
+          ) : null}
+
+          {regionReadModelLoading ? (
+            <OperationsMapSkeleton />
           ) : (
-            <>
-              <MetricTile
-                icon={MapsIcon}
-                label="States"
-                tone="blue"
-                value={
-                  regionalFilter === "all"
-                    ? `${summary?.regionsObserved ?? regions.length}`
-                    : `${filteredRegions.length}/${regions.length}`
-                }
-              />
-              <MetricTile
-                icon={DropletIcon}
-                label="Visibility"
-                tone="green"
-                value={`${summary?.averageVisibility ?? 0}%`}
-              />
-              <MetricTile
-                icon={DatabaseSyncIcon}
-                label="Confidence"
-                tone="green"
-                value={`${summary?.averageConfidence ?? 0}%`}
-              />
-              <MetricTile
-                icon={Alert01Icon}
-                label="Elevated"
-                tone={(summary?.elevatedRiskRegions ?? 0) > 0 ? "amber" : "green"}
-                value={`${summary?.elevatedRiskRegions ?? 0}`}
-              />
-            </>
+            <RegionOperationsMap
+              activeFilter={regionalFilter}
+              activeLayer={activeLayer}
+              allRegions={allRegions}
+              filterCounts={filterCounts}
+              filteredRegions={filteredRegions}
+              selectedRegionId={activeRegion?.id ?? selectedRegionId}
+              onFilterChange={setRegionalFilter}
+              onLayerChange={setActiveLayer}
+              onSelectRegion={setSelectedRegionId}
+            />
           )}
-        </section>
+        </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="grid gap-4">
-            {accessError ? (
-              <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
-                {accessError}
-              </section>
-            ) : null}
-            {operationalError ? (
-              <section className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 shadow-sm dark:bg-red-950/30 dark:text-red-200">
-                <div className="font-medium">Core read model unavailable</div>
-                <div className="mt-1">{operationalError}</div>
-              </section>
-            ) : null}
-            {panelErrorMessage(analyticsQuery.error) ? (
-              <section className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
-                <div className="font-medium">Analytics summary unavailable</div>
-                <div className="mt-1 text-xs leading-5">
-                  State map and snapshot details remain available from the latest
-                  snapshot read model.
-                </div>
-              </section>
-            ) : null}
-            {regionReadModelLoading ? (
-              <>
-                <RegionalFilterSkeleton />
-                <OperationsMapSkeleton />
-              </>
-            ) : (
-              <>
-                <RegionQuickSwitcher
-                  regions={filteredRegions}
-                  selectedRegionId={activeRegion?.id ?? null}
-                  onSelectRegion={handleSelectRegion}
-                />
-                <RegionalFilterBar
-                  activeFilter={regionalFilter}
-                  counts={filterCounts}
-                  onChange={setRegionalFilter}
-                />
-                <RegionOperationsMap
-                  activeLayer={activeLayer}
-                  filteredRegions={filteredRegions}
-                  selectedRegionId={activeRegion?.id ?? null}
-                  onSelectRegion={handleSelectRegion}
-                />
-              </>
-            )}
-            {comparisonMode && !regionReadModelLoading ? (
-              <RegionComparisonPanel
-                activeLayer={activeLayer}
-                filteredRegions={filteredRegions}
-                selectedRegionId={activeRegion?.id ?? null}
-                onSelectRegion={handleSelectRegion}
-              />
-            ) : null}
-            <SourceHealthPanel
-              errorMessage={panelErrorMessage(sourceHealthQuery.error)}
-              ingestionStatus={ingestionStatusQuery.data ?? null}
-              ingestionStatusLoading={ingestionStatusLoading}
-              loading={sourceHealthLoading}
-              regions={regions}
-              sourceHealth={sourceHealthQuery.data ?? null}
-            />
-            <ReadModelFreshnessPanel
-              items={freshnessItems}
-              now={now}
-              onRetry={handleRetryReadModels}
-            />
-            <ForecastOutlookPanel
-              errorMessage={panelErrorMessage(forecastOutlookQuery.error)}
-              loading={forecastOutlookLoading}
-              outlook={forecastOutlookQuery.data ?? null}
-              regions={regions}
-              selectedRegionId={activeRegion?.id ?? null}
-            />
-            <AiAnalysisPanel
-              snapshot={activeSnapshot}
-              snapshotLoading={regionReadModelLoading}
-            />
-          </div>
-
+        <div className="grid gap-4">
           {regionReadModelLoading ? (
             <div className="hidden xl:block">
               <RegionDetailSkeleton />
             </div>
           ) : activeRegion && activeSnapshot ? (
             <div className="hidden xl:block">
-              <RegionDetailPanel
-                history={historyQuery.data ?? []}
-                region={activeRegion}
-                snapshot={activeSnapshot}
-              />
+              <RegionDetailPanel region={activeRegion} snapshot={activeSnapshot} />
             </div>
           ) : (
             <section className="hidden rounded-md border bg-card p-4 text-sm text-muted-foreground shadow-sm xl:block">
               Waiting for snapshot data
             </section>
           )}
-        </div>
 
-        {activeRegion && activeSnapshot ? (
-          <>
-            <MobileRegionActionBar
-              region={activeRegion}
-              snapshot={activeSnapshot}
-              onOpen={() => setMobileDetailOpen(true)}
-            />
-            <MobileRegionDetailSheet
-              history={historyQuery.data ?? []}
-              open={mobileDetailOpen}
-              region={activeRegion}
-              snapshot={activeSnapshot}
-              onClose={() => setMobileDetailOpen(false)}
-            />
-          </>
-        ) : null}
-      </main>
-    </AppShell>
+          <ForecastOutlookPanel
+            errorMessage={panelErrorMessage(forecastOutlookQuery.error)}
+            loading={forecastOutlookLoading}
+            outlook={forecastOutlookQuery.data ?? null}
+            regions={regions}
+            selectedRegionId={activeRegion?.id ?? null}
+          />
+        </div>
+      </div>
+
+      {activeRegion && activeSnapshot ? (
+        <>
+          <MobileRegionActionBar
+            region={activeRegion}
+            snapshot={activeSnapshot}
+            onOpen={() => setMobileDetailOpen(true)}
+          />
+          <MobileRegionDetailSheet
+            open={mobileDetailOpen}
+            region={activeRegion}
+            snapshot={activeSnapshot}
+            onClose={() => setMobileDetailOpen(false)}
+          />
+        </>
+      ) : null}
+    </main>
   )
 }
 
-function retryReadModels(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: ["regions"] })
-  void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
-  void queryClient.invalidateQueries({ queryKey: ["analytics"] })
-  void queryClient.invalidateQueries({ queryKey: ["forecasts"] })
-  void queryClient.invalidateQueries({ queryKey: ["sources"] })
-  void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
+function currentOnlineState() {
+  return typeof navigator === "undefined" ? true : navigator.onLine
+}
+
+type SummaryCardProps = {
+  detail: string
+  icon: typeof MapsIcon
+  label: string
+  value: string
+}
+
+function SummaryCard({ detail, icon, label, value }: SummaryCardProps) {
+  return (
+    <section className="rounded-md border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-muted-foreground">{label}</div>
+          <div className="mt-2 truncate text-2xl font-semibold">{value}</div>
+          <div className="mt-1 truncate text-xs text-muted-foreground">{detail}</div>
+        </div>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <ProductIcon icon={icon} size={18} />
+        </span>
+      </div>
+    </section>
+  )
+}
+
+function activeLayerLabel(activeLayer: string) {
+  if (activeLayer === "rainfall") {
+    return "Rainfall"
+  }
+
+  if (activeLayer === "confidence") {
+    return "Confidence"
+  }
+
+  return "Water"
+}
+
+function dominantTrendDirection(trendMix: AnalyticsSummary["trendMix"] | undefined) {
+  const fallback = { count: 0, description: "waiting for trend mix", label: "Pending" }
+
+  if (!trendMix) {
+    return fallback
+  }
+
+  const entries = Object.entries(trendMix) as [TrendDirection, number][]
+  const [direction, count] =
+    entries.sort((first, second) => second[1] - first[1])[0] ?? []
+
+  if (!direction) {
+    return fallback
+  }
+
+  return {
+    count,
+    description:
+      direction === "rising"
+        ? "pressure rising"
+        : direction === "falling"
+          ? "pressure easing"
+          : "conditions stable",
+    label: direction[0].toUpperCase() + direction.slice(1),
+  }
 }
 
 function OfflineCachedDataNotice() {
@@ -422,7 +283,7 @@ function MobileRegionActionBar({
   snapshot,
 }: MobileRegionActionBarProps) {
   return (
-    <div className="fixed inset-x-3 bottom-3 z-20 rounded-md border bg-background/95 p-2 shadow-lg backdrop-blur xl:hidden">
+    <div className="fixed inset-x-3 bottom-16 z-20 rounded-md border bg-background/95 p-2 shadow-lg backdrop-blur xl:hidden">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{region.name}</div>
@@ -441,7 +302,6 @@ function MobileRegionActionBar({
 }
 
 type MobileRegionDetailSheetProps = {
-  history: ReservoirSnapshot[]
   onClose: () => void
   open: boolean
   region: Region
@@ -449,7 +309,6 @@ type MobileRegionDetailSheetProps = {
 }
 
 function MobileRegionDetailSheet({
-  history,
   onClose,
   open,
   region,
@@ -461,7 +320,6 @@ function MobileRegionDetailSheet({
 
   return (
     <MobileRegionDetailDialog
-      history={history}
       region={region}
       snapshot={snapshot}
       onClose={onClose}
@@ -470,14 +328,12 @@ function MobileRegionDetailSheet({
 }
 
 type MobileRegionDetailDialogProps = {
-  history: ReservoirSnapshot[]
   onClose: () => void
   region: Region
   snapshot: ReservoirSnapshot
 }
 
 function MobileRegionDetailDialog({
-  history,
   onClose,
   region,
   snapshot,
@@ -533,81 +389,9 @@ function MobileRegionDetailDialog({
           </Button>
         </div>
         <div className="min-w-0 overflow-hidden">
-          <RegionDetailPanel history={history} region={region} snapshot={snapshot} />
+          <RegionDetailPanel region={region} snapshot={snapshot} />
         </div>
       </section>
     </div>
   )
-}
-
-function refreshResultMessage(result: RefreshSnapshotsResult | undefined) {
-  if (!result?.snapshotRefresh || result.status !== "completed") {
-    return null
-  }
-
-  const { created, deleted, skipped, updated } = result.snapshotRefresh
-
-  return `Created ${created} · Updated ${updated} · Skipped ${skipped} · Deleted ${deleted}`
-}
-
-function refreshErrorMessage(error: Error | null) {
-  return error?.message ?? "Refresh failed"
-}
-
-function firstAccessError(errors: unknown[]) {
-  for (const error of errors) {
-    if (!(error instanceof Error)) {
-      continue
-    }
-
-    if (error.message === "insufficient role") {
-      return "Your current role can view states, but analyst or municipality access is required for this operation."
-    }
-  }
-
-  return null
-}
-
-function firstOperationalError(errors: unknown[]) {
-  for (const error of errors) {
-    if (!(error instanceof Error)) {
-      continue
-    }
-
-    if (isDropletApiError(error) && [401, 403].includes(error.status)) {
-      continue
-    }
-
-    if (error.message === "insufficient role") {
-      continue
-    }
-
-    if (isDropletApiError(error)) {
-      return `${error.message} (${error.status})`
-    }
-
-    return error.message
-  }
-
-  return null
-}
-
-function panelErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) {
-    return null
-  }
-
-  if (error.message === "insufficient role") {
-    return null
-  }
-
-  if (isDropletApiError(error) && [401, 403].includes(error.status)) {
-    return null
-  }
-
-  if (isDropletApiError(error)) {
-    return `${error.message} (${error.status})`
-  }
-
-  return error.message
 }

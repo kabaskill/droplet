@@ -1,12 +1,14 @@
+import { FilterHorizontalIcon } from "@hugeicons/core-free-icons"
 import { useMemo, useState, useTransition } from "react"
 
 import { GermanyStateMap } from "@/components/app/GermanyStateMap"
+import { ProductIcon } from "@/components/app/ProductIcon"
 import { cn } from "@/lib/utils"
 import {
-  freshnessLabel,
-  snapshotFreshnessStatus,
-} from "@/services/snapshot-freshness"
-import type { RegionWithSnapshot } from "@/services/regional-filters"
+  regionalFilterLabels,
+  regionalFilterOrder,
+  type RegionWithSnapshot,
+} from "@/services/regional-filters"
 import type { ReservoirSnapshot } from "@/services/types"
 import {
   regionBelongsToWaterSystem,
@@ -14,10 +16,16 @@ import {
   waterSystemStateCount,
 } from "@/services/water-systems"
 import type { MapLayer } from "@/stores/app-store"
+import type { RegionalFilter } from "@/stores/app-store"
 
 type RegionOperationsMapProps = {
+  activeFilter: RegionalFilter
   activeLayer: MapLayer
+  allRegions: RegionWithSnapshot[]
+  filterCounts: Record<RegionalFilter, number>
   filteredRegions: RegionWithSnapshot[]
+  onFilterChange: (filter: RegionalFilter) => void
+  onLayerChange: (layer: MapLayer) => void
   onSelectRegion: (regionId: string) => void
   selectedRegionId: string | null
 }
@@ -50,65 +58,20 @@ const layerConfigs: Record<MapLayer, LayerConfig> = {
   },
 }
 
-function layerStatus(snapshot: ReservoirSnapshot, activeLayer: MapLayer) {
-  if (activeLayer === "confidence") {
-    if (snapshot.confidenceScore < 70 || snapshot.visibilityScore < 58) {
-      return "critical"
-    }
-
-    if (snapshot.confidenceScore < 82 || snapshot.visibilityScore < 68) {
-      return "watch"
-    }
-
-    return "healthy"
-  }
-
-  if (activeLayer === "rainfall") {
-    if (snapshot.rainfallIndex >= 70) {
-      return "critical"
-    }
-
-    if (snapshot.rainfallIndex >= 45) {
-      return "watch"
-    }
-
-    return "healthy"
-  }
-
-  if (snapshot.waterLevel >= 72) {
-    return "critical"
-  }
-
-  if (snapshot.waterLevel <= 42 || snapshot.evaporationPressure >= 62) {
-    return "watch"
-  }
-
-  return "healthy"
-}
-
-function riskClass(snapshot: ReservoirSnapshot | undefined, activeLayer: MapLayer) {
-  if (!snapshot) {
-    return "border-border bg-muted"
-  }
-
-  if (snapshotFreshnessStatus(snapshot) === "old") {
-    return "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
-  }
-
-  if (layerStatus(snapshot, activeLayer) === "critical") {
-    return "border-red-300 bg-red-50 text-red-950 dark:bg-red-950/30 dark:text-red-100"
-  }
-
-  if (layerStatus(snapshot, activeLayer) === "watch") {
-    return "border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
-  }
-
-  return "border-emerald-300 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100"
-}
+const layers: { id: MapLayer; label: string }[] = [
+  { id: "water-level", label: "Water" },
+  { id: "rainfall", label: "Rain" },
+  { id: "confidence", label: "Confidence" },
+]
 
 export function RegionOperationsMap({
+  activeFilter,
   activeLayer,
+  allRegions,
+  filterCounts,
   filteredRegions,
+  onFilterChange,
+  onLayerChange,
   onSelectRegion,
   selectedRegionId,
 }: RegionOperationsMapProps) {
@@ -122,23 +85,31 @@ export function RegionOperationsMap({
           ...system,
           visibleStateCount: waterSystemStateCount(
             system,
-            filteredRegions.map(({ region }) => region)
+            allRegions.map(({ region }) => region)
           ),
         }))
         .filter((system) => system.visibleStateCount > 0),
-    [filteredRegions]
+    [allRegions]
   )
   const selectedWaterSystem =
     availableWaterSystems.find((system) => system.id === selectedWaterSystemId) ??
     null
-  const visibleRegions = selectedWaterSystem
+  const visibleFilteredRegions = selectedWaterSystem
     ? filteredRegions.filter(({ region }) =>
         regionBelongsToWaterSystem(region, selectedWaterSystem)
       )
     : filteredRegions
+  const fallbackMapRegions = selectedWaterSystem
+    ? allRegions.filter(({ region }) =>
+        regionBelongsToWaterSystem(region, selectedWaterSystem)
+      )
+    : allRegions
+  const visibleRegions = visibleFilteredRegions.length
+    ? visibleFilteredRegions
+    : fallbackMapRegions
 
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
+    <section className="flex h-full flex-col rounded-md border bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-medium">State overview</h2>
@@ -151,118 +122,48 @@ export function RegionOperationsMap({
         </span>
       </div>
 
-      {filteredRegions.length ? (
-        <div className="grid gap-3">
-          <WaterSystemSelector
-            systems={availableWaterSystems}
-            selectedSystem={selectedWaterSystem}
-            selectedSystemId={selectedWaterSystem?.id ?? null}
-            totalCount={filteredRegions.length}
-            onSelectSystem={(systemId) => {
-              const nextSystem =
-                availableWaterSystems.find((system) => system.id === systemId) ?? null
-
-              setSelectedWaterSystemId(systemId)
-
-              if (nextSystem) {
-                const firstRegion = filteredRegions.find(({ region }) =>
-                  regionBelongsToWaterSystem(region, nextSystem)
-                )
-
-                if (firstRegion) {
-                  startTransition(() => onSelectRegion(firstRegion.region.id))
-                }
-              }
-            }}
-          />
-
-          <GermanyStateMap
-            activeLayer={activeLayer}
-            filteredRegions={visibleRegions}
-            selectedRegionId={selectedRegionId}
-            onSelectRegion={onSelectRegion}
-          />
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {visibleRegions.map(({ region, snapshot }) => {
-              const selected = selectedRegionId === region.id
-              const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
-              const primaryValue = snapshot ? activeLayerConfig.metric(snapshot) : 0
-
-              return (
-                <button
-                  aria-label={`Select ${region.name}; ${activeLayerConfig.label} ${primaryValue} percent; ${region.basin}`}
-                  aria-pressed={selected}
-                  className={cn(
-                    "min-h-36 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
-                    riskClass(snapshot, activeLayer),
-                    selected && "ring-2 ring-primary/40"
-                  )}
-                  key={region.id}
-                  onClick={() => {
-                    startTransition(() => onSelectRegion(region.id))
-                  }}
-                  type="button"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">{region.name}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs opacity-75">
-                        <span className="truncate">{region.basin} system</span>
-                        {snapshot && freshnessStatus ? (
-                          <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium capitalize">
-                            {freshnessStatus} · {freshnessLabel(snapshot)}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium">
-                      {region.code}
-                    </span>
-                  </div>
-
-                  <div className="mt-5">
-                    <div className="flex items-end justify-between gap-2">
-                      <div className="text-xs opacity-75">
-                        {activeLayerConfig.shortLabel}
-                      </div>
-                      <div className="text-2xl font-semibold">{primaryValue}%</div>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/70">
-                      <div
-                        className="h-full rounded-full bg-current"
-                        style={{ width: `${primaryValue}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
-                    <MetricPill
-                      active={activeLayer === "water-level"}
-                      label="Water"
-                      value={snapshot?.waterLevel ?? 0}
-                    />
-                    <MetricPill
-                      active={activeLayer === "rainfall"}
-                      label="Rain"
-                      value={snapshot?.rainfallIndex ?? 0}
-                    />
-                    <MetricPill
-                      active={activeLayer === "confidence"}
-                      label="Conf."
-                      value={snapshot?.confidenceScore ?? 0}
-                    />
-                  </div>
-                </button>
-              )
-            })}
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {!visibleFilteredRegions.length ? (
+          <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+            No states match the active filter. Showing the full map for context.
           </div>
-        </div>
-      ) : (
-        <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-          No states match the active filter
-        </div>
-      )}
+        ) : null}
+        <GermanyStateMap
+          activeLayer={activeLayer}
+          filteredRegions={visibleRegions}
+          selectedRegionId={selectedRegionId}
+          onSelectRegion={onSelectRegion}
+          controls={
+            <MapControlPanel
+              activeFilter={activeFilter}
+              activeLayer={activeLayer}
+              filterCounts={filterCounts}
+              selectedSystem={selectedWaterSystem}
+              selectedSystemId={selectedWaterSystem?.id ?? null}
+              systems={availableWaterSystems}
+              totalCount={allRegions.length}
+              onFilterChange={onFilterChange}
+              onLayerChange={onLayerChange}
+              onSelectSystem={(systemId) => {
+                const nextSystem =
+                  availableWaterSystems.find((system) => system.id === systemId) ?? null
+
+                setSelectedWaterSystemId(systemId)
+
+                if (nextSystem) {
+                  const firstRegion = allRegions.find(({ region }) =>
+                    regionBelongsToWaterSystem(region, nextSystem)
+                  )
+
+                  if (firstRegion) {
+                    startTransition(() => onSelectRegion(firstRegion.region.id))
+                  }
+                }
+              }}
+            />
+          }
+        />
+      </div>
     </section>
   )
 }
@@ -279,6 +180,104 @@ type WaterSystemSelectorProps = {
   totalCount: number
 }
 
+type MapControlPanelProps = WaterSystemSelectorProps & {
+  activeFilter: RegionalFilter
+  activeLayer: MapLayer
+  filterCounts: Record<RegionalFilter, number>
+  onFilterChange: (filter: RegionalFilter) => void
+  onLayerChange: (layer: MapLayer) => void
+}
+
+function MapControlPanel({
+  activeFilter,
+  activeLayer,
+  filterCounts,
+  onFilterChange,
+  onLayerChange,
+  ...selectorProps
+}: MapControlPanelProps) {
+  const [open, setOpen] = useState(false)
+  const activeLayerConfig = layers.find((layer) => layer.id === activeLayer)
+
+  return (
+    <div className="w-fit max-w-full">
+      <button
+        aria-expanded={open}
+        className={cn(
+          "flex h-9 items-center gap-2 rounded-md border bg-background/95 px-3 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-foreground",
+          open && "bg-accent text-foreground"
+        )}
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        <ProductIcon icon={FilterHorizontalIcon} size={14} />
+        Map controls
+        <span className="hidden text-muted-foreground sm:inline">
+          {activeLayerConfig?.label ?? "Layer"} · {regionalFilterLabels[activeFilter]}
+        </span>
+      </button>
+
+      {open ? (
+        <div className="mt-2 grid max-h-[68svh] w-[min(320px,calc(100vw-2rem))] gap-2 overflow-y-auto rounded-md border bg-background/95 p-2 shadow-lg backdrop-blur">
+          <div
+            aria-label="Map layer"
+            className="flex flex-wrap gap-1 rounded-md border bg-card p-0.5"
+            role="group"
+          >
+            {layers.map((layer) => (
+              <button
+                aria-pressed={activeLayer === layer.id}
+                className={cn(
+                  "h-8 rounded-sm px-2 text-xs font-medium text-muted-foreground transition-colors",
+                  activeLayer === layer.id && "bg-primary text-primary-foreground"
+                )}
+                key={layer.id}
+                onClick={() => onLayerChange(layer.id)}
+                type="button"
+              >
+                {layer.label}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-md border bg-card p-2">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <ProductIcon icon={FilterHorizontalIcon} size={14} />
+              Filters
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {regionalFilterOrder.map((filter) => (
+                <button
+                  aria-label={`Show ${regionalFilterLabels[filter]} states, ${filterCounts[filter]} matches`}
+                  aria-pressed={activeFilter === filter}
+                  className={cn(
+                    "rounded-md border bg-background px-2 py-1 text-[0.7rem] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    activeFilter === filter &&
+                      "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                  )}
+                  key={filter}
+                  onClick={() => onFilterChange(filter)}
+                  type="button"
+                >
+                  {regionalFilterLabels[filter]}
+                  <span className="ml-1 opacity-75">{filterCounts[filter]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <WaterSystemSelector {...selectorProps} />
+          <button
+            className="h-8 rounded-md border bg-card px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            onClick={() => setOpen(false)}
+            type="button"
+          >
+            Close controls
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function WaterSystemSelector({
   onSelectSystem,
   selectedSystem,
@@ -287,7 +286,7 @@ function WaterSystemSelector({
   totalCount,
 }: WaterSystemSelectorProps) {
   return (
-    <div className="rounded-md border bg-background p-2">
+    <div className="rounded-md border bg-card p-2">
       <div className="mb-2 flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 text-xs font-medium text-muted-foreground">
           Water system view
@@ -343,26 +342,6 @@ function WaterSystemSelector({
           </button>
         ))}
       </div>
-    </div>
-  )
-}
-
-type MetricPillProps = {
-  active: boolean
-  label: string
-  value: number
-}
-
-function MetricPill({ active, label, value }: MetricPillProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-sm bg-background/50 px-1.5 py-1",
-        active && "bg-background/80"
-      )}
-    >
-      <div className="opacity-70">{label}</div>
-      <div className="font-semibold">{value}%</div>
     </div>
   )
 }

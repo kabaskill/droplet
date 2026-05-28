@@ -5,9 +5,7 @@ import {
   ThermometerIcon,
 } from "@hugeicons/core-free-icons"
 
-import { HistoricalTrend } from "@/components/app/HistoricalTrend"
 import { MetricTile } from "@/components/app/MetricTile"
-import { ReservoirState } from "@/components/app/ReservoirState"
 import { cn } from "@/lib/utils"
 import {
   freshnessLabel,
@@ -17,13 +15,11 @@ import {
 import type { Region, ReservoirSnapshot } from "@/services/types"
 
 type RegionDetailPanelProps = {
-  history: ReservoirSnapshot[]
   region: Region
   snapshot: ReservoirSnapshot
 }
 
 export function RegionDetailPanel({
-  history,
   region,
   snapshot,
 }: RegionDetailPanelProps) {
@@ -107,10 +103,32 @@ export function RegionDetailPanel({
             value={`${snapshot.confidenceScore}%`}
           />
         </div>
-      </section>
 
-      <ReservoirState snapshot={snapshot} />
-      <HistoricalTrend history={history} />
+        <div className="mt-4 rounded-md border bg-background p-3">
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+            <span className="font-medium text-muted-foreground">Reservoir fill</span>
+            <span className="font-semibold">{snapshot.waterLevel}%</span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full",
+                snapshot.waterLevel >= 72
+                  ? "bg-red-500"
+                  : snapshot.waterLevel <= 42
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+              )}
+              style={{ width: `${snapshot.waterLevel}%` }}
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+            <span>Rain {snapshot.rainfallIndex}%</span>
+            <span>Evap. {snapshot.evaporationPressure}%</span>
+            <span>Visibility {snapshot.visibilityScore}%</span>
+          </div>
+        </div>
+      </section>
     </aside>
   )
 }
