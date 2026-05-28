@@ -57,6 +57,7 @@ export function RegionDetailPanel({
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
+              {region.basin} water system ·{" "}
               {new Date(snapshot.timestamp).toLocaleString("en-DE")}
             </p>
           </div>

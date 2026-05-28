@@ -51,19 +51,19 @@ export function RegionQuickSwitcher({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium">
             <ProductIcon icon={GlobalSearchIcon} size={16} />
-            Region quick switch
+            State quick switch
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground">
             {selectedRegion
-              ? `${selectedRegion.region.name} · ${selectedRegion.region.basin}`
-              : "No region selected"}
+              ? `${selectedRegion.region.name} · ${selectedRegion.region.basin} system`
+              : "No state selected"}
           </p>
         </div>
 
         <div className="min-w-0">
           <div className="flex min-w-0 gap-2">
             <label className="relative min-w-0 flex-1">
-              <span className="sr-only">Search regions</span>
+              <span className="sr-only">Search states</span>
               <ProductIcon
                 className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                 icon={Location01Icon}
@@ -72,7 +72,7 @@ export function RegionQuickSwitcher({
               <input
                 aria-controls={resultListId}
                 aria-expanded={Boolean(normalizedQuery)}
-                aria-label="Search visible regions"
+                aria-label="Search visible states"
                 aria-autocomplete="list"
                 className="h-9 w-full rounded-md border bg-background pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/25"
                 onChange={(event) => setQuery(event.target.value)}
@@ -81,7 +81,7 @@ export function RegionQuickSwitcher({
                     selectRegion(matches[0].region.id)
                   }
                 }}
-                placeholder="Search region, basin, state, code"
+                placeholder="Search state, water system, code"
                 role="combobox"
                 type="search"
                 value={query}
@@ -104,7 +104,7 @@ export function RegionQuickSwitcher({
               {matches.length ? (
                 matches.map(({ region, snapshot }) => (
                   <button
-                    aria-label={`Select ${region.name}, ${region.basin}, ${region.federalState}`}
+                    aria-label={`Select ${region.name}, ${region.basin} water system`}
                     aria-selected={selectedRegionId === region.id}
                     className={cn(
                       "grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
@@ -118,7 +118,7 @@ export function RegionQuickSwitcher({
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{region.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {region.basin} · {region.federalState}
+                        {region.basin} system · {region.code}
                       </span>
                     </span>
                     <span className="text-right text-xs text-muted-foreground">
@@ -134,7 +134,7 @@ export function RegionQuickSwitcher({
                   className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground"
                   role="status"
                 >
-                  No visible regions match
+                  No visible states match
                 </div>
               )}
             </div>

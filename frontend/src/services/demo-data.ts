@@ -430,7 +430,7 @@ export function getDemoForecastOutlook(): ForecastOutlook {
         sourceKind: "forecast",
         summary:
           pressureScore >= 45
-            ? "Moderate forecast pressure; keep this basin in normal review cadence."
+            ? "Moderate forecast pressure; keep this state in normal review cadence."
             : "Forecast pressure is low for the next operating window.",
         trend: snapshot.trend,
       }

@@ -190,7 +190,7 @@ export function DashboardPage() {
             <>
               <MetricTile
                 icon={MapsIcon}
-                label="Regions"
+                label="States"
                 tone="blue"
                 value={
                   regionalFilter === "all"
@@ -271,6 +271,7 @@ export function DashboardPage() {
               ingestionStatus={ingestionStatusQuery.data ?? null}
               ingestionStatusLoading={ingestionStatusLoading}
               loading={sourceHealthLoading}
+              regions={regions}
               sourceHealth={sourceHealthQuery.data ?? null}
             />
             <ForecastOutlookPanel
@@ -343,7 +344,8 @@ function MobileRegionActionBar({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{region.name}</div>
           <div className="truncate text-xs text-muted-foreground">
-            Water {snapshot.waterLevel}% · Confidence {snapshot.confidenceScore}%
+            {region.basin} system · Water {snapshot.waterLevel}% · Confidence{" "}
+            {snapshot.confidenceScore}%
           </div>
         </div>
         <Button size="lg" onClick={onOpen}>
@@ -417,7 +419,7 @@ function MobileRegionDetailDialog({
   return (
     <div className="fixed inset-0 z-30 bg-background/70 backdrop-blur-sm xl:hidden">
       <button
-        aria-label="Close region details"
+        aria-label="Close state details"
         className="absolute inset-0 cursor-default"
         onClick={onClose}
         type="button"
@@ -434,11 +436,11 @@ function MobileRegionDetailDialog({
               {region.name}
             </h2>
             <div className="truncate text-xs text-muted-foreground">
-              {region.federalState}
+              {region.basin} system
             </div>
           </div>
           <Button
-            aria-label="Close region details"
+            aria-label="Close state details"
             ref={closeButtonRef}
             size="icon"
             variant="ghost"
@@ -476,7 +478,7 @@ function firstAccessError(errors: unknown[]) {
     }
 
     if (error.message === "insufficient role") {
-      return "Your current role can view regions, but analyst or municipality access is required for this operation."
+      return "Your current role can view states, but analyst or municipality access is required for this operation."
     }
   }
 

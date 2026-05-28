@@ -85,8 +85,8 @@ export function AiAnalysisPanel({
         ) : (
           <p className="text-sm text-muted-foreground">
             {snapshot
-              ? "Run analysis for the selected region snapshot."
-              : "Waiting for a selected region snapshot."}
+              ? "Run analysis for the selected state snapshot."
+              : "Waiting for a selected state snapshot."}
           </p>
         )}
       </div>

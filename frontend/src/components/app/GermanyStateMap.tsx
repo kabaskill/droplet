@@ -122,7 +122,7 @@ export function GermanyStateMap({
           <div className="grid gap-1.5">
             {observedStates.map((state) => (
               <button
-                aria-label={`Select ${state.title}; ${state.metric}% ${activeLayer} metric; regions ${state.regions.map(({ region }) => region.name).join(", ")}`}
+                aria-label={`Select ${state.title}; ${state.metric}% ${activeLayer} metric`}
                 aria-pressed={selectedStateCode === state.code}
                 className={cn(
                   "grid grid-cols-[10px_minmax(0,1fr)_42px] items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent",
@@ -139,7 +139,9 @@ export function GermanyStateMap({
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{state.title}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {state.regions.map(({ region }) => region.name).join(", ")}
+                    {state.regions
+                      .map(({ region }) => `${region.basin} system`)
+                      .join(", ")}
                   </span>
                 </span>
                 <span className="text-right text-xs font-medium text-muted-foreground">

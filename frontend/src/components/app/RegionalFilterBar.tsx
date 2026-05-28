@@ -24,12 +24,12 @@ export function RegionalFilterBar({
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <ProductIcon icon={FilterHorizontalIcon} size={16} />
-          Regional filters
+          State filters
         </div>
         <div className="flex flex-wrap gap-1.5">
           {regionalFilterOrder.map((filter) => (
             <button
-              aria-label={`Show ${regionalFilterLabels[filter]} regions, ${counts[filter]} matches`}
+              aria-label={`Show ${regionalFilterLabels[filter]} states, ${counts[filter]} matches`}
               aria-pressed={activeFilter === filter}
               className={cn(
                 "rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",

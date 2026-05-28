@@ -124,7 +124,7 @@ export function ForecastOutlookPanel({
                 ))
               ) : (
                 <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  No elevated forecast pressure across observed regions
+                  No elevated forecast pressure across observed states
                 </div>
               )}
             </div>

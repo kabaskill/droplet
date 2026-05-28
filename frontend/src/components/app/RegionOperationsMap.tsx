@@ -26,19 +26,19 @@ type LayerConfig = {
 
 const layerConfigs: Record<MapLayer, LayerConfig> = {
   confidence: {
-    description: "Confidence and visibility quality across observed basins",
+    description: "Confidence and visibility quality across observed states",
     label: "Confidence",
     metric: (snapshot) => snapshot.confidenceScore,
     shortLabel: "Conf.",
   },
   rainfall: {
-    description: "Rainfall pressure contribution across observed basins",
+    description: "Rainfall pressure contribution across observed states",
     label: "Rainfall",
     metric: (snapshot) => snapshot.rainfallIndex,
     shortLabel: "Rain",
   },
   "water-level": {
-    description: "Normalized river and reservoir level pressure by basin",
+    description: "Normalized river and reservoir level pressure by state",
     label: "Water level",
     metric: (snapshot) => snapshot.waterLevel,
     shortLabel: "Water",
@@ -114,7 +114,7 @@ export function RegionOperationsMap({
     <section className="rounded-md border bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-medium">Regional state</h2>
+          <h2 className="font-medium">State overview</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {activeLayerConfig.description}
           </p>
@@ -133,7 +133,7 @@ export function RegionOperationsMap({
             onSelectRegion={onSelectRegion}
           />
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {filteredRegions.map(({ region, snapshot }) => {
               const selected = selectedRegionId === region.id
               const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
@@ -144,7 +144,7 @@ export function RegionOperationsMap({
                   aria-label={`Select ${region.name}; ${activeLayerConfig.label} ${primaryValue} percent; ${region.basin}`}
                   aria-pressed={selected}
                   className={cn(
-                    "min-h-44 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
+                    "min-h-36 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
                     riskClass(snapshot, activeLayer),
                     selected && "ring-2 ring-primary/40"
                   )}
@@ -158,7 +158,7 @@ export function RegionOperationsMap({
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold">{region.name}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs opacity-75">
-                        <span className="truncate">{region.basin}</span>
+                        <span className="truncate">{region.basin} system</span>
                         {snapshot && freshnessStatus ? (
                           <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium capitalize">
                             {freshnessStatus} · {freshnessLabel(snapshot)}
@@ -210,7 +210,7 @@ export function RegionOperationsMap({
         </div>
       ) : (
         <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-          No regions match the active filter
+          No states match the active filter
         </div>
       )}
     </section>

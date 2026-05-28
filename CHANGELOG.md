@@ -65,3 +65,4 @@
 - Expanded prototype coverage from five basin proxy regions to all 16 German federal states.
 - Bumped the frontend persisted read-model cache so browsers stop restoring the old five-region data set.
 - Bumped the backend Redis read-model cache namespace so `/regions` stops serving the old five-region list.
+- Refined dashboard copy and state cards so the 16 German states are the primary operational unit.

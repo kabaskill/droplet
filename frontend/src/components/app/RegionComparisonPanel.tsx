@@ -20,17 +20,17 @@ type LayerComparator = {
 
 const layerComparators: Record<MapLayer, LayerComparator> = {
   confidence: {
-    description: "Ranks regions by confidence quality in the latest read model.",
+    description: "Ranks states by confidence quality in the latest read model.",
     label: "Confidence",
     metric: ({ snapshot }) => snapshot?.confidenceScore ?? 0,
   },
   rainfall: {
-    description: "Ranks regions by rainfall pressure in the latest read model.",
+    description: "Ranks states by rainfall pressure in the latest read model.",
     label: "Rainfall",
     metric: ({ snapshot }) => snapshot?.rainfallIndex ?? 0,
   },
   "water-level": {
-    description: "Ranks regions by normalized water level in the latest read model.",
+    description: "Ranks states by normalized water level in the latest read model.",
     label: "Water level",
     metric: ({ snapshot }) => snapshot?.waterLevel ?? 0,
   },
@@ -54,7 +54,7 @@ export function RegionComparisonPanel({
     <section className="rounded-md border bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-medium">Region comparison</h2>
+          <h2 className="font-medium">State comparison</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {comparator.description}
           </p>
@@ -85,7 +85,7 @@ export function RegionComparisonPanel({
               <span className="min-w-0">
                 <span className="block truncate font-medium">{region.name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {region.basin} · {region.federalState}
+                  {region.basin} system · {region.code}
                 </span>
               </span>
               <span className="font-semibold">{metric}%</span>
@@ -108,7 +108,7 @@ export function RegionComparisonPanel({
         </div>
       ) : (
         <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-          No regions match the active filter
+          No states match the active filter
         </div>
       )}
     </section>

@@ -7,13 +7,14 @@ import type { ReactNode } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { cn } from "@/lib/utils"
-import type { IngestionStatus, SourceHealth } from "@/services/types"
+import type { IngestionStatus, Region, SourceHealth } from "@/services/types"
 
 type SourceHealthPanelProps = {
   errorMessage?: string | null
   ingestionStatus: IngestionStatus | null
   ingestionStatusLoading?: boolean
   loading?: boolean
+  regions: Region[]
   sourceHealth: SourceHealth | null
 }
 
@@ -22,6 +23,7 @@ export function SourceHealthPanel({
   ingestionStatus,
   ingestionStatusLoading = false,
   loading = false,
+  regions,
   sourceHealth,
 }: SourceHealthPanelProps) {
   if (loading) {
@@ -64,6 +66,7 @@ export function SourceHealthPanel({
     ? sourceHealth.freshnessMix.old + sourceHealth.freshnessMix.stale
     : 0
   const healthStatusLabel = sourceHealthStatusLabel(fallbackCount, staleCount)
+  const stateNameById = new Map(regions.map((region) => [region.id, region.name]))
 
   return (
     <SourceHealthShell
@@ -103,7 +106,7 @@ export function SourceHealthPanel({
                 <span className="truncate">{provider.label}</span>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {provider.regions} regions
+                {provider.regions} states
               </span>
             </div>
           ))}
@@ -118,10 +121,10 @@ export function SourceHealthPanel({
 
       {sourceHealth?.staleRegions.length ? (
         <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Stale regions:{" "}
+          Stale states:{" "}
           {sourceHealth.staleRegions
             .slice(0, 4)
-            .map((region) => region.regionId)
+            .map((region) => stateNameById.get(region.regionId) ?? region.regionId)
             .join(", ")}
         </div>
       ) : null}
@@ -151,7 +154,7 @@ function SourceHealthShell({
         <div className="min-w-0">
           <h2 className="font-medium">Source health</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Provider coverage across latest regional observations
+            Provider coverage across latest state observations
           </p>
         </div>
         <span
