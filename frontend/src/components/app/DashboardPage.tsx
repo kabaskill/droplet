@@ -200,11 +200,6 @@ export function DashboardPage() {
   const operationalError = firstOperationalError([
     regionsQuery.error,
     snapshotsQuery.error,
-    historyQuery.error,
-    analyticsQuery.error,
-    sourceHealthQuery.error,
-    ingestionStatusQuery.error,
-    forecastOutlookQuery.error,
   ])
   const handleRefresh = () => {
     refreshSnapshots.mutate(undefined, {
@@ -277,8 +272,17 @@ export function DashboardPage() {
             ) : null}
             {operationalError ? (
               <section className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 shadow-sm dark:bg-red-950/30 dark:text-red-200">
-                <div className="font-medium">Live read model unavailable</div>
+                <div className="font-medium">Core read model unavailable</div>
                 <div className="mt-1">{operationalError}</div>
+              </section>
+            ) : null}
+            {panelErrorMessage(analyticsQuery.error) ? (
+              <section className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
+                <div className="font-medium">Analytics summary unavailable</div>
+                <div className="mt-1 text-xs leading-5">
+                  State map and snapshot details remain available from the latest
+                  snapshot read model.
+                </div>
               </section>
             ) : null}
             {regionReadModelLoading ? (
