@@ -59,3 +59,4 @@
 - Added dashboard skeleton states for first-load metrics, regional filters, map content, and region details.
 - Added a region quick switcher for searching visible regions by name, basin, state, or code.
 - Added metric switching and stale markers to the regional history chart.
+- Added loading, waiting, and unavailable states to source health, forecast, and analysis panels.

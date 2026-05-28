@@ -76,6 +76,11 @@ export function DashboardPage() {
   const regionReadModelLoading =
     (regionsQuery.isPending && regions.length === 0) ||
     (snapshotsQuery.isPending && snapshots.length === 0)
+  const sourceHealthLoading = sourceHealthQuery.isPending && !sourceHealthQuery.data
+  const ingestionStatusLoading =
+    ingestionStatusQuery.isPending && !ingestionStatusQuery.data
+  const forecastOutlookLoading =
+    forecastOutlookQuery.isPending && !forecastOutlookQuery.data
   const filteredRegions = useMemo(
     () => filterRegions(regions, snapshots, regionalFilter),
     [regions, snapshots, regionalFilter]
@@ -262,15 +267,23 @@ export function DashboardPage() {
               />
             ) : null}
             <SourceHealthPanel
+              errorMessage={panelErrorMessage(sourceHealthQuery.error)}
               ingestionStatus={ingestionStatusQuery.data ?? null}
+              ingestionStatusLoading={ingestionStatusLoading}
+              loading={sourceHealthLoading}
               sourceHealth={sourceHealthQuery.data ?? null}
             />
             <ForecastOutlookPanel
+              errorMessage={panelErrorMessage(forecastOutlookQuery.error)}
+              loading={forecastOutlookLoading}
               outlook={forecastOutlookQuery.data ?? null}
               regions={regions}
               selectedRegionId={activeRegion?.id ?? null}
             />
-            <AiAnalysisPanel snapshot={activeSnapshot} />
+            <AiAnalysisPanel
+              snapshot={activeSnapshot}
+              snapshotLoading={regionReadModelLoading}
+            />
           </div>
 
           {regionReadModelLoading ? (
@@ -443,4 +456,24 @@ function firstOperationalError(errors: unknown[]) {
   }
 
   return null
+}
+
+function panelErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return null
+  }
+
+  if (error.message === "insufficient role") {
+    return null
+  }
+
+  if (isDropletApiError(error) && [401, 403].includes(error.status)) {
+    return null
+  }
+
+  if (isDropletApiError(error)) {
+    return `${error.message} (${error.status})`
+  }
+
+  return error.message
 }

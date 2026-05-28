@@ -3,20 +3,62 @@ import {
   ThermometerIcon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
+import type { ReactNode } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { cn } from "@/lib/utils"
 import type { IngestionStatus, SourceHealth } from "@/services/types"
 
 type SourceHealthPanelProps = {
+  errorMessage?: string | null
   ingestionStatus: IngestionStatus | null
+  ingestionStatusLoading?: boolean
+  loading?: boolean
   sourceHealth: SourceHealth | null
 }
 
 export function SourceHealthPanel({
+  errorMessage,
   ingestionStatus,
+  ingestionStatusLoading = false,
+  loading = false,
   sourceHealth,
 }: SourceHealthPanelProps) {
+  if (loading) {
+    return <SourceHealthSkeleton />
+  }
+
+  if (errorMessage) {
+    return (
+      <SourceHealthShell statusLabel="Unavailable" statusTone="error">
+        <PanelMessage
+          title="Source health unavailable"
+          message={errorMessage}
+          tone="error"
+        />
+        <IngestionRunStatus
+          ingestionStatus={ingestionStatus}
+          loading={ingestionStatusLoading}
+        />
+      </SourceHealthShell>
+    )
+  }
+
+  if (!sourceHealth) {
+    return (
+      <SourceHealthShell statusLabel="Waiting">
+        <PanelMessage
+          title="Waiting for source coverage"
+          message="Provider coverage will appear after the first source health read model is available."
+        />
+        <IngestionRunStatus
+          ingestionStatus={ingestionStatus}
+          loading={ingestionStatusLoading}
+        />
+      </SourceHealthShell>
+    )
+  }
+
   const fallbackCount = sourceHealth?.fallbackRegions.length ?? 0
   const staleCount = sourceHealth
     ? sourceHealth.freshnessMix.old + sourceHealth.freshnessMix.stale
@@ -24,25 +66,10 @@ export function SourceHealthPanel({
   const healthStatusLabel = sourceHealthStatusLabel(fallbackCount, staleCount)
 
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-medium">Source health</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Provider coverage across latest regional observations
-          </p>
-        </div>
-        <span
-          className={cn(
-            "rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
-            fallbackCount > 0 && "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30",
-            staleCount > 0 && "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30"
-          )}
-        >
-          {healthStatusLabel}
-        </span>
-      </div>
-
+    <SourceHealthShell
+      statusLabel={healthStatusLabel}
+      statusTone={fallbackCount > 0 || staleCount > 0 ? "warning" : "default"}
+    >
       <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
           <CoverageMetric
@@ -99,8 +126,67 @@ export function SourceHealthPanel({
         </div>
       ) : null}
 
-      <IngestionRunStatus ingestionStatus={ingestionStatus} />
+      <IngestionRunStatus
+        ingestionStatus={ingestionStatus}
+        loading={ingestionStatusLoading}
+      />
+    </SourceHealthShell>
+  )
+}
+
+type SourceHealthShellProps = {
+  children: ReactNode
+  statusLabel: string
+  statusTone?: "default" | "error" | "warning"
+}
+
+function SourceHealthShell({
+  children,
+  statusLabel,
+  statusTone = "default",
+}: SourceHealthShellProps) {
+  return (
+    <section className="rounded-md border bg-card p-4 shadow-sm">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-medium">Source health</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Provider coverage across latest regional observations
+          </p>
+        </div>
+        <span
+          className={cn(
+            "rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
+            statusTone === "warning" &&
+              "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30",
+            statusTone === "error" &&
+              "border-red-300 bg-red-50 text-red-800 dark:bg-red-950/30"
+          )}
+        >
+          {statusLabel}
+        </span>
+      </div>
+      {children}
     </section>
+  )
+}
+
+function SourceHealthSkeleton() {
+  return (
+    <SourceHealthShell statusLabel="Loading">
+      <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
+          <SkeletonBlock className="h-24" />
+          <SkeletonBlock className="h-24" />
+        </div>
+        <div className="grid gap-2">
+          {Array.from({ length: 4 }, (_, index) => (
+            <SkeletonBlock className="h-10" key={index} />
+          ))}
+        </div>
+      </div>
+      <SkeletonBlock className="mt-3 h-10" />
+    </SourceHealthShell>
   )
 }
 
@@ -144,9 +230,17 @@ function CoverageMetric({ icon, label, value }: CoverageMetricProps) {
 
 type IngestionRunStatusProps = {
   ingestionStatus: IngestionStatus | null
+  loading?: boolean
 }
 
-function IngestionRunStatus({ ingestionStatus }: IngestionRunStatusProps) {
+function IngestionRunStatus({
+  ingestionStatus,
+  loading = false,
+}: IngestionRunStatusProps) {
+  if (loading) {
+    return <SkeletonBlock className="mt-3 h-10" />
+  }
+
   if (!ingestionStatus || ingestionStatus.status === "unknown") {
     return (
       <div className="mt-3 rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
@@ -186,4 +280,29 @@ function IngestionRunStatus({ ingestionStatus }: IngestionRunStatusProps) {
       )}
     </div>
   )
+}
+
+type PanelMessageProps = {
+  message: string
+  title: string
+  tone?: "default" | "error"
+}
+
+function PanelMessage({ message, title, tone = "default" }: PanelMessageProps) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground",
+        tone === "error" &&
+          "border-red-200 bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-200"
+      )}
+    >
+      <div className="font-medium text-foreground">{title}</div>
+      <div className="mt-1">{message}</div>
+    </div>
+  )
+}
+
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />
 }

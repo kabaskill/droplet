@@ -5,6 +5,7 @@ import {
   TimeScheduleIcon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
+import type { ReactNode } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { cn } from "@/lib/utils"
@@ -15,16 +16,36 @@ import type {
 } from "@/services/types"
 
 type ForecastOutlookPanelProps = {
+  errorMessage?: string | null
+  loading?: boolean
   outlook: ForecastOutlook | null
   regions: Region[]
   selectedRegionId: string | null
 }
 
 export function ForecastOutlookPanel({
+  errorMessage,
+  loading = false,
   outlook,
   regions,
   selectedRegionId,
 }: ForecastOutlookPanelProps) {
+  if (loading) {
+    return <ForecastOutlookSkeleton />
+  }
+
+  if (errorMessage) {
+    return (
+      <ForecastOutlookShell statusLabel="Unavailable" statusTone="error">
+        <PanelMessage
+          title="Forecast outlook unavailable"
+          message={errorMessage}
+          tone="error"
+        />
+      </ForecastOutlookShell>
+    )
+  }
+
   const activeOutlook =
     outlook?.regions.find((region) => region.regionId === selectedRegionId) ??
     outlook?.regions[0] ??
@@ -36,25 +57,10 @@ export function ForecastOutlookPanel({
       .slice(0, 3) ?? []
 
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-medium">Forecast outlook</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Open-Meteo pressure estimate for the next operating window
-          </p>
-        </div>
-        <span
-          className={cn(
-            "rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
-            (outlook?.coverage ?? 0) < 100 &&
-              "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30"
-          )}
-        >
-          {outlook ? `${outlook.coverage}% forecast` : "Waiting"}
-        </span>
-      </div>
-
+    <ForecastOutlookShell
+      statusLabel={outlook ? `${outlook.coverage}% forecast` : "Waiting"}
+      statusTone={outlook && outlook.coverage < 100 ? "warning" : "default"}
+    >
       {activeOutlook && outlook ? (
         <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
           <div className="rounded-md border bg-background p-3">
@@ -129,11 +135,69 @@ export function ForecastOutlookPanel({
           </div>
         </div>
       ) : (
-        <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-          Waiting for forecast outlook
-        </div>
+        <PanelMessage
+          title="Waiting for forecast outlook"
+          message="Forecast pressure estimates will appear once the outlook read model is available."
+        />
       )}
+    </ForecastOutlookShell>
+  )
+}
+
+type ForecastOutlookShellProps = {
+  children: ReactNode
+  statusLabel: string
+  statusTone?: "default" | "error" | "warning"
+}
+
+function ForecastOutlookShell({
+  children,
+  statusLabel,
+  statusTone = "default",
+}: ForecastOutlookShellProps) {
+  return (
+    <section className="rounded-md border bg-card p-4 shadow-sm">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-medium">Forecast outlook</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Open-Meteo pressure estimate for the next operating window
+          </p>
+        </div>
+        <span
+          className={cn(
+            "rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
+            statusTone === "warning" &&
+              "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30",
+            statusTone === "error" &&
+              "border-red-300 bg-red-50 text-red-800 dark:bg-red-950/30"
+          )}
+        >
+          {statusLabel}
+        </span>
+      </div>
+      {children}
     </section>
+  )
+}
+
+function ForecastOutlookSkeleton() {
+  return (
+    <ForecastOutlookShell statusLabel="Loading">
+      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <SkeletonBlock className="h-56" />
+        <div className="grid gap-3">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <SkeletonBlock className="h-24" key={index} />
+            ))}
+          </div>
+          {Array.from({ length: 3 }, (_, index) => (
+            <SkeletonBlock className="h-14" key={index} />
+          ))}
+        </div>
+      </div>
+    </ForecastOutlookShell>
   )
 }
 
@@ -216,4 +280,29 @@ function nullableMetric(value: number | null, suffix: string) {
 
 function regionName(regions: Region[], regionId: string) {
   return regions.find((region) => region.id === regionId)?.name ?? regionId
+}
+
+type PanelMessageProps = {
+  message: string
+  title: string
+  tone?: "default" | "error"
+}
+
+function PanelMessage({ message, title, tone = "default" }: PanelMessageProps) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground",
+        tone === "error" &&
+          "border-red-200 bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-200"
+      )}
+    >
+      <div className="font-medium text-foreground">{title}</div>
+      <div className="mt-1">{message}</div>
+    </div>
+  )
+}
+
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />
 }
