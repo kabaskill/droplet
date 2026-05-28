@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/features/auth/auth-store"
 import { useAiAnalysis } from "@/hooks/use-droplet-data"
 import type { AiAnalysisRequest, Region } from "@/services/types"
+import type { AuthUser, DropletRole } from "@/features/auth/types"
 import { waterSystems } from "@/services/water-systems"
 
 type AiScopeType = "region" | "state"
@@ -21,6 +22,7 @@ export function AiPage() {
   )
   const analysis = useAiAnalysis()
   const user = useAuthStore((state) => state.user)
+  const activeRole = activePersonaRole(user) ?? "citizen"
   const effectiveStateId = selectedStateId || regions[0]?.id || ""
   const selectedWaterSystem =
     waterSystems.find((system) => system.id === selectedRegionId) ?? waterSystems[0]
@@ -45,7 +47,8 @@ export function AiPage() {
     selectedRegions,
     selectedSnapshots,
     selectedWaterSystem,
-    effectiveStateId
+    effectiveStateId,
+    activeRole
   )
   const canAnalyze =
     Boolean(analysisRequest) && !regionReadModelLoading && !analysis.isPending
@@ -68,7 +71,7 @@ export function AiPage() {
             </div>
           </div>
           <span className="w-fit rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-            Role: {user?.roles.at(-1) ?? "citizen"}
+            Role: {activeRole}
           </span>
         </div>
       </section>
@@ -178,12 +181,43 @@ export function AiPage() {
   )
 }
 
+function activePersonaRole(user: AuthUser | null): DropletRole | null {
+  if (!user) {
+    return null
+  }
+
+  const identity = `${user.email ?? ""} ${user.name}`.toLowerCase()
+
+  if (identity.includes("municipality") && user.roles.includes("municipality")) {
+    return "municipality"
+  }
+
+  if (identity.includes("analyst") && user.roles.includes("analyst")) {
+    return "analyst"
+  }
+
+  if (user.roles.includes("municipality")) {
+    return "municipality"
+  }
+
+  if (user.roles.includes("analyst")) {
+    return "analyst"
+  }
+
+  if (user.roles.includes("citizen")) {
+    return "citizen"
+  }
+
+  return null
+}
+
 function buildAnalysisRequest(
   scopeType: AiScopeType,
   selectedRegions: Region[],
   selectedSnapshots: AiAnalysisRequest["snapshots"],
   selectedWaterSystem: (typeof waterSystems)[number] | undefined,
-  selectedStateId: string
+  selectedStateId: string,
+  activeRole: DropletRole
 ): AiAnalysisRequest | null {
   if (!selectedRegions.length || !selectedSnapshots.length) {
     return null
@@ -205,6 +239,7 @@ function buildAnalysisRequest(
 
   return {
     generatedAt: new Date().toISOString(),
+    requestedRole: activeRole,
     regions: selectedRegions.map((region) => ({
       basin: region.basin,
       federalState: region.federalState,

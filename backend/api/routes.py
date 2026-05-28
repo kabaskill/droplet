@@ -7,6 +7,7 @@ from backend.cache.redis_client import read_through_json
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import (
+    AiAnalysisError,
     analyze_environment_payload,
     analyze_snapshot_payload,
 )
@@ -126,14 +127,20 @@ def ai_analyze():
         if not any(isinstance(snapshot, dict) for snapshot in payload["snapshots"]):
             return jsonify({"error": "at least one snapshot is required"}), 400
 
-        return jsonify(analyze_environment_payload(payload, g.current_user["roles"]))
+        try:
+            return jsonify(analyze_environment_payload(payload, g.current_user["roles"]))
+        except AiAnalysisError as exc:
+            return jsonify({"error": str(exc)}), 502
 
     snapshot = payload.get("snapshot")
 
     if not isinstance(snapshot, dict):
         return jsonify({"error": "snapshot or snapshots are required"}), 400
 
-    return jsonify(analyze_snapshot_payload(snapshot, g.current_user["roles"]))
+    try:
+        return jsonify(analyze_snapshot_payload(snapshot, g.current_user["roles"]))
+    except AiAnalysisError as exc:
+        return jsonify({"error": str(exc)}), 502
 
 
 def _snapshot_history_limit(roles: list[str], requested_limit: str | None) -> int:

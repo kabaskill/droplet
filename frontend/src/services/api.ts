@@ -3,7 +3,6 @@ import { refreshKeycloakToken } from "@/features/auth/keycloak"
 import {
   demoRegions,
   demoSnapshots,
-  getDemoAiAnalysis,
   getDemoAnalyticsSummary,
   getDemoForecastOutlook,
   getDemoIngestionStatus,
@@ -178,25 +177,17 @@ export function fetchForecastOutlook() {
 }
 
 export function analyzeSnapshot(snapshot: ReservoirSnapshot) {
-  return withFallback(
-    () =>
-      requestJson<AiAnalysisResult>("/ai/analyze", {
-        body: JSON.stringify({ snapshot }),
-        method: "POST",
-      }),
-    () => getDemoAiAnalysis(snapshot)
-  )
+  return requestJson<AiAnalysisResult>("/ai/analyze", {
+    body: JSON.stringify({ snapshot }),
+    method: "POST",
+  })
 }
 
 export function analyzeWaterState(request: AiAnalysisRequest) {
-  return withFallback(
-    () =>
-      requestJson<AiAnalysisResult>("/ai/analyze", {
-        body: JSON.stringify(request),
-        method: "POST",
-      }),
-    () => getDemoAiAnalysis(request.snapshots[0])
-  )
+  return requestJson<AiAnalysisResult>("/ai/analyze", {
+    body: JSON.stringify(request),
+    method: "POST",
+  })
 }
 
 export function refreshSnapshots() {

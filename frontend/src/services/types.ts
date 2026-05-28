@@ -85,6 +85,7 @@ export type AiAnalysisResult = {
 
 export type AiAnalysisRequest = {
   generatedAt: string
+  requestedRole?: "analyst" | "citizen" | "municipality"
   regions: Array<{
     basin: string
     federalState: string
