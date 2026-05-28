@@ -69,3 +69,4 @@
 - Added a water-system selector to the state overview so operators can focus related states such as Main, Rhine, Elbe, and Weser on the existing state map.
 - Fixed mobile state selection so changing the active state no longer opens the detail sheet until the Details action is tapped.
 - Added an explicit active water-system label and clear action to the state overview selector.
+- Added a dashboard offline notice that makes cached read-model usage visible when the browser loses network connectivity.

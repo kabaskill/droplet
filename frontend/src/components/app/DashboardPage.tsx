@@ -52,6 +52,10 @@ import type {
 const emptyRegions: Region[] = []
 const emptySnapshots: ReservoirSnapshot[] = []
 
+function currentOnlineState() {
+  return typeof navigator === "undefined" ? true : navigator.onLine
+}
+
 export function DashboardPage() {
   const activeLayer = useAppStore((state) => state.activeLayer)
   const comparisonMode = useAppStore((state) => state.comparisonMode)
@@ -69,6 +73,7 @@ export function DashboardPage() {
   const queryClient = useQueryClient()
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [now, setNow] = useState(0)
+  const [online, setOnline] = useState(currentOnlineState)
 
   const regions = regionsQuery.data ?? emptyRegions
   const snapshots = snapshotsQuery.data ?? emptySnapshots
@@ -100,6 +105,18 @@ export function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    const updateOnlineState = () => setOnline(currentOnlineState())
+
+    window.addEventListener("online", updateOnlineState)
+    window.addEventListener("offline", updateOnlineState)
+
+    return () => {
+      window.removeEventListener("online", updateOnlineState)
+      window.removeEventListener("offline", updateOnlineState)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!regions[0]) {
       return
     }
@@ -126,7 +143,7 @@ export function DashboardPage() {
   const historyQuery = useSnapshotHistory(activeRegion?.id ?? null)
   const summary = analyticsQuery.data
   const stale =
-    !navigator.onLine ||
+    !online ||
     (snapshotsQuery.dataUpdatedAt > 0 &&
       now > 0 &&
       now - snapshotsQuery.dataUpdatedAt > 1000 * 60 * 5)
@@ -180,6 +197,8 @@ export function DashboardPage() {
       onRefresh={handleRefresh}
     >
       <main className="mx-auto grid max-w-7xl gap-4 p-4 pb-28 md:p-6 xl:pb-6">
+        {!online ? <OfflineCachedDataNotice /> : null}
+
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {metricsLoading ? (
             Array.from({ length: 4 }, (_, index) => (
@@ -323,6 +342,23 @@ export function DashboardPage() {
         ) : null}
       </main>
     </AppShell>
+  )
+}
+
+function OfflineCachedDataNotice() {
+  return (
+    <section className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
+      <div className="flex items-start gap-2">
+        <ProductIcon icon={Alert01Icon} size={16} />
+        <div className="min-w-0">
+          <div className="font-medium">Offline mode</div>
+          <div className="mt-0.5 text-xs leading-5">
+            Showing cached reservoir snapshots and read models until the network
+            connection is restored.
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 
