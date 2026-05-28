@@ -547,7 +547,7 @@ Keep this extremely simple.
 This is NOT an AI project.
 
 Runtime AI feature:
-- use the ChatGPT / OpenAI API
+- use the Gemini API
 - call it only from the Flask backend
 - never expose API keys in the React frontend
 
@@ -557,7 +557,7 @@ Development assistant:
 Keep these two meanings of AI separate:
 
 - Codex helps build the app
-- ChatGPT/OpenAI API powers the app's analysis feature
+- Gemini API powers the app's analysis feature
 
 ---
 
@@ -587,7 +587,7 @@ POST /api/ai/analyze
 Recommended request flow:
 
 ```txt
-React → Flask /api/ai/analyze → OpenAI API → Flask → React
+React → Flask /api/ai/analyze → Gemini API → Flask → React
 ```
 
 Reason:
@@ -620,9 +620,7 @@ Simple structured analysis:
 
 ## Suggested Provider
 
-Use OpenAI / ChatGPT API first.
-
-Gemini can remain a future option, but the prototype plan should target one provider to reduce implementation friction.
+Use Gemini API first.
 
 Developer responsibility:
 - manage API keys manually
@@ -950,4 +948,3 @@ The project should feel aligned with:
 - enterprise modernization
 - field/mobile software
 - scalable business systems
-

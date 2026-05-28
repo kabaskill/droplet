@@ -63,7 +63,7 @@ export function AiPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Select one state or a full water region. Droplet will package the
                 latest water-source, rainfall, evaporation, confidence, and weather
-                signals, then ask ChatGPT for a short role-aware analysis.
+                signals, then ask Gemini for a short role-aware analysis.
               </p>
             </div>
           </div>

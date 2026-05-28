@@ -53,36 +53,23 @@ def analyze_environment_payload(
     roles: list[str] | None = None,
 ) -> dict:
     role = _analysis_role(roles or [])
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
         return local_analysis(payload, role)
 
-    from openai import OpenAI
+    from google import genai
 
-    client = OpenAI(api_key=api_key)
-    response = client.chat.completions.create(
-        messages=[
-            {
-                "content": (
-                    "You are Droplet's environmental operations analyst. Analyze the "
-                    "provided German water-state read model for the authenticated user's "
-                    f"role: {role}. Keep the answer short and practical. Focus on water "
-                    "sources, water levels, rainfall, evaporation pressure, weather events, "
-                    "source confidence, and what the user should watch next. Return only JSON "
-                    "with summary, riskLevel, observations, recommendations, and scopeLabel. "
-                    "riskLevel must be low, medium, or high. observations and recommendations "
-                    "must be short string arrays."
-                ),
-                "role": "system",
-            },
-            {"content": json.dumps(payload), "role": "user"},
-        ],
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        response_format={"type": "json_object"},
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        contents=_gemini_prompt(payload, role),
+        config={
+            "response_mime_type": "application/json",
+        },
     )
 
-    text = response.choices[0].message.content or ""
+    text = response.text or ""
 
     if not text:
         return local_analysis(payload, role)
@@ -95,7 +82,7 @@ def analyze_environment_payload(
             "recommendations": [text],
             "riskLevel": "medium",
             "scopeLabel": _scope_label(payload),
-            "summary": "OpenAI analysis completed.",
+            "summary": "Gemini analysis completed.",
         }
 
     return {
@@ -103,8 +90,31 @@ def analyze_environment_payload(
         "recommendations": _string_list(parsed.get("recommendations")),
         "riskLevel": _risk_level(parsed.get("riskLevel")),
         "scopeLabel": str(parsed.get("scopeLabel") or _scope_label(payload)),
-        "summary": str(parsed.get("summary") or "OpenAI analysis completed."),
+        "summary": str(parsed.get("summary") or "Gemini analysis completed."),
     }
+
+
+def _gemini_prompt(payload: dict[str, Any], role: str) -> str:
+    return "\n\n".join(
+        [
+            (
+                "You are Droplet's environmental operations analyst. Analyze the "
+                "provided German water-state read model for the authenticated user's "
+                f"role: {role}."
+            ),
+            (
+                "Keep the answer short and practical. Focus on water sources, water "
+                "levels, rainfall, evaporation pressure, weather events, source "
+                "confidence, and what the user should watch next."
+            ),
+            (
+                "Return only JSON with summary, riskLevel, observations, "
+                "recommendations, and scopeLabel. riskLevel must be low, medium, or "
+                "high. observations and recommendations must be short string arrays."
+            ),
+            f"Water-state payload:\n{json.dumps(payload)}",
+        ]
+    )
 
 
 def _analysis_role(roles: list[str]) -> str:

@@ -25,6 +25,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       CORS_ORIGINS: http://localhost:5173
       DATABASE_URL: postgresql+psycopg://droplet:droplet@postgres:5432/droplet
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       KEYCLOAK_CLIENT_ID: droplet-frontend
       KEYCLOAK_PUBLIC_URL: http://localhost:8080
       KEYCLOAK_REALM: droplet
