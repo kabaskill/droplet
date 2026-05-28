@@ -62,3 +62,4 @@
 - Added loading, waiting, and unavailable states to source health, forecast, and analysis panels.
 - Simplified the header controls by folding sync/current/stale state into the refresh action.
 - Improved accessibility labels and mobile detail dialog keyboard behavior.
+- Expanded prototype coverage from five basin proxy regions to all 16 German federal states.

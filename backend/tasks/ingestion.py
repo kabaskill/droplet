@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, desc, select
 
 from backend.cache.redis_client import delete_cache_keys, delete_cache_pattern
+from backend.domain.regions import STATE_READING_VALUES
 from backend.domain.snapshots import ComputedSnapshot, EnvironmentalReading, compute_snapshot
 from backend.models.database import session_scope
 from backend.models.entities import ReservoirSnapshot
@@ -17,11 +18,19 @@ from backend.services.ingestion_status import (
 from backend.workers.celery_app import celery_app
 
 FALLBACK_READINGS = {
-    "elbe-upper": EnvironmentalReading(66, 30, "fallback environmental model", 17, 452),
-    "rhine-lower": EnvironmentalReading(73, 34, "fallback environmental model", 15, 503),
-    "danube-south": EnvironmentalReading(70, 24, "fallback environmental model", 16, 418),
-    "weser-central": EnvironmentalReading(44, 12, "fallback environmental model", 27, 258),
-    "oder-east": EnvironmentalReading(55, 16, "fallback environmental model", 24, 294),
+    region_id: EnvironmentalReading(
+        humidity_percent,
+        rainfall_mm,
+        "fallback environmental model",
+        temperature_c,
+        water_level_cm,
+    )
+    for region_id, (
+        humidity_percent,
+        rainfall_mm,
+        temperature_c,
+        water_level_cm,
+    ) in STATE_READING_VALUES.items()
 }
 
 

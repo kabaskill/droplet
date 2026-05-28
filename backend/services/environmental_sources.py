@@ -87,35 +87,101 @@ class DwdPrecipitationObservation:
 
 
 REGION_SOURCE_TARGETS = {
-    "danube-south": RegionSourceTarget(
+    "baden-wurttemberg": RegionSourceTarget(
+        latitude=48.7758,
+        longitude=9.1829,
+        station="STUTTGART",
+        water="NECKAR",
+    ),
+    "bavaria": RegionSourceTarget(
         latitude=48.5745,
         longitude=13.4657,
         station="PASSAU DONAU",
         water="DONAU",
     ),
-    "elbe-upper": RegionSourceTarget(
-        latitude=51.0504,
-        longitude=13.7373,
-        station="DRESDEN",
-        water="ELBE",
+    "berlin": RegionSourceTarget(
+        latitude=52.52,
+        longitude=13.405,
+        station="BERLIN-CHARLOTTENBURG",
+        water="SPREE",
     ),
-    "oder-east": RegionSourceTarget(
+    "brandenburg": RegionSourceTarget(
         latitude=52.3415,
         longitude=14.5514,
         station="FRANKFURT1 (ODER)",
         water="ODER",
     ),
-    "rhine-lower": RegionSourceTarget(
+    "bremen": RegionSourceTarget(
+        latitude=53.0793,
+        longitude=8.8017,
+        station="BREMEN",
+        water="WESER",
+    ),
+    "hamburg": RegionSourceTarget(
+        latitude=53.5511,
+        longitude=9.9937,
+        station="HAMBURG-ST.PAULI",
+        water="ELBE",
+    ),
+    "hesse": RegionSourceTarget(
+        latitude=50.1109,
+        longitude=8.6821,
+        station="FRANKFURT OSTHAFEN",
+        water="MAIN",
+    ),
+    "lower-saxony": RegionSourceTarget(
+        latitude=51.4197,
+        longitude=9.6506,
+        station="HANN.MUENDEN",
+        water="WESER",
+    ),
+    "mecklenburg-vorpommern": RegionSourceTarget(
+        latitude=54.0924,
+        longitude=12.0991,
+        station="ROSTOCK",
+        water="WARNOW",
+    ),
+    "north-rhine-westphalia": RegionSourceTarget(
         latitude=51.4344,
         longitude=6.7623,
         station="DUISBURG-RUHRORT",
         water="RHEIN",
     ),
-    "weser-central": RegionSourceTarget(
-        latitude=51.4197,
-        longitude=9.6506,
-        station="HANN.MUENDEN",
-        water="WESER",
+    "rhineland-palatinate": RegionSourceTarget(
+        latitude=49.9929,
+        longitude=8.2473,
+        station="MAINZ",
+        water="RHEIN",
+    ),
+    "saarland": RegionSourceTarget(
+        latitude=49.2402,
+        longitude=6.9969,
+        station="SAARBRUECKEN",
+        water="SAAR",
+    ),
+    "saxony": RegionSourceTarget(
+        latitude=51.0504,
+        longitude=13.7373,
+        station="DRESDEN",
+        water="ELBE",
+    ),
+    "saxony-anhalt": RegionSourceTarget(
+        latitude=52.1205,
+        longitude=11.6276,
+        station="MAGDEBURG",
+        water="ELBE",
+    ),
+    "schleswig-holstein": RegionSourceTarget(
+        latitude=54.3233,
+        longitude=10.1228,
+        station="LAUENBURG",
+        water="ELBE",
+    ),
+    "thuringia": RegionSourceTarget(
+        latitude=50.9848,
+        longitude=11.0299,
+        station="ERFURT",
+        water="GERA",
     ),
 }
 

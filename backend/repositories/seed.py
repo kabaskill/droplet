@@ -2,80 +2,62 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
+from backend.domain.regions import STATE_READING_VALUES, STATE_REGIONS
 from backend.domain.snapshots import EnvironmentalReading, compute_snapshot
 from backend.models.database import session_scope
 from backend.models.entities import Region, ReservoirSnapshot
 
-REGIONS = [
-    {
-        "basin": "Elbe",
-        "code": "DE-ELB",
-        "federal_state": "Saxony / Brandenburg",
-        "id": "elbe-upper",
-        "name": "Upper Elbe",
-        "risk_profile": "volatile",
-        "sort_index": 10,
-    },
-    {
-        "basin": "Rhine",
-        "code": "DE-RHN",
-        "federal_state": "North Rhine-Westphalia",
-        "id": "rhine-lower",
-        "name": "Lower Rhine",
-        "risk_profile": "flood",
-        "sort_index": 20,
-    },
-    {
-        "basin": "Danube",
-        "code": "DE-DAN",
-        "federal_state": "Bavaria",
-        "id": "danube-south",
-        "name": "South Danube",
-        "risk_profile": "stable",
-        "sort_index": 30,
-    },
-    {
-        "basin": "Weser",
-        "code": "DE-WES",
-        "federal_state": "Lower Saxony",
-        "id": "weser-central",
-        "name": "Central Weser",
-        "risk_profile": "drying",
-        "sort_index": 40,
-    },
-    {
-        "basin": "Oder",
-        "code": "DE-ODE",
-        "federal_state": "Brandenburg",
-        "id": "oder-east",
-        "name": "East Oder",
-        "risk_profile": "volatile",
-        "sort_index": 50,
-    },
-]
-
+REGIONS = STATE_REGIONS
 READINGS = {
-    "danube-south": EnvironmentalReading(72, 22, "DWD, Pegelonline, Open-Meteo", 16, 410),
-    "elbe-upper": EnvironmentalReading(68, 28, "DWD, Pegelonline, Open-Meteo", 18, 440),
-    "oder-east": EnvironmentalReading(58, 17, "Pegelonline, Open-Meteo", 24, 300),
-    "rhine-lower": EnvironmentalReading(76, 32, "DWD, Pegelonline", 15, 495),
-    "weser-central": EnvironmentalReading(46, 13, "DWD, Open-Meteo", 26, 265),
+    region_id: EnvironmentalReading(
+        humidity_percent,
+        rainfall_mm,
+        "DWD, Pegelonline, Open-Meteo",
+        temperature_c,
+        water_level_cm,
+    )
+    for region_id, (
+        humidity_percent,
+        rainfall_mm,
+        temperature_c,
+        water_level_cm,
+    ) in STATE_READING_VALUES.items()
 }
 
 
 def seed_demo_data() -> None:
     with session_scope() as session:
-        if session.scalar(select(Region).limit(1)):
-            return
+        configured_region_ids = {region["id"] for region in REGIONS}
+        existing_regions = {
+            region.id: region for region in session.scalars(select(Region)).all()
+        }
+
+        for region_id, region in existing_regions.items():
+            if region_id not in configured_region_ids:
+                session.delete(region)
 
         for region_data in REGIONS:
-            session.add(Region(**region_data))
+            region = existing_regions.get(region_data["id"])
+
+            if region is None:
+                session.add(Region(**region_data))
+                continue
+
+            for key, value in region_data.items():
+                setattr(region, key, value)
 
         session.flush()
 
         history_end = datetime.now(UTC) - timedelta(hours=6)
 
         for region_id, reading in READINGS.items():
+            if session.scalar(
+                select(ReservoirSnapshot.id)
+                .where(ReservoirSnapshot.region_id == region_id)
+                .limit(1)
+            ):
+                continue
+
             for index in range(9):
                 snapshot = compute_snapshot(
                     EnvironmentalReading(
