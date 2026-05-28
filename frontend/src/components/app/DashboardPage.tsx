@@ -23,6 +23,7 @@ import { ProductIcon } from "@/components/app/ProductIcon"
 import { RegionComparisonPanel } from "@/components/app/RegionComparisonPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
+import { RegionQuickSwitcher } from "@/components/app/RegionQuickSwitcher"
 import { RegionalFilterBar } from "@/components/app/RegionalFilterBar"
 import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
 import { Button } from "@/components/ui/button"
@@ -234,6 +235,11 @@ export function DashboardPage() {
               </>
             ) : (
               <>
+                <RegionQuickSwitcher
+                  regions={filteredRegions}
+                  selectedRegionId={activeRegion?.id ?? null}
+                  onSelectRegion={handleSelectRegion}
+                />
                 <RegionalFilterBar
                   activeFilter={regionalFilter}
                   counts={filterCounts}
