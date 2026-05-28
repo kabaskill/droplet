@@ -45,13 +45,13 @@ const layerConfigs: Record<MapLayer, LayerConfig> = {
     shortLabel: "Conf.",
   },
   rainfall: {
-    description: "Rainfall pressure contribution across observed states",
+    description: "Rainfall availability across observed states",
     label: "Rainfall",
     metric: (snapshot) => snapshot.rainfallIndex,
     shortLabel: "Rain",
   },
   "water-level": {
-    description: "Normalized river and reservoir level pressure by state",
+    description: "Normalized river and reservoir availability by state",
     label: "Water level",
     metric: (snapshot) => snapshot.waterLevel,
     shortLabel: "Water",

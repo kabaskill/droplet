@@ -76,9 +76,28 @@ export type IngestionStatus = {
 }
 
 export type AiAnalysisResult = {
+  observations?: string[]
   recommendations: string[]
   riskLevel: "high" | "low" | "medium"
+  scopeLabel?: string
   summary: string
+}
+
+export type AiAnalysisRequest = {
+  generatedAt: string
+  regions: Array<{
+    basin: string
+    federalState: string
+    id: string
+    name: string
+    riskProfile: Region["riskProfile"]
+  }>
+  scope: {
+    id: string
+    label: string
+    type: "region" | "state"
+  }
+  snapshots: ReservoirSnapshot[]
 }
 
 export type ForecastRegionOutlook = {

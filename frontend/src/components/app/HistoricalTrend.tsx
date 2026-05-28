@@ -37,7 +37,7 @@ const metrics: {
 
 export function HistoricalTrend({ history }: HistoricalTrendProps) {
   const [metric, setMetric] = useState<HistoryMetric>("waterLevel")
-  const points = history.slice(-30)
+  const points = history
   const activeMetric = metrics.find((item) => item.key === metric) ?? metrics[0]
   const latestPoint = points.at(-1)
   const observationLabel =

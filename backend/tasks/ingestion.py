@@ -115,7 +115,7 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
 
 
 def _prune_expired_snapshots(session) -> int:
-    retention_days = int(os.getenv("SNAPSHOT_RETENTION_DAYS", "30"))
+    retention_days = int(os.getenv("SNAPSHOT_RETENTION_DAYS", "395"))
 
     if retention_days <= 0:
         return 0

@@ -9,6 +9,7 @@ import type {
 } from "@/services/types"
 
 const timestamp = new Date().toISOString()
+const dayMs = 86_400_000
 
 const demoRegionDefinitions: Array<
   Region & {
@@ -288,24 +289,67 @@ export const demoSnapshots: ReservoirSnapshot[] = demoRegionDefinitions.map((reg
   waterLevel: region.waterLevel,
 }))
 
-export function getDemoSnapshotHistory(regionId: string): ReservoirSnapshot[] {
+export function getDemoSnapshotHistory(
+  regionId: string,
+  limit = 365
+): ReservoirSnapshot[] {
   const latest = demoSnapshots.find((snapshot) => snapshot.regionId === regionId)
 
   if (!latest) {
     return []
   }
 
-  return Array.from({ length: 9 }, (_, index) => {
-    const offset = 8 - index
-    const wave = Math.sin(index / 1.7) * 7
+  return Array.from({ length: limit }, (_, index) => {
+    const offset = limit - 1 - index
+    const phase = regionPhase(regionId)
+    const seasonalWave = Math.sin(((index + phase) / 365) * Math.PI * 2)
+    const shorterWave = Math.sin(((index * 3 + phase) / 31) * Math.PI * 2)
+    const rainfallPulse = Math.max(
+      0,
+      Math.sin(((index * 5 + phase) / 17) * Math.PI * 2)
+    )
+    const waterLevel = clampMetric(
+      latest.waterLevel + seasonalWave * 12 + rainfallPulse * 8 + shorterWave * 4,
+      18,
+      94
+    )
+    const previousWaterLevel =
+      index > 0
+        ? clampMetric(
+            latest.waterLevel
+              + Math.sin(((index - 1 + phase) / 365) * Math.PI * 2) * 12
+              + Math.max(
+                0,
+                Math.sin((((index - 1) * 5 + phase) / 17) * Math.PI * 2)
+              ) *
+                8
+              + Math.sin((((index - 1) * 3 + phase) / 31) * Math.PI * 2) * 4,
+            18,
+            94
+          )
+        : waterLevel
+    const delta = waterLevel - previousWaterLevel
 
     return {
       ...latest,
-      confidenceScore: Math.max(45, Math.min(96, latest.confidenceScore - offset + wave)),
-      rainfallIndex: Math.max(12, Math.min(92, latest.rainfallIndex - offset * 2 + wave)),
-      timestamp: new Date(Date.now() - offset * 86_400_000).toISOString(),
-      visibilityScore: Math.max(35, Math.min(95, latest.visibilityScore - offset + wave)),
-      waterLevel: Math.max(20, Math.min(92, latest.waterLevel - offset + wave)),
+      confidenceScore: clampMetric(
+        latest.confidenceScore + shorterWave * 6 - rainfallPulse * 2,
+        45,
+        96
+      ),
+      rainfallIndex: clampMetric(
+        latest.rainfallIndex + seasonalWave * 10 + rainfallPulse * 18,
+        8,
+        96
+      ),
+      timestamp: new Date(Date.now() - offset * dayMs).toISOString(),
+      trend: delta >= 3 ? "rising" : delta <= -3 ? "falling" : "stable",
+      visibilityScore: clampMetric(
+        latest.visibilityScore + shorterWave * 5 - Math.max(0, -seasonalWave) * 6,
+        35,
+        96
+      ),
+      waterLevel,
     }
   })
 }
@@ -444,4 +488,15 @@ function average(values: number[]) {
   }
 
   return Math.round(values.reduce((total, value) => total + value, 0) / values.length)
+}
+
+function clampMetric(value: number, minimum: number, maximum: number) {
+  return Math.round(Math.max(minimum, Math.min(maximum, value)))
+}
+
+function regionPhase(regionId: string) {
+  return Array.from(regionId).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0
+  ) % 365
 }

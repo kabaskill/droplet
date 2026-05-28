@@ -6,7 +6,10 @@ from backend.cache.keys import cache_key
 from backend.cache.redis_client import read_through_json
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
-from backend.services.ai_analysis import analyze_snapshot_payload
+from backend.services.ai_analysis import (
+    analyze_environment_payload,
+    analyze_snapshot_payload,
+)
 from backend.services.analytics import build_analytics_summary
 from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
@@ -115,19 +118,26 @@ def forecast_outlook():
 
 
 @api_bp.post("/ai/analyze")
-@require_auth(roles=["analyst", "municipality"])
+@require_auth()
 def ai_analyze():
     payload = request.get_json(silent=True) or {}
+
+    if isinstance(payload.get("snapshots"), list):
+        if not any(isinstance(snapshot, dict) for snapshot in payload["snapshots"]):
+            return jsonify({"error": "at least one snapshot is required"}), 400
+
+        return jsonify(analyze_environment_payload(payload, g.current_user["roles"]))
+
     snapshot = payload.get("snapshot")
 
     if not isinstance(snapshot, dict):
-        return jsonify({"error": "snapshot is required"}), 400
+        return jsonify({"error": "snapshot or snapshots are required"}), 400
 
-    return jsonify(analyze_snapshot_payload(snapshot))
+    return jsonify(analyze_snapshot_payload(snapshot, g.current_user["roles"]))
 
 
 def _snapshot_history_limit(roles: list[str], requested_limit: str | None) -> int:
-    maximum_limit = 30 if "municipality" in roles else 14
+    maximum_limit = 365 if "municipality" in roles else 90
     default_limit = maximum_limit
 
     if requested_limit is None:

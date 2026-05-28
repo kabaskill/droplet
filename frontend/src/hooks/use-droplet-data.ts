@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 
 import {
   analyzeSnapshot,
+  analyzeWaterState,
   fetchAnalyticsSummary,
   fetchForecastOutlook,
   fetchIngestionStatus,
@@ -12,7 +13,7 @@ import {
   refreshSnapshots,
 } from "@/services/api"
 import { useAuthStore } from "@/features/auth/auth-store"
-import type { ReservoirSnapshot } from "@/services/types"
+import type { AiAnalysisRequest, ReservoirSnapshot } from "@/services/types"
 
 const readModelVersion = "state-model-v2"
 
@@ -34,7 +35,7 @@ export function useSnapshotHistory(regionId: string | null) {
   const canViewExtendedHistory = useAuthStore((state) =>
     state.hasAnyRole(["municipality"])
   )
-  const limit = canViewExtendedHistory ? 30 : 14
+  const limit = canViewExtendedHistory ? 365 : 90
 
   return useQuery({
     enabled: Boolean(regionId),
@@ -73,7 +74,8 @@ export function useForecastOutlook() {
 
 export function useAiAnalysis() {
   return useMutation({
-    mutationFn: (snapshot: ReservoirSnapshot) => analyzeSnapshot(snapshot),
+    mutationFn: (request: AiAnalysisRequest | ReservoirSnapshot) =>
+      "snapshots" in request ? analyzeWaterState(request) : analyzeSnapshot(request),
   })
 }
 

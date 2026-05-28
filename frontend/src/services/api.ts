@@ -12,6 +12,7 @@ import {
 } from "@/services/demo-data"
 import type {
   AiAnalysisResult,
+  AiAnalysisRequest,
   AnalyticsSummary,
   ForecastOutlook,
   IngestionStatus,
@@ -144,7 +145,7 @@ export function fetchSnapshotHistory(regionId: string, limit: number) {
 
   return withFallback(
     () => requestJson<ReservoirSnapshot[]>(`/snapshots/${regionId}?${params}`),
-    () => getDemoSnapshotHistory(regionId)
+    () => getDemoSnapshotHistory(regionId, limit)
   )
 }
 
@@ -184,6 +185,17 @@ export function analyzeSnapshot(snapshot: ReservoirSnapshot) {
         method: "POST",
       }),
     () => getDemoAiAnalysis(snapshot)
+  )
+}
+
+export function analyzeWaterState(request: AiAnalysisRequest) {
+  return withFallback(
+    () =>
+      requestJson<AiAnalysisResult>("/ai/analyze", {
+        body: JSON.stringify(request),
+        method: "POST",
+      }),
+    () => getDemoAiAnalysis(request.snapshots[0])
   )
 }
 
