@@ -136,6 +136,7 @@ export function AppShell({
               </Button>
 
               <Button
+                aria-label={`Refresh data, current state ${refreshStateLabel}`}
                 className={cn(
                   "shrink-0",
                   stale &&

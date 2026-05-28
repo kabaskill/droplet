@@ -29,6 +29,7 @@ export function RegionalFilterBar({
         <div className="flex flex-wrap gap-1.5">
           {regionalFilterOrder.map((filter) => (
             <button
+              aria-label={`Show ${regionalFilterLabels[filter]} regions, ${counts[filter]} matches`}
               aria-pressed={activeFilter === filter}
               className={cn(
                 "rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",

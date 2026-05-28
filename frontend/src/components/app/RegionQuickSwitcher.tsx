@@ -21,6 +21,7 @@ export function RegionQuickSwitcher({
   selectedRegionId,
 }: RegionQuickSwitcherProps) {
   const [query, setQuery] = useState("")
+  const resultListId = "region-quick-switch-results"
   const normalizedQuery = query.trim().toLowerCase()
   const selectedRegion = regions.find(({ region }) => region.id === selectedRegionId)
   const matches = normalizedQuery
@@ -69,6 +70,10 @@ export function RegionQuickSwitcher({
                 size={15}
               />
               <input
+                aria-controls={resultListId}
+                aria-expanded={Boolean(normalizedQuery)}
+                aria-label="Search visible regions"
+                aria-autocomplete="list"
                 className="h-9 w-full rounded-md border bg-background pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/25"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -77,28 +82,37 @@ export function RegionQuickSwitcher({
                   }
                 }}
                 placeholder="Search region, basin, state, code"
+                role="combobox"
                 type="search"
                 value={query}
               />
             </label>
             {query ? (
-              <Button size="lg" variant="outline" onClick={() => setQuery("")}>
+              <Button
+                aria-label="Clear region search"
+                size="lg"
+                variant="outline"
+                onClick={() => setQuery("")}
+              >
                 Clear
               </Button>
             ) : null}
           </div>
 
           {normalizedQuery ? (
-            <div className="mt-2 grid gap-1.5">
+            <div className="mt-2 grid gap-1.5" id={resultListId} role="listbox">
               {matches.length ? (
                 matches.map(({ region, snapshot }) => (
                   <button
+                    aria-label={`Select ${region.name}, ${region.basin}, ${region.federalState}`}
+                    aria-selected={selectedRegionId === region.id}
                     className={cn(
                       "grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
                       selectedRegionId === region.id && "border-primary/50 bg-accent"
                     )}
                     key={region.id}
                     onClick={() => selectRegion(region.id)}
+                    role="option"
                     type="button"
                   >
                     <span className="min-w-0">
@@ -116,7 +130,10 @@ export function RegionQuickSwitcher({
                   </button>
                 ))
               ) : (
-                <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                <div
+                  className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground"
+                  role="status"
+                >
                   No visible regions match
                 </div>
               )}

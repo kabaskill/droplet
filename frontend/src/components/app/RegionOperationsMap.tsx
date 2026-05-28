@@ -141,6 +141,7 @@ export function RegionOperationsMap({
 
               return (
                 <button
+                  aria-label={`Select ${region.name}; ${activeLayerConfig.label} ${primaryValue} percent; ${region.basin}`}
                   aria-pressed={selected}
                   className={cn(
                     "min-h-44 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",

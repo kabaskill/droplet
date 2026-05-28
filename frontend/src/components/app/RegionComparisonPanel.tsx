@@ -69,6 +69,7 @@ export function RegionComparisonPanel({
         <div className="grid gap-2">
           {rows.map(({ metric, region, snapshot }, index) => (
             <button
+              aria-label={`Select ${region.name}; rank ${index + 1}; ${comparator.label} ${metric} percent`}
               aria-pressed={selectedRegionId === region.id}
               className={cn(
                 "grid gap-3 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent/60 sm:grid-cols-[40px_minmax(0,1fr)_72px_minmax(96px,160px)] sm:items-center",

@@ -7,7 +7,7 @@ import {
   MapsIcon,
 } from "@hugeicons/core-free-icons"
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { AppShell } from "@/components/app/AppShell"
@@ -375,6 +375,46 @@ function MobileRegionDetailSheet({
   }
 
   return (
+    <MobileRegionDetailDialog
+      history={history}
+      region={region}
+      snapshot={snapshot}
+      onClose={onClose}
+    />
+  )
+}
+
+type MobileRegionDetailDialogProps = {
+  history: ReservoirSnapshot[]
+  onClose: () => void
+  region: Region
+  snapshot: ReservoirSnapshot
+}
+
+function MobileRegionDetailDialog({
+  history,
+  onClose,
+  region,
+  snapshot,
+}: MobileRegionDetailDialogProps) {
+  const titleId = useId()
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [onClose])
+
+  return (
     <div className="fixed inset-0 z-30 bg-background/70 backdrop-blur-sm xl:hidden">
       <button
         aria-label="Close region details"
@@ -384,17 +424,26 @@ function MobileRegionDetailSheet({
       />
       <section
         aria-modal="true"
+        aria-labelledby={titleId}
         className="absolute inset-x-0 bottom-0 max-h-[86svh] min-w-0 overflow-x-hidden overflow-y-auto rounded-t-md border bg-background p-3 shadow-xl"
         role="dialog"
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium">{region.name}</div>
+            <h2 className="truncate text-sm font-medium" id={titleId}>
+              {region.name}
+            </h2>
             <div className="truncate text-xs text-muted-foreground">
               {region.federalState}
             </div>
           </div>
-          <Button aria-label="Close region details" size="icon" variant="ghost" onClick={onClose}>
+          <Button
+            aria-label="Close region details"
+            ref={closeButtonRef}
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+          >
             <ProductIcon icon={Cancel01Icon} />
           </Button>
         </div>

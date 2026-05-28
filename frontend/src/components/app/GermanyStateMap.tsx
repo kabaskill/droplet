@@ -86,7 +86,12 @@ export function GermanyStateMap({
         )}
       >
         <style>{stateStyleSheet(stateMetrics, selectedStateCode ?? null)}</style>
+        <p className="sr-only" id="germany-map-accessible-note">
+          Geographic overview of observed German states. Use the observed states
+          list next to the map to select states with a keyboard.
+        </p>
         <div
+          aria-describedby="germany-map-accessible-note"
           aria-label="Germany state map"
           className="germany-state-map mx-auto flex w-full max-w-[360px] items-center justify-center"
           id="droplet-germany-map"
@@ -117,6 +122,8 @@ export function GermanyStateMap({
           <div className="grid gap-1.5">
             {observedStates.map((state) => (
               <button
+                aria-label={`Select ${state.title}; ${state.metric}% ${activeLayer} metric; regions ${state.regions.map(({ region }) => region.name).join(", ")}`}
+                aria-pressed={selectedStateCode === state.code}
                 className={cn(
                   "grid grid-cols-[10px_minmax(0,1fr)_42px] items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent",
                   selectedStateCode === state.code && "bg-accent"
