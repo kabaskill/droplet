@@ -7,7 +7,6 @@ import {
   MapsIcon,
   RefreshIcon,
   UserShieldIcon,
-  WifiOffIcon,
 } from "@hugeicons/core-free-icons"
 import type { ReactNode } from "react"
 
@@ -46,6 +45,13 @@ export function AppShell({
   const setComparisonMode = useAppStore((state) => state.setComparisonMode)
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
+  const refreshStateLabel = refreshing
+    ? "Refreshing"
+    : syncing
+      ? "Syncing"
+      : stale
+        ? "Stale"
+        : "Current"
 
   return (
     <div className="min-h-svh bg-muted/40 text-foreground">
@@ -80,7 +86,7 @@ export function AppShell({
 
       <div className="lg:pl-16">
         <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur md:px-6">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground lg:hidden">
                 <ProductIcon icon={DropletIcon} size={20} />
@@ -93,10 +99,15 @@ export function AppShell({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex rounded-md border bg-card p-0.5">
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              <div
+                aria-label="Map layer"
+                className="flex shrink-0 rounded-md border bg-card p-0.5"
+                role="group"
+              >
                 {layers.map((layer) => (
                   <button
+                    aria-pressed={activeLayer === layer.id}
                     className={cn(
                       "h-7 rounded-sm px-2 text-xs font-medium text-muted-foreground transition-colors",
                       activeLayer === layer.id && "bg-primary text-primary-foreground"
@@ -113,6 +124,7 @@ export function AppShell({
               <Button
                 aria-pressed={comparisonMode}
                 className={cn(
+                  "shrink-0",
                   comparisonMode && "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
                 size="lg"
@@ -123,35 +135,31 @@ export function AppShell({
                 Compare
               </Button>
 
-              <div
-                className={cn(
-                  "flex h-8 items-center gap-1.5 rounded-md border bg-card px-2 text-xs text-muted-foreground",
-                  stale && "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30"
-                )}
-              >
-                <ProductIcon icon={stale ? WifiOffIcon : RefreshIcon} size={14} />
-                <span>
-                  {refreshing ? "Refreshing" : syncing ? "Syncing" : stale ? "Stale" : "Current"}
-                </span>
-              </div>
-
               <Button
+                className={cn(
+                  "shrink-0",
+                  stale &&
+                    "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-200",
+                  syncing &&
+                    !refreshing &&
+                    "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-200"
+                )}
                 disabled={refreshing}
                 size="lg"
                 variant="outline"
                 onClick={onRefresh}
               >
                 <ProductIcon icon={RefreshIcon} />
-                {refreshing ? "Refreshing" : "Refresh"}
+                <span>{refreshStateLabel}</span>
               </Button>
 
               {refreshMessage ? (
-                <div className="hidden h-8 max-w-72 items-center rounded-md border bg-card px-2 text-xs text-muted-foreground md:flex">
+                <div className="hidden h-8 max-w-72 shrink-0 items-center rounded-md border bg-card px-2 text-xs text-muted-foreground md:flex">
                   <span className="truncate">{refreshMessage}</span>
                 </div>
               ) : null}
 
-              <div className="hidden h-8 items-center gap-2 rounded-md border bg-card px-2 text-xs text-muted-foreground sm:flex">
+              <div className="hidden h-8 shrink-0 items-center gap-2 rounded-md border bg-card px-2 text-xs text-muted-foreground sm:flex">
                 <ProductIcon icon={UserShieldIcon} size={14} />
                 <span className="max-w-36 truncate">{user?.name ?? "Operator"}</span>
               </div>

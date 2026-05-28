@@ -60,3 +60,4 @@
 - Added a region quick switcher for searching visible regions by name, basin, state, or code.
 - Added metric switching and stale markers to the regional history chart.
 - Added loading, waiting, and unavailable states to source health, forecast, and analysis panels.
+- Simplified the header controls by folding sync/current/stale state into the refresh action.
