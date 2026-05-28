@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import {
   analyzeSnapshot,
   analyzeWaterState,
+  fetchAiAnalyses,
   fetchAnalyticsSummary,
   fetchForecastOutlook,
   fetchIngestionStatus,
@@ -14,6 +15,7 @@ import {
 } from "@/services/api"
 import { useAuthStore } from "@/features/auth/auth-store"
 import type { AiAnalysisRequest, ReservoirSnapshot } from "@/services/types"
+import { queryClient } from "@/app/query-client"
 
 const readModelVersion = "state-model-v2"
 
@@ -76,6 +78,18 @@ export function useAiAnalysis() {
   return useMutation({
     mutationFn: (request: AiAnalysisRequest | ReservoirSnapshot) =>
       "snapshots" in request ? analyzeWaterState(request) : analyzeSnapshot(request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["ai-analyses", readModelVersion],
+      })
+    },
+  })
+}
+
+export function useAiAnalyses() {
+  return useQuery({
+    queryFn: fetchAiAnalyses,
+    queryKey: ["ai-analyses", readModelVersion],
   })
 }
 

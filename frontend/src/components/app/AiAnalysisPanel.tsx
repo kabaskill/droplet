@@ -19,6 +19,7 @@ type AiAnalysisPanelProps = {
   >
   request?: AiAnalysisRequest | null
   showAction?: boolean
+  storedAnalysis?: AiAnalysisResult | null
   snapshotLoading?: boolean
   snapshot?: ReservoirSnapshot | null
 }
@@ -29,6 +30,7 @@ export function AiAnalysisPanel({
   showAction = true,
   snapshot,
   snapshotLoading = false,
+  storedAnalysis = null,
 }: AiAnalysisPanelProps) {
   const canAnalyze = useAuthStore((state) =>
     state.hasAnyRole(["citizen", "analyst", "municipality"])
@@ -46,6 +48,7 @@ export function AiAnalysisPanel({
       }
     : null
   const activeRequest = request ?? snapshotRequest
+  const activeAnalysis = storedAnalysis ?? analysis?.data ?? null
 
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
@@ -97,26 +100,26 @@ export function AiAnalysisPanel({
             <div className="font-medium">Analysis unavailable</div>
             <div className="mt-1">{analysis.error.message}</div>
           </div>
-        ) : analysis?.data ? (
+        ) : activeAnalysis ? (
           <div className="space-y-3">
             <div>
               <span className="rounded-md bg-accent px-2 py-1 text-xs font-medium capitalize">
-                {analysis.data.riskLevel} risk
+                {activeAnalysis.riskLevel} risk
               </span>
-              {analysis.data.scopeLabel ? (
+              {activeAnalysis.scopeLabel ? (
                 <span className="ml-2 rounded-md border bg-background px-2 py-1 text-xs font-medium">
-                  {analysis.data.scopeLabel}
+                  {activeAnalysis.scopeLabel}
                 </span>
               ) : null}
-              <p className="mt-3 text-sm leading-6">{analysis.data.summary}</p>
+              <p className="mt-3 text-sm leading-6">{activeAnalysis.summary}</p>
             </div>
-            {analysis.data.observations?.length ? (
+            {activeAnalysis.observations?.length ? (
               <div>
                 <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
                   Observations
                 </div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  {analysis.data.observations.map((observation, index) => (
+                  {activeAnalysis.observations.map((observation, index) => (
                     <li
                       className="rounded-md border bg-background px-3 py-2"
                       key={`${observation}-${index}`}
@@ -132,7 +135,7 @@ export function AiAnalysisPanel({
                 Recommendations
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {analysis.data.recommendations.map((recommendation, index) => (
+                {activeAnalysis.recommendations.map((recommendation, index) => (
                   <li
                     className="rounded-md bg-muted px-3 py-2"
                     key={`${recommendation}-${index}`}

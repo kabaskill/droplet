@@ -12,6 +12,7 @@ import {
 import type {
   AiAnalysisResult,
   AiAnalysisRequest,
+  AiAnalysisRecord,
   AnalyticsSummary,
   ForecastOutlook,
   IngestionStatus,
@@ -188,6 +189,12 @@ export function analyzeWaterState(request: AiAnalysisRequest) {
     body: JSON.stringify(request),
     method: "POST",
   })
+}
+
+export function fetchAiAnalyses() {
+  const params = new URLSearchParams({ limit: "30" })
+
+  return requestJson<AiAnalysisRecord[]>(`/ai/analyses?${params}`)
 }
 
 export function refreshSnapshots() {

@@ -6,9 +6,9 @@ import { useDashboardData } from "@/components/app/dashboard-data"
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/features/auth/auth-store"
-import { useAiAnalysis } from "@/hooks/use-droplet-data"
-import type { AiAnalysisRequest, Region } from "@/services/types"
 import type { AuthUser, DropletRole } from "@/features/auth/types"
+import { useAiAnalyses, useAiAnalysis } from "@/hooks/use-droplet-data"
+import type { AiAnalysisRecord, AiAnalysisRequest, Region } from "@/services/types"
 import { waterSystems } from "@/services/water-systems"
 
 type AiScopeType = "region" | "state"
@@ -16,11 +16,11 @@ type AiScopeType = "region" | "state"
 export function AiPage() {
   const { regionReadModelLoading, regions, snapshots } = useDashboardData()
   const [scopeType, setScopeType] = useState<AiScopeType>("state")
-  const [selectedStateId, setSelectedStateId] = useState<string>("")
-  const [selectedRegionId, setSelectedRegionId] = useState<string>(
-    waterSystems[0]?.id ?? ""
-  )
+  const [selectedStateId, setSelectedStateId] = useState("")
+  const [selectedRegionId, setSelectedRegionId] = useState(waterSystems[0]?.id ?? "")
+  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(null)
   const analysis = useAiAnalysis()
+  const analysisHistory = useAiAnalyses()
   const user = useAuthStore((state) => state.user)
   const activeRole = activePersonaRole(user) ?? "citizen"
   const effectiveStateId = selectedStateId || regions[0]?.id || ""
@@ -52,9 +52,12 @@ export function AiPage() {
   )
   const canAnalyze =
     Boolean(analysisRequest) && !regionReadModelLoading && !analysis.isPending
+  const historyItems = analysisHistory.data ?? []
+  const selectedHistory =
+    historyItems.find((item) => item.id === selectedHistoryId) ?? null
 
   return (
-    <main className="mx-auto grid max-w-5xl gap-4 p-4 pb-24 md:p-6 lg:pb-6">
+    <main className="mx-auto grid max-w-7xl gap-4 p-4 pb-24 md:p-6 lg:pb-6">
       <section className="rounded-md border bg-card p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-3">
@@ -76,109 +79,202 @@ export function AiPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <ProductIcon icon={MapsGlobal01Icon} size={18} />
-          </span>
-          <div className="min-w-0">
-            <h2 className="font-medium">Analysis scope</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {selectedSnapshots.length} state snapshot
-              {selectedSnapshots.length === 1 ? "" : "s"} ready for analysis
-            </p>
-          </div>
-        </div>
-
-        <div
-          aria-label="AI analysis scope"
-          className="grid gap-2 rounded-md border bg-background p-1 sm:grid-cols-2"
-          role="group"
-        >
-          {(["state", "region"] as const).map((type) => (
-            <button
-              aria-pressed={scopeType === type}
-              className={[
-                "rounded-sm px-3 py-2 text-sm font-medium text-muted-foreground transition-colors",
-                scopeType === type
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-accent hover:text-foreground",
-              ].join(" ")}
-              key={type}
-              onClick={() => setScopeType(type)}
-              type="button"
-            >
-              {type === "state" ? "Single state" : "Water region"}
-            </button>
-          ))}
-        </div>
-
-        {scopeType === "state" ? (
-          <label className="grid gap-2 text-sm font-medium">
-            State
-            <select
-              className="h-11 rounded-md border bg-background px-3 text-sm font-normal"
-              value={effectiveStateId}
-              onChange={(event) => setSelectedStateId(event.target.value)}
-            >
-              {regions.map((region) => (
-                <option key={region.id} value={region.id}>
-                  {region.name} · {region.basin}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className="grid gap-2 text-sm font-medium">
-            Water region
-            <select
-              className="h-11 rounded-md border bg-background px-3 text-sm font-normal"
-              value={selectedWaterSystem?.id ?? ""}
-              onChange={(event) => setSelectedRegionId(event.target.value)}
-            >
-              {waterSystems.map((system) => (
-                <option key={system.id} value={system.id}>
-                  {system.name} · {system.stateIds.length} states
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        <div className="rounded-md border bg-background p-3">
-          <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-            Included states
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {selectedRegions.map((region) => (
-              <span
-                className="rounded-md border bg-card px-2 py-1 text-xs font-medium"
-                key={region.id}
-              >
-                {region.name}
+      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="grid h-fit gap-4">
+          <section className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <ProductIcon icon={MapsGlobal01Icon} size={18} />
               </span>
-            ))}
-          </div>
+              <div className="min-w-0">
+                <h2 className="font-medium">Analysis scope</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selectedSnapshots.length} state snapshot
+                  {selectedSnapshots.length === 1 ? "" : "s"} ready
+                </p>
+              </div>
+            </div>
+
+            <div
+              aria-label="AI analysis scope"
+              className="grid gap-2 rounded-md border bg-background p-1"
+              role="group"
+            >
+              {(["state", "region"] as const).map((type) => (
+                <button
+                  aria-pressed={scopeType === type}
+                  className={[
+                    "rounded-sm px-3 py-2 text-sm font-medium text-muted-foreground transition-colors",
+                    scopeType === type
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent hover:text-foreground",
+                  ].join(" ")}
+                  key={type}
+                  onClick={() => setScopeType(type)}
+                  type="button"
+                >
+                  {type === "state" ? "Single state" : "Water region"}
+                </button>
+              ))}
+            </div>
+
+            {scopeType === "state" ? (
+              <label className="grid gap-2 text-sm font-medium">
+                State
+                <select
+                  className="h-11 rounded-md border bg-background px-3 text-sm font-normal"
+                  value={effectiveStateId}
+                  onChange={(event) => setSelectedStateId(event.target.value)}
+                >
+                  {regions.map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name} · {region.basin}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="grid gap-2 text-sm font-medium">
+                Water region
+                <select
+                  className="h-11 rounded-md border bg-background px-3 text-sm font-normal"
+                  value={selectedWaterSystem?.id ?? ""}
+                  onChange={(event) => setSelectedRegionId(event.target.value)}
+                >
+                  {waterSystems.map((system) => (
+                    <option key={system.id} value={system.id}>
+                      {system.name} · {system.stateIds.length} states
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <div className="rounded-md border bg-background p-3">
+              <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                Included states
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedRegions.map((region) => (
+                  <span
+                    className="rounded-md border bg-card px-2 py-1 text-xs font-medium"
+                    key={region.id}
+                  >
+                    {region.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              className="h-14 w-full text-base font-semibold shadow-md shadow-primary/20"
+              disabled={!canAnalyze}
+              onClick={() => {
+                setSelectedHistoryId(null)
+                if (analysisRequest) {
+                  analysis.mutate(analysisRequest)
+                }
+              }}
+            >
+              <ProductIcon icon={AiBrain01Icon} size={19} />
+              {analysis.isPending ? "Analyzing water state" : "Start AI analysis"}
+            </Button>
+          </section>
+
+          <section className="grid gap-3 rounded-md border bg-card p-4 shadow-sm">
+            <div>
+              <h2 className="font-medium">Earlier analyses</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Saved Gemini results for this user
+              </p>
+            </div>
+
+            <label className="grid gap-2 text-sm font-medium">
+              History
+              <select
+                className="h-11 rounded-md border bg-background px-3 text-sm font-normal"
+                disabled={analysisHistory.isPending || historyItems.length === 0}
+                value={selectedHistoryId ?? ""}
+                onChange={(event) =>
+                  setSelectedHistoryId(
+                    event.target.value ? Number(event.target.value) : null
+                  )
+                }
+              >
+                <option value="">Current analysis</option>
+                {historyItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {historyLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid max-h-[420px] gap-2 overflow-y-auto">
+              {analysisHistory.isPending ? (
+                <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                  Loading history
+                </div>
+              ) : historyItems.length ? (
+                historyItems.map((item) => (
+                  <button
+                    aria-pressed={selectedHistoryId === item.id}
+                    className={[
+                      "rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                      selectedHistoryId === item.id ? "border-primary bg-accent" : "",
+                    ].join(" ")}
+                    key={item.id}
+                    onClick={() => setSelectedHistoryId(item.id)}
+                    type="button"
+                  >
+                    <span className="block truncate font-medium">
+                      {item.scope.label}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {formatHistoryDate(item.createdAt)} · {item.regionCount} state
+                      {item.regionCount === 1 ? "" : "s"}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                  No saved analyses yet
+                </div>
+              )}
+            </div>
+          </section>
+        </aside>
+
+        <div className="min-w-0">
+          {selectedHistory ? (
+            <div className="mb-3 rounded-md border bg-card px-3 py-2 text-sm text-muted-foreground">
+              Viewing saved analysis from {formatHistoryDate(selectedHistory.createdAt)}
+            </div>
+          ) : null}
+          <AiAnalysisPanel
+            analysis={analysis}
+            request={analysisRequest}
+            showAction={false}
+            snapshotLoading={regionReadModelLoading}
+            storedAnalysis={selectedHistory?.analysis ?? null}
+          />
         </div>
-
-        <Button
-          className="h-14 w-full text-base font-semibold shadow-md shadow-primary/20"
-          disabled={!canAnalyze}
-          onClick={() => analysisRequest && analysis.mutate(analysisRequest)}
-        >
-          <ProductIcon icon={AiBrain01Icon} size={19} />
-          {analysis.isPending ? "Analyzing water state" : "Start AI analysis"}
-        </Button>
-      </section>
-
-      <AiAnalysisPanel
-        analysis={analysis}
-        request={analysisRequest}
-        showAction={false}
-        snapshotLoading={regionReadModelLoading}
-      />
+      </div>
     </main>
   )
+}
+
+function historyLabel(item: AiAnalysisRecord) {
+  return `${item.scope.label} · ${formatHistoryDate(item.createdAt)}`
+}
+
+function formatHistoryDate(timestamp: string) {
+  return new Date(timestamp).toLocaleString("en-DE", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+  })
 }
 
 function activePersonaRole(user: AuthUser | null): DropletRole | null {

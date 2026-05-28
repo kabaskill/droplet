@@ -4,6 +4,7 @@ from backend.auth.decorators import require_auth
 from backend.auth.keycloak import auth_config as build_auth_config
 from backend.cache.keys import cache_key
 from backend.cache.redis_client import read_through_json
+from backend.repositories.ai_analyses import list_ai_analyses, save_ai_analysis
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
 from backend.services.ai_analysis import (
@@ -128,19 +129,49 @@ def ai_analyze():
             return jsonify({"error": "at least one snapshot is required"}), 400
 
         try:
-            return jsonify(analyze_environment_payload(payload, g.current_user["roles"]))
+            analysis = analyze_environment_payload(payload, g.current_user["roles"])
         except AiAnalysisError as exc:
             return jsonify({"error": str(exc)}), 502
+
+        save_ai_analysis(payload, analysis, g.current_user)
+
+        return jsonify(analysis)
 
     snapshot = payload.get("snapshot")
 
     if not isinstance(snapshot, dict):
         return jsonify({"error": "snapshot or snapshots are required"}), 400
 
+    analysis_payload = {
+        "generatedAt": payload.get("generatedAt"),
+        "requestedRole": payload.get("requestedRole"),
+        "scope": {
+            "id": snapshot.get("regionId", "selected-state"),
+            "label": snapshot.get("regionId", "Selected state"),
+            "type": "state",
+        },
+        "snapshots": [snapshot],
+    }
+
     try:
-        return jsonify(analyze_snapshot_payload(snapshot, g.current_user["roles"]))
+        analysis = analyze_snapshot_payload(snapshot, g.current_user["roles"])
     except AiAnalysisError as exc:
         return jsonify({"error": str(exc)}), 502
+
+    save_ai_analysis(analysis_payload, analysis, g.current_user)
+
+    return jsonify(analysis)
+
+
+@api_bp.get("/ai/analyses")
+@require_auth()
+def ai_analyses():
+    return jsonify(
+        list_ai_analyses(
+            str(g.current_user.get("subject") or ""),
+            limit=_analysis_history_limit(request.args.get("limit")),
+        )
+    )
 
 
 def _snapshot_history_limit(roles: list[str], requested_limit: str | None) -> int:
@@ -156,3 +187,15 @@ def _snapshot_history_limit(roles: list[str], requested_limit: str | None) -> in
         return default_limit
 
     return max(1, min(parsed_limit, maximum_limit))
+
+
+def _analysis_history_limit(requested_limit: str | None) -> int:
+    if requested_limit is None:
+        return 20
+
+    try:
+        parsed_limit = int(requested_limit)
+    except ValueError:
+        return 20
+
+    return max(1, min(parsed_limit, 50))

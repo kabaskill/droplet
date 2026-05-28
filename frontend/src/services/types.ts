@@ -101,6 +101,25 @@ export type AiAnalysisRequest = {
   snapshots: ReservoirSnapshot[]
 }
 
+export type AiAnalysisRecord = {
+  analysis: AiAnalysisResult
+  createdAt: string
+  id: number
+  regionCount: number
+  request: AiAnalysisRequest
+  requestedRole: "analyst" | "citizen" | "municipality"
+  scope: {
+    id: string
+    label: string
+    type: "region" | "scope" | "state"
+  }
+  user: {
+    email?: string | null
+    name?: string | null
+    subject: string
+  }
+}
+
 export type ForecastRegionOutlook = {
   evaporationPressure: number
   forecastRainfallMm: number
