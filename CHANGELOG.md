@@ -54,3 +54,4 @@
 - Wired the dashboard map layer selector into regional state cards so water, rainfall, and confidence views change card emphasis and primary metrics.
 - Added a comparison mode toggle with a layer-aware regional ranking panel for faster cross-basin review.
 - Added operational regional filters for elevated, stale, fallback, and low-confidence views across the map and comparison panels.
+- Integrated the Germany SVG state map with operational coloring and state-to-region selection.

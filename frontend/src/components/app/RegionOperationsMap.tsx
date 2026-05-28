@@ -1,5 +1,6 @@
 import { useTransition } from "react"
 
+import { GermanyStateMap } from "@/components/app/GermanyStateMap"
 import { cn } from "@/lib/utils"
 import {
   freshnessLabel,
@@ -124,78 +125,87 @@ export function RegionOperationsMap({
       </div>
 
       {filteredRegions.length ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          {filteredRegions.map(({ region, snapshot }) => {
-            const selected = selectedRegionId === region.id
-            const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
-            const primaryValue = snapshot ? activeLayerConfig.metric(snapshot) : 0
+        <div className="grid gap-3">
+          <GermanyStateMap
+            activeLayer={activeLayer}
+            filteredRegions={filteredRegions}
+            selectedRegionId={selectedRegionId}
+            onSelectRegion={onSelectRegion}
+          />
 
-            return (
-              <button
-                aria-pressed={selected}
-                className={cn(
-                  "min-h-44 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
-                  riskClass(snapshot, activeLayer),
-                  selected && "ring-2 ring-primary/40"
-                )}
-                key={region.id}
-                onClick={() => {
-                  startTransition(() => onSelectRegion(region.id))
-                }}
-                type="button"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">{region.name}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs opacity-75">
-                      <span className="truncate">{region.basin}</span>
-                      {snapshot && freshnessStatus ? (
-                        <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium capitalize">
-                          {freshnessStatus} · {freshnessLabel(snapshot)}
-                        </span>
-                      ) : null}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {filteredRegions.map(({ region, snapshot }) => {
+              const selected = selectedRegionId === region.id
+              const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
+              const primaryValue = snapshot ? activeLayerConfig.metric(snapshot) : 0
+
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={cn(
+                    "min-h-44 rounded-md border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/30",
+                    riskClass(snapshot, activeLayer),
+                    selected && "ring-2 ring-primary/40"
+                  )}
+                  key={region.id}
+                  onClick={() => {
+                    startTransition(() => onSelectRegion(region.id))
+                  }}
+                  type="button"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{region.name}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs opacity-75">
+                        <span className="truncate">{region.basin}</span>
+                        {snapshot && freshnessStatus ? (
+                          <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium capitalize">
+                            {freshnessStatus} · {freshnessLabel(snapshot)}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium">
+                      {region.code}
+                    </span>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="text-xs opacity-75">
+                        {activeLayerConfig.shortLabel}
+                      </div>
+                      <div className="text-2xl font-semibold">{primaryValue}%</div>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/70">
+                      <div
+                        className="h-full rounded-full bg-current"
+                        style={{ width: `${primaryValue}%` }}
+                      />
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium">
-                    {region.code}
-                  </span>
-                </div>
 
-                <div className="mt-5">
-                  <div className="flex items-end justify-between gap-2">
-                    <div className="text-xs opacity-75">
-                      {activeLayerConfig.shortLabel}
-                    </div>
-                    <div className="text-2xl font-semibold">{primaryValue}%</div>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/70">
-                    <div
-                      className="h-full rounded-full bg-current"
-                      style={{ width: `${primaryValue}%` }}
+                  <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
+                    <MetricPill
+                      active={activeLayer === "water-level"}
+                      label="Water"
+                      value={snapshot?.waterLevel ?? 0}
+                    />
+                    <MetricPill
+                      active={activeLayer === "rainfall"}
+                      label="Rain"
+                      value={snapshot?.rainfallIndex ?? 0}
+                    />
+                    <MetricPill
+                      active={activeLayer === "confidence"}
+                      label="Conf."
+                      value={snapshot?.confidenceScore ?? 0}
                     />
                   </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-3 gap-1.5 text-xs">
-                  <MetricPill
-                    active={activeLayer === "water-level"}
-                    label="Water"
-                    value={snapshot?.waterLevel ?? 0}
-                  />
-                  <MetricPill
-                    active={activeLayer === "rainfall"}
-                    label="Rain"
-                    value={snapshot?.rainfallIndex ?? 0}
-                  />
-                  <MetricPill
-                    active={activeLayer === "confidence"}
-                    label="Conf."
-                    value={snapshot?.confidenceScore ?? 0}
-                  />
-                </div>
-              </button>
-            )
-          })}
+                </button>
+              )
+            })}
+          </div>
         </div>
       ) : (
         <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
