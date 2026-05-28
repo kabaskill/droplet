@@ -23,7 +23,7 @@ const layerComparators: Record<MapLayer, LayerComparator> = {
     metric: ({ snapshot }) => snapshot?.confidenceScore ?? 0,
   },
   rainfall: {
-    description: "Ranks states by rainfall pressure in the latest read model.",
+    description: "Ranks states by rainfall availability in the latest read model.",
     label: "Rainfall",
     metric: ({ snapshot }) => snapshot?.rainfallIndex ?? 0,
   },
@@ -153,12 +153,16 @@ function comparisonTone(metric: number, activeLayer: MapLayer) {
   }
 
   if (metric >= 70) {
+    return "bg-emerald-500"
+  }
+
+  if (metric <= 35) {
     return "bg-red-500"
   }
 
-  if (metric >= 45) {
+  if (metric <= 50) {
     return "bg-amber-500"
   }
 
-  return "bg-emerald-500"
+  return "bg-sky-500"
 }

@@ -81,13 +81,13 @@ export function RegionDetailPanel({
           <MetricTile
             icon={CloudMidRainIcon}
             label="Rainfall"
-            tone="blue"
+            tone={availabilityTone(snapshot.rainfallIndex)}
             value={`${snapshot.rainfallIndex}%`}
           />
           <MetricTile
             icon={Activity02Icon}
             label="Water level"
-            tone="green"
+            tone={availabilityTone(snapshot.waterLevel)}
             value={`${snapshot.waterLevel}%`}
           />
           <MetricTile
@@ -113,11 +113,13 @@ export function RegionDetailPanel({
             <div
               className={cn(
                 "h-full rounded-full",
-                snapshot.waterLevel >= 72
-                  ? "bg-red-500"
-                  : snapshot.waterLevel <= 42
-                    ? "bg-amber-500"
-                    : "bg-emerald-500"
+                snapshot.waterLevel >= 70
+                  ? "bg-emerald-500"
+                  : snapshot.waterLevel <= 35
+                    ? "bg-red-500"
+                    : snapshot.waterLevel <= 50
+                      ? "bg-amber-500"
+                      : "bg-sky-500"
               )}
               style={{ width: `${snapshot.waterLevel}%` }}
             />
@@ -131,4 +133,20 @@ export function RegionDetailPanel({
       </section>
     </aside>
   )
+}
+
+function availabilityTone(value: number) {
+  if (value >= 70) {
+    return "green"
+  }
+
+  if (value <= 35) {
+    return "red"
+  }
+
+  if (value <= 50) {
+    return "amber"
+  }
+
+  return "blue"
 }

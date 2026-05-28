@@ -159,22 +159,22 @@ function stateStatus(snapshots: ReservoirSnapshot[], activeLayer: MapLayer) {
   }
 
   if (activeLayer === "rainfall") {
-    if (snapshots.some((snapshot) => snapshot.rainfallIndex >= 70)) {
+    if (snapshots.some((snapshot) => snapshot.rainfallIndex <= 35)) {
       return "critical"
     }
 
-    if (snapshots.some((snapshot) => snapshot.rainfallIndex >= 45)) {
+    if (snapshots.some((snapshot) => snapshot.rainfallIndex <= 50)) {
       return "watch"
     }
 
     return "healthy"
   }
 
-  if (snapshots.some((snapshot) => snapshot.waterLevel >= 72)) {
+  if (snapshots.some((snapshot) => snapshot.waterLevel <= 35)) {
     return "critical"
   }
 
-  if (snapshots.some((snapshot) => snapshot.waterLevel <= 42 || snapshot.evaporationPressure >= 62)) {
+  if (snapshots.some((snapshot) => snapshot.waterLevel <= 50 || snapshot.evaporationPressure >= 62)) {
     return "watch"
   }
 
