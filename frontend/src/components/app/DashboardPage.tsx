@@ -1,5 +1,7 @@
 import {
+  Activity02Icon,
   Alert01Icon,
+  Cancel01Icon,
   DatabaseSyncIcon,
   DropletIcon,
   MapsIcon,
@@ -11,11 +13,13 @@ import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { AppShell } from "@/components/app/AppShell"
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
 import { MetricTile } from "@/components/app/MetricTile"
+import { ProductIcon } from "@/components/app/ProductIcon"
 import { RegionComparisonPanel } from "@/components/app/RegionComparisonPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
 import { RegionalFilterBar } from "@/components/app/RegionalFilterBar"
 import { SourceHealthPanel } from "@/components/app/SourceHealthPanel"
+import { Button } from "@/components/ui/button"
 import {
   useAnalyticsSummary,
   useForecastOutlook,
@@ -56,6 +60,7 @@ export function DashboardPage() {
   const forecastOutlookQuery = useForecastOutlook()
   const refreshSnapshots = useRefreshSnapshots()
   const queryClient = useQueryClient()
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [now, setNow] = useState(0)
 
   const regions = regionsQuery.data ?? emptyRegions
@@ -146,6 +151,10 @@ export function DashboardPage() {
       },
     })
   }
+  const handleSelectRegion = (regionId: string) => {
+    setSelectedRegionId(regionId)
+    setMobileDetailOpen(true)
+  }
 
   return (
     <AppShell
@@ -155,7 +164,7 @@ export function DashboardPage() {
       syncing={syncing}
       onRefresh={handleRefresh}
     >
-      <main className="mx-auto grid max-w-7xl gap-4 p-4 md:p-6">
+      <main className="mx-auto grid max-w-7xl gap-4 p-4 pb-28 md:p-6 xl:pb-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricTile
             icon={MapsIcon}
@@ -209,14 +218,14 @@ export function DashboardPage() {
               activeLayer={activeLayer}
               filteredRegions={filteredRegions}
               selectedRegionId={activeRegion?.id ?? null}
-              onSelectRegion={setSelectedRegionId}
+              onSelectRegion={handleSelectRegion}
             />
             {comparisonMode ? (
               <RegionComparisonPanel
                 activeLayer={activeLayer}
                 filteredRegions={filteredRegions}
                 selectedRegionId={activeRegion?.id ?? null}
-                onSelectRegion={setSelectedRegionId}
+                onSelectRegion={handleSelectRegion}
               />
             ) : null}
             <SourceHealthPanel
@@ -232,19 +241,116 @@ export function DashboardPage() {
           </div>
 
           {activeRegion && activeSnapshot ? (
-            <RegionDetailPanel
-              history={historyQuery.data ?? []}
-              region={activeRegion}
-              snapshot={activeSnapshot}
-            />
+            <div className="hidden xl:block">
+              <RegionDetailPanel
+                history={historyQuery.data ?? []}
+                region={activeRegion}
+                snapshot={activeSnapshot}
+              />
+            </div>
           ) : (
-            <section className="rounded-md border bg-card p-4 text-sm text-muted-foreground shadow-sm">
+            <section className="hidden rounded-md border bg-card p-4 text-sm text-muted-foreground shadow-sm xl:block">
               Waiting for snapshot data
             </section>
           )}
         </div>
+
+        {activeRegion && activeSnapshot ? (
+          <>
+            <MobileRegionActionBar
+              region={activeRegion}
+              snapshot={activeSnapshot}
+              onOpen={() => setMobileDetailOpen(true)}
+            />
+            <MobileRegionDetailSheet
+              history={historyQuery.data ?? []}
+              open={mobileDetailOpen}
+              region={activeRegion}
+              snapshot={activeSnapshot}
+              onClose={() => setMobileDetailOpen(false)}
+            />
+          </>
+        ) : null}
       </main>
     </AppShell>
+  )
+}
+
+type MobileRegionActionBarProps = {
+  onOpen: () => void
+  region: Region
+  snapshot: ReservoirSnapshot
+}
+
+function MobileRegionActionBar({
+  onOpen,
+  region,
+  snapshot,
+}: MobileRegionActionBarProps) {
+  return (
+    <div className="fixed inset-x-3 bottom-3 z-20 rounded-md border bg-background/95 p-2 shadow-lg backdrop-blur xl:hidden">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{region.name}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            Water {snapshot.waterLevel}% · Confidence {snapshot.confidenceScore}%
+          </div>
+        </div>
+        <Button size="lg" onClick={onOpen}>
+          <ProductIcon icon={Activity02Icon} />
+          Details
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+type MobileRegionDetailSheetProps = {
+  history: ReservoirSnapshot[]
+  onClose: () => void
+  open: boolean
+  region: Region
+  snapshot: ReservoirSnapshot
+}
+
+function MobileRegionDetailSheet({
+  history,
+  onClose,
+  open,
+  region,
+  snapshot,
+}: MobileRegionDetailSheetProps) {
+  if (!open) {
+    return null
+  }
+
+  return (
+    <div className="fixed inset-0 z-30 bg-background/70 backdrop-blur-sm xl:hidden">
+      <button
+        aria-label="Close region details"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+        type="button"
+      />
+      <section
+        aria-modal="true"
+        className="absolute inset-x-0 bottom-0 max-h-[86svh] overflow-y-auto rounded-t-md border bg-background p-3 shadow-xl"
+        role="dialog"
+      >
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium">{region.name}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {region.federalState}
+            </div>
+          </div>
+          <Button aria-label="Close region details" size="icon" variant="ghost" onClick={onClose}>
+            <ProductIcon icon={Cancel01Icon} />
+          </Button>
+        </div>
+        <RegionDetailPanel history={history} region={region} snapshot={snapshot} />
+      </section>
+    </div>
   )
 }
 
