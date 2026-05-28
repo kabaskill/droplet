@@ -155,6 +155,7 @@ export function RegionOperationsMap({
         <div className="grid gap-3">
           <WaterSystemSelector
             systems={availableWaterSystems}
+            selectedSystem={selectedWaterSystem}
             selectedSystemId={selectedWaterSystem?.id ?? null}
             totalCount={filteredRegions.length}
             onSelectSystem={(systemId) => {
@@ -272,6 +273,7 @@ type VisibleWaterSystem = (typeof waterSystems)[number] & {
 
 type WaterSystemSelectorProps = {
   onSelectSystem: (systemId: string | null) => void
+  selectedSystem: VisibleWaterSystem | null
   selectedSystemId: string | null
   systems: VisibleWaterSystem[]
   totalCount: number
@@ -279,19 +281,33 @@ type WaterSystemSelectorProps = {
 
 function WaterSystemSelector({
   onSelectSystem,
+  selectedSystem,
   selectedSystemId,
   systems,
   totalCount,
 }: WaterSystemSelectorProps) {
   return (
     <div className="rounded-md border bg-background p-2">
-      <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <div className="text-xs font-medium text-muted-foreground">
+      <div className="mb-2 flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 text-xs font-medium text-muted-foreground">
           Water system view
+          {selectedSystem ? (
+            <span className="ml-1 text-foreground">
+              · Viewing {selectedSystem.name} · {selectedSystem.visibleStateCount} states
+            </span>
+          ) : null}
         </div>
-        <div className="text-xs text-muted-foreground">
-          {selectedSystemId ? "Subset" : "All states"}
-        </div>
+        {selectedSystem ? (
+          <button
+            className="w-fit rounded-md border bg-card px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            onClick={() => onSelectSystem(null)}
+            type="button"
+          >
+            Clear
+          </button>
+        ) : (
+          <div className="text-xs text-muted-foreground">All states</div>
+        )}
       </div>
       <div className="flex flex-wrap gap-1.5">
         <button
