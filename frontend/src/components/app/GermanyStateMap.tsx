@@ -191,7 +191,7 @@ function stateStyleSheet(
       width: 100%;
     }
     #droplet-germany-map path {
-      fill: transparent;
+      fill: hsl(var(--background));
       stroke: hsl(var(--border));
       stroke-linejoin: round;
       stroke-width: 1;
