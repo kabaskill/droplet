@@ -73,13 +73,6 @@ export function TrendsPage() {
         </div>
       </div>
 
-      {activeRegion ? (
-        <section className="rounded-md border bg-card p-4 text-sm text-muted-foreground shadow-sm">
-          Selected state:{" "}
-          <span className="font-medium text-foreground">{activeRegion.name}</span> ·{" "}
-          {activeRegion.basin} water system
-        </section>
-      ) : null}
     </main>
   )
 }
