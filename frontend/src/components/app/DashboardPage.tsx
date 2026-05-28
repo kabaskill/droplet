@@ -11,6 +11,12 @@ import { useEffect, useMemo, useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { AppShell } from "@/components/app/AppShell"
+import {
+  MetricTileSkeleton,
+  OperationsMapSkeleton,
+  RegionalFilterSkeleton,
+  RegionDetailSkeleton,
+} from "@/components/app/DashboardSkeletons"
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
 import { MetricTile } from "@/components/app/MetricTile"
 import { ProductIcon } from "@/components/app/ProductIcon"
@@ -65,6 +71,10 @@ export function DashboardPage() {
 
   const regions = regionsQuery.data ?? emptyRegions
   const snapshots = snapshotsQuery.data ?? emptySnapshots
+  const metricsLoading = analyticsQuery.isPending && !analyticsQuery.data
+  const regionReadModelLoading =
+    (regionsQuery.isPending && regions.length === 0) ||
+    (snapshotsQuery.isPending && snapshots.length === 0)
   const filteredRegions = useMemo(
     () => filterRegions(regions, snapshots, regionalFilter),
     [regions, snapshots, regionalFilter]
@@ -166,34 +176,42 @@ export function DashboardPage() {
     >
       <main className="mx-auto grid max-w-7xl gap-4 p-4 pb-28 md:p-6 xl:pb-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricTile
-            icon={MapsIcon}
-            label="Regions"
-            tone="blue"
-            value={
-              regionalFilter === "all"
-                ? `${summary?.regionsObserved ?? regions.length}`
-                : `${filteredRegions.length}/${regions.length}`
-            }
-          />
-          <MetricTile
-            icon={DropletIcon}
-            label="Visibility"
-            tone="green"
-            value={`${summary?.averageVisibility ?? 0}%`}
-          />
-          <MetricTile
-            icon={DatabaseSyncIcon}
-            label="Confidence"
-            tone="green"
-            value={`${summary?.averageConfidence ?? 0}%`}
-          />
-          <MetricTile
-            icon={Alert01Icon}
-            label="Elevated"
-            tone={(summary?.elevatedRiskRegions ?? 0) > 0 ? "amber" : "green"}
-            value={`${summary?.elevatedRiskRegions ?? 0}`}
-          />
+          {metricsLoading ? (
+            Array.from({ length: 4 }, (_, index) => (
+              <MetricTileSkeleton key={index} />
+            ))
+          ) : (
+            <>
+              <MetricTile
+                icon={MapsIcon}
+                label="Regions"
+                tone="blue"
+                value={
+                  regionalFilter === "all"
+                    ? `${summary?.regionsObserved ?? regions.length}`
+                    : `${filteredRegions.length}/${regions.length}`
+                }
+              />
+              <MetricTile
+                icon={DropletIcon}
+                label="Visibility"
+                tone="green"
+                value={`${summary?.averageVisibility ?? 0}%`}
+              />
+              <MetricTile
+                icon={DatabaseSyncIcon}
+                label="Confidence"
+                tone="green"
+                value={`${summary?.averageConfidence ?? 0}%`}
+              />
+              <MetricTile
+                icon={Alert01Icon}
+                label="Elevated"
+                tone={(summary?.elevatedRiskRegions ?? 0) > 0 ? "amber" : "green"}
+                value={`${summary?.elevatedRiskRegions ?? 0}`}
+              />
+            </>
+          )}
         </section>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -209,18 +227,27 @@ export function DashboardPage() {
                 <div className="mt-1">{operationalError}</div>
               </section>
             ) : null}
-            <RegionalFilterBar
-              activeFilter={regionalFilter}
-              counts={filterCounts}
-              onChange={setRegionalFilter}
-            />
-            <RegionOperationsMap
-              activeLayer={activeLayer}
-              filteredRegions={filteredRegions}
-              selectedRegionId={activeRegion?.id ?? null}
-              onSelectRegion={handleSelectRegion}
-            />
-            {comparisonMode ? (
+            {regionReadModelLoading ? (
+              <>
+                <RegionalFilterSkeleton />
+                <OperationsMapSkeleton />
+              </>
+            ) : (
+              <>
+                <RegionalFilterBar
+                  activeFilter={regionalFilter}
+                  counts={filterCounts}
+                  onChange={setRegionalFilter}
+                />
+                <RegionOperationsMap
+                  activeLayer={activeLayer}
+                  filteredRegions={filteredRegions}
+                  selectedRegionId={activeRegion?.id ?? null}
+                  onSelectRegion={handleSelectRegion}
+                />
+              </>
+            )}
+            {comparisonMode && !regionReadModelLoading ? (
               <RegionComparisonPanel
                 activeLayer={activeLayer}
                 filteredRegions={filteredRegions}
@@ -240,7 +267,11 @@ export function DashboardPage() {
             <AiAnalysisPanel snapshot={activeSnapshot} />
           </div>
 
-          {activeRegion && activeSnapshot ? (
+          {regionReadModelLoading ? (
+            <div className="hidden xl:block">
+              <RegionDetailSkeleton />
+            </div>
+          ) : activeRegion && activeSnapshot ? (
             <div className="hidden xl:block">
               <RegionDetailPanel
                 history={historyQuery.data ?? []}

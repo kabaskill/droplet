@@ -56,3 +56,4 @@
 - Added operational regional filters for elevated, stale, fallback, and low-confidence views across the map and comparison panels.
 - Integrated the Germany SVG state map with operational coloring and state-to-region selection.
 - Added a mobile region detail workflow with a fixed action bar and slide-up detail panel for selected regions.
+- Added dashboard skeleton states for first-load metrics, regional filters, map content, and region details.
