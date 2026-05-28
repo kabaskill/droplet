@@ -169,7 +169,6 @@ export function DashboardPage() {
   }
   const handleSelectRegion = (regionId: string) => {
     setSelectedRegionId(regionId)
-    setMobileDetailOpen(true)
   }
 
   return (
