@@ -10,7 +10,7 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
     points.length === 1 ? "1 observation" : `${points.length} observations`
 
   return (
-    <div className="rounded-md border bg-background p-4">
+    <div className="min-w-0 overflow-hidden rounded-md border bg-background p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-medium">Historical trend</h3>
@@ -18,13 +18,13 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
             Water level and confidence
           </p>
         </div>
-        <span className="rounded-md border bg-card px-2 py-1 text-xs text-muted-foreground">
+        <span className="shrink-0 rounded-md border bg-card px-2 py-1 text-xs text-muted-foreground">
           {observationLabel}
         </span>
       </div>
 
       {points.length ? (
-        <div className="overflow-x-auto pb-1">
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
           <div className="flex h-36 min-w-max items-end gap-2">
             {points.map((point, index) => (
               <div

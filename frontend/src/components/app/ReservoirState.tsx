@@ -7,11 +7,13 @@ type ReservoirStateProps = {
 
 export function ReservoirState({ snapshot }: ReservoirStateProps) {
   return (
-    <div className="rounded-md border bg-background p-4">
+    <div className="min-w-0 overflow-hidden rounded-md border bg-background p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h3 className="text-sm font-medium">Reservoir state</h3>
-          <p className="text-xs text-muted-foreground">Visibility-weighted snapshot</p>
+          <p className="truncate text-xs text-muted-foreground">
+            Visibility-weighted snapshot
+          </p>
         </div>
         <span
           className={cn(

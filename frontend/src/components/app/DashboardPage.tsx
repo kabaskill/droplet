@@ -365,7 +365,7 @@ function MobileRegionDetailSheet({
       />
       <section
         aria-modal="true"
-        className="absolute inset-x-0 bottom-0 max-h-[86svh] overflow-y-auto rounded-t-md border bg-background p-3 shadow-xl"
+        className="absolute inset-x-0 bottom-0 max-h-[86svh] min-w-0 overflow-x-hidden overflow-y-auto rounded-t-md border bg-background p-3 shadow-xl"
         role="dialog"
       >
         <div className="mb-2 flex items-center justify-between gap-3">
@@ -379,7 +379,9 @@ function MobileRegionDetailSheet({
             <ProductIcon icon={Cancel01Icon} />
           </Button>
         </div>
-        <RegionDetailPanel history={history} region={region} snapshot={snapshot} />
+        <div className="min-w-0 overflow-hidden">
+          <RegionDetailPanel history={history} region={region} snapshot={snapshot} />
+        </div>
       </section>
     </div>
   )

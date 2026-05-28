@@ -31,15 +31,17 @@ export function RegionDetailPanel({
   const sources = snapshotSourceTags(snapshot)
 
   return (
-    <aside className="grid gap-4 xl:grid-cols-1">
-      <section className="rounded-md border bg-card p-4 shadow-sm">
+    <aside className="grid min-w-0 gap-4 overflow-hidden xl:grid-cols-1">
+      <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
         <div className="mb-4 space-y-3">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs font-medium uppercase text-muted-foreground">
               {region.federalState}
             </div>
             <div className="mt-1 flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold">{region.name}</h2>
+              <h2 className="min-w-0 break-words text-lg font-semibold">
+                {region.name}
+              </h2>
               <span
                 className={cn(
                   "shrink-0 rounded-md px-2 py-1 text-xs font-medium capitalize",
@@ -59,7 +61,7 @@ export function RegionDetailPanel({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex min-w-0 flex-wrap gap-1.5">
             {sources.map((source) => (
               <span
                 className={cn(
@@ -78,7 +80,7 @@ export function RegionDetailPanel({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 min-[380px]:grid-cols-2">
           <MetricTile
             icon={CloudMidRainIcon}
             label="Rainfall"
