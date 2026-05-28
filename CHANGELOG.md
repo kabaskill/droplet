@@ -71,3 +71,4 @@
 - Added an explicit active water-system label and clear action to the state overview selector.
 - Added a dashboard offline notice that makes cached read-model usage visible when the browser loses network connectivity.
 - Added a read-model freshness panel that surfaces last update age, syncing, stale, waiting, and error states for the dashboard queries.
+- Added a retry-live-data action for read models that refetches cached API queries without starting snapshot ingestion.

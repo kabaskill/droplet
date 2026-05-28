@@ -16,6 +16,7 @@ export type ReadModelFreshnessItem = {
 type ReadModelFreshnessPanelProps = {
   items: ReadModelFreshnessItem[]
   now: number
+  onRetry: () => void
 }
 
 const staleAfterMs = 1000 * 60 * 5
@@ -23,6 +24,7 @@ const staleAfterMs = 1000 * 60 * 5
 export function ReadModelFreshnessPanel({
   items,
   now,
+  onRetry,
 }: ReadModelFreshnessPanelProps) {
   const staleCount = items.filter((item) => freshnessState(item, now) === "stale").length
   const missingCount = items.filter((item) => freshnessState(item, now) === "missing").length
@@ -46,15 +48,24 @@ export function ReadModelFreshnessPanel({
             Last successful dashboard updates from the frontend cache.
           </p>
         </div>
-        <span
-          className={cn(
-            "rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
-            statusTone === "warning" &&
-              "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30"
-          )}
-        >
-          {statusLabel}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            className="rounded-md border bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            onClick={onRetry}
+            type="button"
+          >
+            Retry live data
+          </button>
+          <span
+            className={cn(
+              "rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
+              statusTone === "warning" &&
+                "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30"
+            )}
+          >
+            {statusLabel}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">

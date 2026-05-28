@@ -209,14 +209,11 @@ export function DashboardPage() {
   const handleRefresh = () => {
     refreshSnapshots.mutate(undefined, {
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
-        void queryClient.invalidateQueries({ queryKey: ["analytics"] })
-        void queryClient.invalidateQueries({ queryKey: ["forecasts"] })
-        void queryClient.invalidateQueries({ queryKey: ["sources"] })
-        void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
+        retryReadModels(queryClient)
       },
     })
   }
+  const handleRetryReadModels = () => retryReadModels(queryClient)
   const handleSelectRegion = (regionId: string) => {
     setSelectedRegionId(regionId)
   }
@@ -325,7 +322,11 @@ export function DashboardPage() {
               regions={regions}
               sourceHealth={sourceHealthQuery.data ?? null}
             />
-            <ReadModelFreshnessPanel items={freshnessItems} now={now} />
+            <ReadModelFreshnessPanel
+              items={freshnessItems}
+              now={now}
+              onRetry={handleRetryReadModels}
+            />
             <ForecastOutlookPanel
               errorMessage={panelErrorMessage(forecastOutlookQuery.error)}
               loading={forecastOutlookLoading}
@@ -377,6 +378,15 @@ export function DashboardPage() {
       </main>
     </AppShell>
   )
+}
+
+function retryReadModels(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ["regions"] })
+  void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
+  void queryClient.invalidateQueries({ queryKey: ["analytics"] })
+  void queryClient.invalidateQueries({ queryKey: ["forecasts"] })
+  void queryClient.invalidateQueries({ queryKey: ["sources"] })
+  void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
 }
 
 function OfflineCachedDataNotice() {
