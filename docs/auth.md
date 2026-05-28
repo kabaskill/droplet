@@ -50,5 +50,5 @@ Local realm users:
 
 The backend validates Keycloak access tokens. Role-gated endpoints require
 `analyst` or `municipality`; `citizen` can read basic region and snapshot data.
-Snapshot history depth is role-aware: basic users are capped at 14 observations,
-while municipality users can request up to 30 observations.
+Snapshot history depth is role-aware: citizen and analyst users can request up
+to 90 observations, while municipality users can request up to 365 observations.
