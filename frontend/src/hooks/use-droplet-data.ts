@@ -14,17 +14,19 @@ import {
 import { useAuthStore } from "@/features/auth/auth-store"
 import type { ReservoirSnapshot } from "@/services/types"
 
+const readModelVersion = "state-model-v2"
+
 export function useRegions() {
   return useQuery({
     queryFn: fetchRegions,
-    queryKey: ["regions"],
+    queryKey: ["regions", readModelVersion],
   })
 }
 
 export function useLatestSnapshots() {
   return useQuery({
     queryFn: fetchLatestSnapshots,
-    queryKey: ["snapshots", "latest"],
+    queryKey: ["snapshots", readModelVersion, "latest"],
   })
 }
 
@@ -37,35 +39,35 @@ export function useSnapshotHistory(regionId: string | null) {
   return useQuery({
     enabled: Boolean(regionId),
     queryFn: () => fetchSnapshotHistory(regionId ?? "", limit),
-    queryKey: ["snapshots", "history", regionId, limit],
+    queryKey: ["snapshots", readModelVersion, "history", regionId, limit],
   })
 }
 
 export function useAnalyticsSummary() {
   return useQuery({
     queryFn: fetchAnalyticsSummary,
-    queryKey: ["analytics", "summary"],
+    queryKey: ["analytics", readModelVersion, "summary"],
   })
 }
 
 export function useSourceHealth() {
   return useQuery({
     queryFn: fetchSourceHealth,
-    queryKey: ["sources", "health"],
+    queryKey: ["sources", readModelVersion, "health"],
   })
 }
 
 export function useIngestionStatus() {
   return useQuery({
     queryFn: fetchIngestionStatus,
-    queryKey: ["ingestion", "status"],
+    queryKey: ["ingestion", readModelVersion, "status"],
   })
 }
 
 export function useForecastOutlook() {
   return useQuery({
     queryFn: fetchForecastOutlook,
-    queryKey: ["forecasts", "outlook"],
+    queryKey: ["forecasts", readModelVersion, "outlook"],
   })
 }
 

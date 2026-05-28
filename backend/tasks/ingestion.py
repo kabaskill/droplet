@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, desc, select
 
+from backend.cache.keys import CACHE_VERSION, cache_key
 from backend.cache.redis_client import delete_cache_keys, delete_cache_pattern
 from backend.domain.regions import STATE_READING_VALUES
 from backend.domain.snapshots import ComputedSnapshot, EnvironmentalReading, compute_snapshot
@@ -103,12 +104,12 @@ def _persist_readings(readings: dict[str, EnvironmentalReading]) -> dict[str, in
 
     if result["created"] or result["updated"] or result["deleted"]:
         delete_cache_keys([
-            "droplet:analytics:summary:v1",
-            "droplet:forecasts:outlook:v1",
-            "droplet:snapshots:latest:v1",
-            "droplet:sources:health:v1",
+            cache_key("analytics:summary"),
+            cache_key("forecasts:outlook"),
+            cache_key("snapshots:latest"),
+            cache_key("sources:health"),
         ])
-        delete_cache_pattern("droplet:snapshots:history:*:v1")
+        delete_cache_pattern(f"droplet:snapshots:history:*:{CACHE_VERSION}")
 
     return result
 

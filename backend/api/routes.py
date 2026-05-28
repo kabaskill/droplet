@@ -2,6 +2,7 @@ from flask import Blueprint, g, jsonify, request
 
 from backend.auth.decorators import require_auth
 from backend.auth.keycloak import auth_config as build_auth_config
+from backend.cache.keys import cache_key
 from backend.cache.redis_client import read_through_json
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
@@ -30,7 +31,7 @@ def auth_me():
 @require_auth()
 def regions():
     return jsonify(
-        read_through_json("droplet:regions:v1", 3600, list_regions)
+        read_through_json(cache_key("regions"), 3600, list_regions)
     )
 
 
@@ -38,7 +39,7 @@ def regions():
 @require_auth()
 def snapshots():
     return jsonify(
-        read_through_json("droplet:snapshots:latest:v1", 120, latest_snapshots)
+        read_through_json(cache_key("snapshots:latest"), 120, latest_snapshots)
     )
 
 
@@ -52,7 +53,7 @@ def region_snapshots(region_id: str):
 
     return jsonify(
         read_through_json(
-            f"droplet:snapshots:history:{region_id}:limit:{history_limit}:v1",
+            cache_key(f"snapshots:history:{region_id}:limit:{history_limit}"),
             120,
             lambda: snapshot_history(region_id, limit=history_limit),
         )
@@ -82,7 +83,7 @@ def ingestion_status():
 def analytics_summary():
     return jsonify(
         read_through_json(
-            "droplet:analytics:summary:v1",
+            cache_key("analytics:summary"),
             120,
             build_analytics_summary,
         )
@@ -94,7 +95,7 @@ def analytics_summary():
 def source_health():
     return jsonify(
         read_through_json(
-            "droplet:sources:health:v1",
+            cache_key("sources:health"),
             120,
             build_source_health,
         )
@@ -106,7 +107,7 @@ def source_health():
 def forecast_outlook():
     return jsonify(
         read_through_json(
-            "droplet:forecasts:outlook:v1",
+            cache_key("forecasts:outlook"),
             900,
             build_forecast_outlook,
         )

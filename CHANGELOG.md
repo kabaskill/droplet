@@ -63,3 +63,5 @@
 - Simplified the header controls by folding sync/current/stale state into the refresh action.
 - Improved accessibility labels and mobile detail dialog keyboard behavior.
 - Expanded prototype coverage from five basin proxy regions to all 16 German federal states.
+- Bumped the frontend persisted read-model cache so browsers stop restoring the old five-region data set.
+- Bumped the backend Redis read-model cache namespace so `/regions` stops serving the old five-region list.
