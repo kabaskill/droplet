@@ -1,4 +1,4 @@
-import { useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 
 import { GermanyStateMap } from "@/components/app/GermanyStateMap"
 import { cn } from "@/lib/utils"
@@ -8,6 +8,11 @@ import {
 } from "@/services/snapshot-freshness"
 import type { RegionWithSnapshot } from "@/services/regional-filters"
 import type { ReservoirSnapshot } from "@/services/types"
+import {
+  regionBelongsToWaterSystem,
+  waterSystems,
+  waterSystemStateCount,
+} from "@/services/water-systems"
 import type { MapLayer } from "@/stores/app-store"
 
 type RegionOperationsMapProps = {
@@ -108,7 +113,29 @@ export function RegionOperationsMap({
   selectedRegionId,
 }: RegionOperationsMapProps) {
   const [isPending, startTransition] = useTransition()
+  const [selectedWaterSystemId, setSelectedWaterSystemId] = useState<string | null>(null)
   const activeLayerConfig = layerConfigs[activeLayer]
+  const availableWaterSystems = useMemo(
+    () =>
+      waterSystems
+        .map((system) => ({
+          ...system,
+          visibleStateCount: waterSystemStateCount(
+            system,
+            filteredRegions.map(({ region }) => region)
+          ),
+        }))
+        .filter((system) => system.visibleStateCount > 0),
+    [filteredRegions]
+  )
+  const selectedWaterSystem =
+    availableWaterSystems.find((system) => system.id === selectedWaterSystemId) ??
+    null
+  const visibleRegions = selectedWaterSystem
+    ? filteredRegions.filter(({ region }) =>
+        regionBelongsToWaterSystem(region, selectedWaterSystem)
+      )
+    : filteredRegions
 
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
@@ -126,15 +153,37 @@ export function RegionOperationsMap({
 
       {filteredRegions.length ? (
         <div className="grid gap-3">
+          <WaterSystemSelector
+            systems={availableWaterSystems}
+            selectedSystemId={selectedWaterSystem?.id ?? null}
+            totalCount={filteredRegions.length}
+            onSelectSystem={(systemId) => {
+              const nextSystem =
+                availableWaterSystems.find((system) => system.id === systemId) ?? null
+
+              setSelectedWaterSystemId(systemId)
+
+              if (nextSystem) {
+                const firstRegion = filteredRegions.find(({ region }) =>
+                  regionBelongsToWaterSystem(region, nextSystem)
+                )
+
+                if (firstRegion) {
+                  startTransition(() => onSelectRegion(firstRegion.region.id))
+                }
+              }
+            }}
+          />
+
           <GermanyStateMap
             activeLayer={activeLayer}
-            filteredRegions={filteredRegions}
+            filteredRegions={visibleRegions}
             selectedRegionId={selectedRegionId}
             onSelectRegion={onSelectRegion}
           />
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {filteredRegions.map(({ region, snapshot }) => {
+            {visibleRegions.map(({ region, snapshot }) => {
               const selected = selectedRegionId === region.id
               const freshnessStatus = snapshot ? snapshotFreshnessStatus(snapshot) : null
               const primaryValue = snapshot ? activeLayerConfig.metric(snapshot) : 0
@@ -214,6 +263,71 @@ export function RegionOperationsMap({
         </div>
       )}
     </section>
+  )
+}
+
+type VisibleWaterSystem = (typeof waterSystems)[number] & {
+  visibleStateCount: number
+}
+
+type WaterSystemSelectorProps = {
+  onSelectSystem: (systemId: string | null) => void
+  selectedSystemId: string | null
+  systems: VisibleWaterSystem[]
+  totalCount: number
+}
+
+function WaterSystemSelector({
+  onSelectSystem,
+  selectedSystemId,
+  systems,
+  totalCount,
+}: WaterSystemSelectorProps) {
+  return (
+    <div className="rounded-md border bg-background p-2">
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <div className="text-xs font-medium text-muted-foreground">
+          Water system view
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {selectedSystemId ? "Subset" : "All states"}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          aria-pressed={!selectedSystemId}
+          className={cn(
+            "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent",
+            !selectedSystemId
+              ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+              : "bg-card text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => onSelectSystem(null)}
+          type="button"
+        >
+          All
+          <span className="ml-1 opacity-75">{totalCount}</span>
+        </button>
+        {systems.map((system) => (
+          <button
+            aria-label={`Show ${system.name} water system, ${system.visibleStateCount} states`}
+            aria-pressed={selectedSystemId === system.id}
+            className={cn(
+              "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent",
+              selectedSystemId === system.id
+                ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-card text-muted-foreground hover:text-foreground"
+            )}
+            key={system.id}
+            onClick={() => onSelectSystem(system.id)}
+            type="button"
+          >
+            {system.name}
+            <span className="ml-1 opacity-75">{system.visibleStateCount}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

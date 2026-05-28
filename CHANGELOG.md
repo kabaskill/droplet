@@ -66,3 +66,4 @@
 - Bumped the frontend persisted read-model cache so browsers stop restoring the old five-region data set.
 - Bumped the backend Redis read-model cache namespace so `/regions` stops serving the old five-region list.
 - Refined dashboard copy and state cards so the 16 German states are the primary operational unit.
+- Added a water-system selector to the state overview so operators can focus related states such as Main, Rhine, Elbe, and Weser on the existing state map.
