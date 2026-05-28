@@ -428,10 +428,11 @@ function stateStyleSheet(
           cursor: pointer;
           fill: ${fill};
           opacity: ${opacity};
+          stroke: hsl(var(--background));
         }
         #droplet-germany-map [id="${state.code}"]:hover {
           opacity: 1;
-          stroke-width: 2.2;
+          stroke-width: 2.8;
         }
       `
     })
@@ -441,8 +442,8 @@ function stateStyleSheet(
     ? `
         #droplet-germany-map [id="${selectedStateCode}"] {
           opacity: 1;
-          stroke: hsl(var(--foreground));
-          stroke-width: 2.8;
+          stroke: hsl(var(--primary));
+          stroke-width: 3.2;
         }
       `
     : ""
@@ -454,11 +455,13 @@ function stateStyleSheet(
       width: 100%;
     }
     #droplet-germany-map path {
-      fill: hsl(var(--background));
-      stroke: hsl(var(--border));
+      fill: hsl(var(--muted));
+      opacity: 0.58;
+      stroke: hsl(var(--background));
       stroke-linejoin: round;
-      stroke-width: 1;
+      stroke-width: 1.45;
       transition: fill 160ms ease, opacity 160ms ease, stroke-width 160ms ease;
+      vector-effect: non-scaling-stroke;
     }
     ${stateRules}
     ${selectedRule}
