@@ -73,9 +73,6 @@ export function AiPage() {
               </p>
             </div>
           </div>
-          <span className="w-fit rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-            Role: {activeRole}
-          </span>
         </div>
       </section>
 
