@@ -101,25 +101,37 @@ export async function logoutFromKeycloak() {
 
 export async function openKeycloakAccount(config: AuthConfig) {
   const client = getClient(config)
-  const accountUrl = client.createAccountUrl()
+  const accountUrl = createAccountUrl(client)
 
   if (!client.authenticated) {
-    await client.login({
-      redirectUri: accountUrl,
-    })
+    await client.login({ redirectUri: window.location.href })
     return
   }
 
   try {
     await client.updateToken(30)
   } catch {
-    await client.login({
-      redirectUri: accountUrl,
-    })
+    await client.login({ redirectUri: window.location.href })
     return
   }
 
-  window.location.assign(accountUrl)
+  openExternalAccountPage(accountUrl)
+}
+
+function createAccountUrl(client: Keycloak) {
+  const accountUrl = new URL(
+    client.createAccountUrl({
+      redirectUri: window.location.href,
+    })
+  )
+
+  accountUrl.searchParams.set("scope", "openid profile email roles")
+
+  return accountUrl.toString()
+}
+
+function openExternalAccountPage(accountUrl: string) {
+  window.open(accountUrl, "_blank", "noopener,noreferrer")
 }
 
 export async function refreshKeycloakToken() {

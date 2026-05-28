@@ -24,6 +24,7 @@
       "name": "Droplet Frontend",
       "enabled": true,
       "protocol": "openid-connect",
+      "baseUrl": "http://localhost:5173/",
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
@@ -54,7 +55,14 @@
       ],
       "realmRoles": [
         "citizen"
-      ]
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account",
+          "manage-account-links",
+          "view-profile"
+        ]
+      }
     },
     {
       "username": "analyst",
@@ -73,7 +81,14 @@
         "citizen",
         "analyst",
         "municipality"
-      ]
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account",
+          "manage-account-links",
+          "view-profile"
+        ]
+      }
     },
     {
       "username": "municipality",
@@ -91,7 +106,14 @@
       "realmRoles": [
         "citizen",
         "municipality"
-      ]
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account",
+          "manage-account-links",
+          "view-profile"
+        ]
+      }
     }
   ]
 }

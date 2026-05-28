@@ -1,6 +1,3 @@
-import { ChartBarLineIcon } from "@hugeicons/core-free-icons"
-
-import { ProductIcon } from "@/components/app/ProductIcon"
 import { cn } from "@/lib/utils"
 import type { RegionWithSnapshot } from "@/services/regional-filters"
 import type { MapLayer } from "@/stores/app-store"
@@ -68,10 +65,6 @@ export function RegionComparisonPanel({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-            <ProductIcon icon={ChartBarLineIcon} size={14} />
-            {comparator.label}
-          </span>
           <div
             aria-label="Comparison metric"
             className="flex rounded-md border bg-background p-0.5"
