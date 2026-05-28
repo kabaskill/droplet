@@ -58,7 +58,7 @@ export function RegionDetailPanel({
             </p>
           </div>
 
-          <div className="flex min-w-0 flex-wrap gap-1.5">
+          <div className="grid grid-cols-3 min-w-0 gap-1.5">
             {sources.map((source) => (
               <span
                 className={cn(

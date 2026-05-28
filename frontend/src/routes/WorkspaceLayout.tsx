@@ -1,4 +1,4 @@
-import { Outlet } from "@tanstack/react-router"
+import { Outlet, useRouterState } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 
@@ -23,6 +23,32 @@ function currentOnlineState() {
 }
 
 export function WorkspaceLayout() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+
+  return (
+    <ProtectedRoute>
+      {pathname === "/account" ? <AccountWorkspaceShell /> : <DataWorkspaceShell />}
+    </ProtectedRoute>
+  )
+}
+
+function AccountWorkspaceShell() {
+  return (
+    <AppShell
+      refreshing={false}
+      searchRegions={[]}
+      stale={false}
+      syncing={false}
+      onRefresh={() => undefined}
+    >
+      <Outlet />
+    </AppShell>
+  )
+}
+
+function DataWorkspaceShell() {
   const regionalFilter = useAppStore((state) => state.regionalFilter)
   const regionsQuery = useRegions()
   const snapshotsQuery = useLatestSnapshots()
@@ -85,18 +111,16 @@ export function WorkspaceLayout() {
   }
 
   return (
-    <ProtectedRoute>
-      <AppShell
-        refreshMessage={refreshMessage}
-        refreshing={refreshSnapshots.isPending}
-        searchRegions={searchRegions}
-        stale={stale}
-        syncing={syncing}
-        onRefresh={handleRefresh}
-      >
-        <Outlet />
-      </AppShell>
-    </ProtectedRoute>
+    <AppShell
+      refreshMessage={refreshMessage}
+      refreshing={refreshSnapshots.isPending}
+      searchRegions={searchRegions}
+      stale={stale}
+      syncing={syncing}
+      onRefresh={handleRefresh}
+    >
+      <Outlet />
+    </AppShell>
   )
 }
 

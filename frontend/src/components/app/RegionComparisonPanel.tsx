@@ -8,6 +8,7 @@ import type { MapLayer } from "@/stores/app-store"
 type RegionComparisonPanelProps = {
   activeLayer: MapLayer
   filteredRegions: RegionWithSnapshot[]
+  onLayerChange: (layer: MapLayer) => void
   onSelectRegion: (regionId: string) => void
   selectedRegionId: string | null
 }
@@ -36,9 +37,16 @@ const layerComparators: Record<MapLayer, LayerComparator> = {
   },
 }
 
+const comparisonLayers: { id: MapLayer; label: string }[] = [
+  { id: "water-level", label: "Water" },
+  { id: "rainfall", label: "Rainfall" },
+  { id: "confidence", label: "Confidence" },
+]
+
 export function RegionComparisonPanel({
   activeLayer,
   filteredRegions,
+  onLayerChange,
   onSelectRegion,
   selectedRegionId,
 }: RegionComparisonPanelProps) {
@@ -52,17 +60,40 @@ export function RegionComparisonPanel({
 
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <h2 className="font-medium">State comparison</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {comparator.description}
           </p>
         </div>
-        <span className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-          <ProductIcon icon={ChartBarLineIcon} size={14} />
-          {comparator.label}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
+            <ProductIcon icon={ChartBarLineIcon} size={14} />
+            {comparator.label}
+          </span>
+          <div
+            aria-label="Comparison metric"
+            className="flex rounded-md border bg-background p-0.5"
+            role="group"
+          >
+            {comparisonLayers.map((layer) => (
+              <button
+                aria-pressed={activeLayer === layer.id}
+                className={cn(
+                  "h-8 rounded-sm px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                  activeLayer === layer.id &&
+                    "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                )}
+                key={layer.id}
+                onClick={() => onLayerChange(layer.id)}
+                type="button"
+              >
+                {layer.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {rows.length ? (

@@ -273,7 +273,7 @@ def _fetch_pegelonline_water_level(
     if not isinstance(payload, list):
         raise SourceFetchError("unexpected Pegelonline station payload")
 
-    station = _find_station(payload, target.station)
+    station = _find_station(payload, target)
     water_series = _find_water_level_series(station)
     current_measurement = water_series.get("currentMeasurement")
 
@@ -613,8 +613,8 @@ def _get_json(
     return response.json()
 
 
-def _find_station(stations: list[Any], station_name: str) -> dict[str, Any]:
-    normalized_name = _normalize_name(station_name)
+def _find_station(stations: list[Any], target: RegionSourceTarget) -> dict[str, Any]:
+    normalized_name = _normalize_name(target.station)
 
     for station in stations:
         if not isinstance(station, dict):
@@ -640,7 +640,70 @@ def _find_station(stations: list[Any], station_name: str) -> dict[str, Any]:
         if any(normalized_name in candidate for candidate in candidates):
             return station
 
-    raise SourceFetchError(f"station not found: {station_name}")
+    nearest_station = _nearest_pegelonline_station(stations, target)
+
+    if nearest_station is not None:
+        return nearest_station
+
+    raise SourceFetchError(f"station not found: {target.station}")
+
+
+def _nearest_pegelonline_station(
+    stations: list[Any],
+    target: RegionSourceTarget,
+) -> dict[str, Any] | None:
+    candidates = []
+
+    for station in stations:
+        if not isinstance(station, dict) or not _station_water_matches(station, target):
+            continue
+
+        coordinates = _station_coordinates(station)
+
+        if coordinates is None:
+            continue
+
+        try:
+            _find_water_level_series(station)
+        except SourceFetchError:
+            continue
+
+        latitude, longitude = coordinates
+        candidates.append(
+            (
+                _distance_km(target.latitude, target.longitude, latitude, longitude),
+                station,
+            )
+        )
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: item[0])
+    return candidates[0][1]
+
+
+def _station_water_matches(
+    station: Mapping[str, Any],
+    target: RegionSourceTarget,
+) -> bool:
+    water = station.get("water") if isinstance(station.get("water"), dict) else {}
+    target_water = _normalize_name(target.water)
+
+    return target_water in {
+        _normalize_name(water.get("shortname")),
+        _normalize_name(water.get("longname")),
+    }
+
+
+def _station_coordinates(station: Mapping[str, Any]) -> tuple[float, float] | None:
+    latitude = _optional_float(station.get("latitude"))
+    longitude = _optional_float(station.get("longitude"))
+
+    if latitude is None or longitude is None:
+        return None
+
+    return latitude, longitude
 
 
 def _find_water_level_series(station: Mapping[str, Any]) -> dict[str, Any]:
@@ -766,6 +829,16 @@ def _coerce_float(value: Any, error_message: str) -> float:
         raise ValueError(error_message)
 
     return float(value)
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _normalize_name(value: Any) -> str:

@@ -89,7 +89,7 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
           </div>
 
           <div className="-mx-1 overflow-x-auto px-1 pb-1">
-            <div className="flex h-40 min-w-max items-end gap-2">
+            <div className="flex h-48 min-w-max items-end gap-2 lg:h-64">
               {points.map((point, index) => {
                 const freshness = snapshotFreshnessStatus(point)
                 const value = point[metric]
@@ -100,7 +100,7 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
                     key={point.id ?? `${point.regionId}-${point.timestamp}-${index}`}
                     title={`${activeMetric.label}: ${value}% · ${freshnessLabel(point)}`}
                   >
-                    <div className="relative flex h-28 w-full items-end rounded-sm bg-muted">
+                    <div className="relative flex h-36 w-full items-end rounded-sm bg-muted lg:h-52">
                       <div
                         className={cn(
                           "w-full rounded-sm",
