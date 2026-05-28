@@ -20,6 +20,7 @@ import {
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
 import { MetricTile } from "@/components/app/MetricTile"
 import { ProductIcon } from "@/components/app/ProductIcon"
+import { ReadModelFreshnessPanel } from "@/components/app/ReadModelFreshnessPanel"
 import { RegionComparisonPanel } from "@/components/app/RegionComparisonPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
 import { RegionOperationsMap } from "@/components/app/RegionOperationsMap"
@@ -154,6 +155,38 @@ export function DashboardPage() {
     sourceHealthQuery.isFetching ||
     ingestionStatusQuery.isFetching ||
     forecastOutlookQuery.isFetching
+  const freshnessItems = [
+    {
+      error: Boolean(regionsQuery.error),
+      isFetching: regionsQuery.isFetching,
+      label: "States",
+      updatedAt: regionsQuery.dataUpdatedAt,
+    },
+    {
+      error: Boolean(snapshotsQuery.error),
+      isFetching: snapshotsQuery.isFetching,
+      label: "Snapshots",
+      updatedAt: snapshotsQuery.dataUpdatedAt,
+    },
+    {
+      error: Boolean(analyticsQuery.error),
+      isFetching: analyticsQuery.isFetching,
+      label: "Analytics",
+      updatedAt: analyticsQuery.dataUpdatedAt,
+    },
+    {
+      error: Boolean(sourceHealthQuery.error),
+      isFetching: sourceHealthQuery.isFetching,
+      label: "Source health",
+      updatedAt: sourceHealthQuery.dataUpdatedAt,
+    },
+    {
+      error: Boolean(forecastOutlookQuery.error),
+      isFetching: forecastOutlookQuery.isFetching,
+      label: "Forecast",
+      updatedAt: forecastOutlookQuery.dataUpdatedAt,
+    },
+  ]
   const refreshMessage = refreshSnapshots.isError
     ? refreshErrorMessage(refreshSnapshots.error)
     : refreshResultMessage(refreshSnapshots.data)
@@ -292,6 +325,7 @@ export function DashboardPage() {
               regions={regions}
               sourceHealth={sourceHealthQuery.data ?? null}
             />
+            <ReadModelFreshnessPanel items={freshnessItems} now={now} />
             <ForecastOutlookPanel
               errorMessage={panelErrorMessage(forecastOutlookQuery.error)}
               loading={forecastOutlookLoading}
