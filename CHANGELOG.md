@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-05-29
+
+- Expanded the app documentation set and moved the docs index to the root `README.md` so GitHub shows it by default:
+  - Added usage, data flow, architecture, and auth documentation links from the root README.
+  - Added a transparent snapshot model and calculations document that explains source collection, internal data structures, database storage, frontend read models, formulas, limitations, and future calibration work.
+  - Corrected documented role-based snapshot history limits to match backend behavior: citizen users can request up to 90 observations, municipality and analyst users up to 365.
+- Added local Docker Compose override support for development-specific runtime settings.
+
+## 2026-05-28
+
+- Improved AI analysis from a single snapshot panel into a dedicated AI workspace:
+  - Added state-level and water-region analysis scopes.
+  - Packages latest water-source, rainfall, evaporation, confidence, visibility, and regional metadata into role-aware analysis requests.
+  - Replaced local/mock analysis behavior with Gemini-backed structured JSON analysis.
+  - Added loading, unavailable, and error states for Gemini analysis.
+  - Saved AI analysis requests and responses in PostgreSQL per user.
+  - Added analysis history browsing so users can review previous Gemini results.
+  - Updated the AI panel to render stored analyses as well as newly generated analysis results.
+- Refined the AI page layout and copy:
+  - Added a left-side scope/history control area and main analysis result area.
+  - Added clearer single-state vs water-region controls.
+  - Removed redundant role display from the AI page header.
+  - Improved empty, waiting, and history states for analysis workflows.
+- Continued UI polish across the operational workspace:
+  - Improved responsive layout behavior for analysis workflows.
+  - Kept page-level controls more focused on selected scope and current result state.
+  - Reduced stale or confusing labels around AI role context and result history.
+- Added Redis read-through caching for region, snapshot, analytics, source health, and forecast read models with worker cache invalidation after snapshot refreshes.
+- Added protected snapshot refresh, Celery task status polling, scheduled Celery beat refreshes, snapshot retention cleanup, and ingestion run status tracking.
+- Expanded live environmental ingestion:
+  - Fetches Pegelonline W water-level measurements for configured German basin stations.
+  - Uses DWD CDC recent hourly data as the primary temperature, humidity, and precipitation source.
+  - Falls back to Open-Meteo weather and static environmental readings when external sources are unavailable.
+  - Normalizes live water levels against Pegelonline characteristic values when available.
+  - Updates or skips existing region/timestamp observations instead of appending duplicate history rows.
+- Added snapshot freshness metadata, parsed source badges, source health read models, provider coverage, fallback visibility, and stale region reporting.
+- Updated trend calculation to compare each region against its previous observation instead of relying only on absolute threshold rules.
+- Added cached Open-Meteo forecast outlooks with snapshot-derived fallback and 48-hour regional pressure estimates.
+- Hardened auth handling with backend-provided auth config, structured auth errors, Keycloak role test users, frontend token/session handling fixes, and local auth documentation.
+- Expanded the dashboard from five basin proxy regions to all 16 German federal states and bumped frontend and Redis cache namespaces to avoid stale five-region data.
+- Improved the operational UI:
+  - Integrated the Germany SVG state map with operational coloring and state selection.
+  - Added map layer switching for water, rainfall, and confidence emphasis.
+  - Added comparison mode, layer-aware regional rankings, and operational filters for elevated, stale, fallback, and low-confidence views.
+  - Added water-system focus controls for related states such as Main, Rhine, Elbe, and Weser.
+  - Added mobile region detail actions, skeleton states, quick region search, history metric switching, and better panel loading/unavailable states.
+  - Simplified header refresh state, improved accessibility labels, and fixed mobile state selection behavior.
+- Improved frontend resilience:
+  - Added API-aware retry rules and a global workspace error boundary.
+  - Added offline cached-data notices and read-model freshness reporting.
+  - Added retry-live-data behavior that refetches read models without starting ingestion.
+  - Scoped global read-model failures to core state and snapshot data while keeping optional analytics, forecast, source-health, and analysis failures local.
+- Updated role-aware snapshot history depth so citizen and analyst users can review up to 90 observations while municipality users can review up to 365 observations.
+- Documented the frontend and backend resilience model in the prototype architecture note.
+
 ## 2026-05-27
 
 - Added the first Droplet prototype foundation in the existing Vite frontend:
@@ -24,53 +79,3 @@
 - Updated the backend PostgreSQL driver pin to a Python 3.14-compatible 3.2.x release for local smoke testing.
 - Branded the Vite document shell with Droplet title/favicon and reduced container runtime warnings for the worker.
 - Moved the backend fallback SQLite database path to `/tmp` so the non-root container user can run without a database URL.
-- Added Redis read-through caching for region, snapshot, and analytics read models with worker cache invalidation after snapshot refreshes.
-- Added a protected snapshot refresh command that queues the ingestion worker and lets the frontend refresh cached snapshot and analytics queries.
-- Bounded Celery publish timeouts so snapshot refresh falls back quickly when the broker is unreachable.
-- Added live environmental ingestion for snapshot refreshes:
-  - Fetches Pegelonline W water-level measurements for the configured German basin stations.
-  - Fetches Open-Meteo current weather and recent precipitation context for the same regions.
-  - Normalizes live water levels against Pegelonline characteristic values when available, then persists computed snapshots through the existing worker pipeline.
-  - Keeps fallback environmental readings so refreshes still produce snapshots when an external API is temporarily unavailable.
-  - Backdates seeded history slightly so a successful ingestion refresh becomes the latest snapshot in fresh databases.
-- Exposed snapshot IDs in API read models and used stable frontend list keys for repeated live measurement timestamps.
-- Added DWD CDC recent hourly ingestion as the primary weather source:
-  - Selects nearest active DWD temperature/humidity and precipitation stations per configured region.
-  - Parses recent hourly ZIP products for temperature, humidity, and 24-hour rainfall totals.
-  - Falls back to Open-Meteo weather only when DWD source products are unavailable.
-- Made snapshot ingestion idempotent by updating or skipping existing region/timestamp observations instead of appending duplicate history rows.
-- Added refresh task status polling so the frontend waits for queued Celery ingestion to finish before refetching snapshots and shows created/updated/skipped counts.
-- Added snapshot freshness metadata and source badges so region cards and detail panels show current/stale/old source age and the active water/weather providers.
-- Added a source health read model and dashboard panel for provider coverage, water/weather coverage, fallback use, and stale region visibility.
-- Updated ingestion to derive persisted trend direction from each region's previous observation instead of relying only on absolute threshold rules.
-- Added a Celery beat scheduler service that refreshes reservoir snapshots on a configurable interval while preserving manual refresh.
-- Added configurable snapshot retention cleanup during ingestion so old persisted observations are pruned and reported in refresh results.
-- Added ingestion run status tracking in Redis with an API and dashboard display for the latest manual or scheduled refresh outcome.
-- Hardened auth mode handling with mode-aware backend config, structured auth errors, Keycloak role test users, frontend auth-error handling, and local auth documentation.
-- Fixed Keycloak frontend startup by reusing the initialized client, deriving user details from token claims, and loading auth mode from the backend config endpoint.
-- Added a cached Open-Meteo forecast outlook read model with snapshot-derived fallback and a dashboard panel for 48-hour regional pressure estimates.
-- Added frontend resilience handling with API-aware retry rules, a global workspace error boundary, and dashboard notices for live read model failures.
-- Added role-aware snapshot history depth so municipality users can review up to 30 observations while basic users remain capped at 14.
-- Wired the dashboard map layer selector into regional state cards so water, rainfall, and confidence views change card emphasis and primary metrics.
-- Added a comparison mode toggle with a layer-aware regional ranking panel for faster cross-basin review.
-- Added operational regional filters for elevated, stale, fallback, and low-confidence views across the map and comparison panels.
-- Integrated the Germany SVG state map with operational coloring and state-to-region selection.
-- Added a mobile region detail workflow with a fixed action bar and slide-up detail panel for selected regions.
-- Added dashboard skeleton states for first-load metrics, regional filters, map content, and region details.
-- Added a region quick switcher for searching visible regions by name, basin, state, or code.
-- Added metric switching and stale markers to the regional history chart.
-- Added loading, waiting, and unavailable states to source health, forecast, and analysis panels.
-- Simplified the header controls by folding sync/current/stale state into the refresh action.
-- Improved accessibility labels and mobile detail dialog keyboard behavior.
-- Expanded prototype coverage from five basin proxy regions to all 16 German federal states.
-- Bumped the frontend persisted read-model cache so browsers stop restoring the old five-region data set.
-- Bumped the backend Redis read-model cache namespace so `/regions` stops serving the old five-region list.
-- Refined dashboard copy and state cards so the 16 German states are the primary operational unit.
-- Added a water-system selector to the state overview so operators can focus related states such as Main, Rhine, Elbe, and Weser on the existing state map.
-- Fixed mobile state selection so changing the active state no longer opens the detail sheet until the Details action is tapped.
-- Added an explicit active water-system label and clear action to the state overview selector.
-- Added a dashboard offline notice that makes cached read-model usage visible when the browser loses network connectivity.
-- Added a read-model freshness panel that surfaces last update age, syncing, stale, waiting, and error states for the dashboard queries.
-- Added a retry-live-data action for read models that refetches cached API queries without starting snapshot ingestion.
-- Scoped global read-model failures to core state and snapshot data while keeping optional analytics, forecast, and source-health failures local.
-- Documented the frontend and backend resilience model in the prototype architecture note.
