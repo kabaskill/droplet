@@ -6,6 +6,7 @@ Droplet is Germany's Water State Platform: an operational dashboard for monitori
 
 - [How to Use Droplet](./docs/usage.md): user-facing guide for navigation, roles, refreshes, and AI analysis.
 - [Data Flow](./docs/dataflow.md): how environmental data moves from sources into snapshots, read models, caches, and the frontend.
+- [Snapshot Model And Calculations](./docs/snapshot-model-and-calculations.md): transparent explanation of source handling, snapshot structures, scoring formulas, and known limitations.
 - [Architecture](./docs/architecture.md): service layout, runtime components, backend layers, frontend layers, and deployment notes.
 - [Auth Modes](./docs/auth.md): demo auth and local Keycloak setup.
 - [Prototype Architecture](./docs/prototype-architecture.md): original resilience notes.

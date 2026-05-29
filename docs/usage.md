@@ -116,7 +116,7 @@ sequenceDiagram
 | Role | Can read basic state | Can view operations read models | Can refresh snapshots | History depth |
 |---|---:|---:|---:|---:|
 | `citizen` | Yes | Limited | No | Up to 90 |
-| `analyst` | Yes | Yes | Yes | Up to 90 |
+| `analyst` | Yes | Yes | Yes | Up to 365 |
 | `municipality` | Yes | Yes | Yes | Up to 365 |
 
 ## Demo Fallback
