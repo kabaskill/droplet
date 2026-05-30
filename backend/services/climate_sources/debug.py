@@ -33,6 +33,11 @@ def build_source_normalization_debug(
             "requestedRegionId": region_id,
             "requestedSections": sections,
             "regionCount": len(selected_regions),
+            "sampleOnly": region_id is None and region_limit is not None,
+            "selectedRegionIds": [
+                region["id"]
+                for region in selected_regions
+            ],
         },
         "regions": selected_regions,
         "sections": selected_sections,

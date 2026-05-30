@@ -14,6 +14,7 @@
 - Exposed solar direct, diffuse, and direct-normal radiation components in normalized debug output.
 - Added units metadata to normalized climate-source debug output.
 - Added an optional debug-route region limit for sampling all-region normalization output.
+- Marked limited all-region debug responses with selected region ids and sample-only metadata.
 - Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
 
 ## 2026-05-29
