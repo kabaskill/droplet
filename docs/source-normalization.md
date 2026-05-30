@@ -49,7 +49,7 @@ UBA carbon monoxide measurements are reported by the source in mg/m3 and convert
 
 `backend/services/climate_sources/co2.py` records CAMS/Copernicus as the exploratory CO2 source path.
 
-The module returns a structured candidate response with required configuration, expected fields, and implementation notes instead of blocking on credentials or dataset workflow setup.
+The module returns a structured candidate response with dataset candidates, region target coordinates, required configuration, known blockers, expected fields, and implementation notes instead of blocking on credentials or dataset workflow setup.
 
 ## Debug Stages
 

@@ -74,6 +74,9 @@ The debug object records:
 
 - source candidate
 - required configuration
+- dataset candidates
+- region target coordinates
+- credential and dataset blockers
 - expected fields
 - implementation notes
 - normalized unavailable status

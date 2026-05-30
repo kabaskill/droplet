@@ -18,6 +18,7 @@
 - Normalized debug section inputs with case-insensitive parsing, aliases, and duplicate removal.
 - Added compact per-section debug summaries with state, status, warning counts, and error counts.
 - Added aggregate debug response summaries across selected sections and regions.
+- Expanded CO2 debug output with CAMS dataset candidates, region targets, required configuration, and known blockers.
 - Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
 
 ## 2026-05-29
