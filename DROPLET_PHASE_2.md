@@ -90,6 +90,7 @@ Each section returns:
 - source metadata
 
 The debug route is intentionally unprotected for this phase and should not be treated as a durable public API.
+Within one debug request, reusable HTTP state and source metadata should be shared across section builders so multi-region inspection does not repeat avoidable source-index fetches.
 
 ## Commit Sequence
 

@@ -1,8 +1,13 @@
 from dataclasses import asdict
 from typing import Any
 
+import requests
+
 from backend.domain.regions import STATE_REGIONS
-from backend.services.climate_sources.air_quality import build_air_quality_debug_stage
+from backend.services.climate_sources.air_quality import (
+    build_air_quality_debug_stage,
+    fetch_uba_stations,
+)
 from backend.services.climate_sources.co2 import build_co2_debug_stage
 from backend.services.climate_sources.contracts import DebugStage
 from backend.services.climate_sources.solar import build_solar_debug_stage
@@ -14,6 +19,7 @@ DEBUG_SECTIONS = ("water", "sunlight", "air", "co2")
 def build_source_normalization_debug(
     region_id: str | None = None,
     sections: list[str] | None = None,
+    timeout: float = 8,
 ) -> dict[str, Any]:
     selected_sections = _selected_sections(sections)
     selected_regions = _selected_regions(region_id)
@@ -22,11 +28,25 @@ def build_source_normalization_debug(
         "sections": selected_sections,
     }
 
-    for section in selected_sections:
-        response[section] = {
-            region["id"]: _build_section_for_region(section, region["id"])
-            for region in selected_regions
-        }
+    with requests.Session() as http:
+        stations_payload, stations_error = _prefetch_uba_stations(
+            selected_sections,
+            http,
+            timeout,
+        )
+
+        for section in selected_sections:
+            response[section] = {
+                region["id"]: _build_section_for_region(
+                    section,
+                    region["id"],
+                    http,
+                    stations_payload,
+                    stations_error,
+                    timeout,
+                )
+                for region in selected_regions
+            }
 
     return response
 
@@ -63,16 +83,33 @@ def _selected_regions(region_id: str | None) -> list[dict[str, Any]]:
     raise ValueError(f"unknown regionId: {region_id}")
 
 
-def _build_section_for_region(section: str, region_id: str) -> dict[str, Any]:
+def _build_section_for_region(
+    section: str,
+    region_id: str,
+    http: requests.Session,
+    stations_payload: Any | None,
+    stations_error: str | None,
+    timeout: float,
+) -> dict[str, Any]:
     try:
         if section == "water":
             return _water_debug_stage(region_id)
 
         if section == "sunlight":
-            return _debug_stage_to_dict(build_solar_debug_stage(region_id))
+            return _debug_stage_to_dict(
+                build_solar_debug_stage(region_id, http=http, timeout=timeout)
+            )
 
         if section == "air":
-            return _debug_stage_to_dict(build_air_quality_debug_stage(region_id))
+            return _debug_stage_to_dict(
+                build_air_quality_debug_stage(
+                    region_id,
+                    http=http,
+                    stations_error=stations_error,
+                    stations_payload=stations_payload,
+                    timeout=timeout,
+                )
+            )
 
         if section == "co2":
             return _debug_stage_to_dict(build_co2_debug_stage(region_id))
@@ -88,6 +125,20 @@ def _build_section_for_region(section: str, region_id: str) -> dict[str, Any]:
         }
 
     raise ValueError(f"unsupported debug section: {section}")
+
+
+def _prefetch_uba_stations(
+    sections: list[str],
+    http: requests.Session,
+    timeout: float,
+) -> tuple[Any | None, str | None]:
+    if "air" not in sections:
+        return None, None
+
+    try:
+        return fetch_uba_stations(http, timeout), None
+    except (requests.RequestException, ValueError) as exc:
+        return None, str(exc)
 
 
 def _water_debug_stage(region_id: str) -> dict[str, Any]:

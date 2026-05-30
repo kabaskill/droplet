@@ -15,6 +15,7 @@ from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 UBA_STATIONS_URL = "https://www.umweltbundesamt.de/api/air_data/v4/stations/json"
 UBA_MEASURES_URL = "https://www.umweltbundesamt.de/api/air_data/v4/measures/json"
 OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
 UBA_SOURCE = SourceMetadata(
     name="Umweltbundesamt Luftdaten API",
     url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",
@@ -61,12 +62,13 @@ def build_air_quality_debug_stage(
     http: requests.Session | None = None,
     timeout: float = 8,
     include_open_meteo_comparison: bool = True,
+    stations_error: str | None = None,
+    stations_payload: Any | None = None,
 ) -> DebugStage:
-    station_params = {"use": "airquality", "lang": "en", "recent": "true"}
     data_params = _measurement_window_params()
     request = {
         "method": "GET",
-        "primary": {"params": station_params, "url": UBA_STATIONS_URL},
+        "primary": {"params": UBA_STATION_PARAMS, "url": UBA_STATIONS_URL},
         "readings": {"params": data_params, "url": UBA_MEASURES_URL},
     }
     warnings: list[str] = []
@@ -74,13 +76,12 @@ def build_air_quality_debug_stage(
     session = http or requests.Session()
 
     try:
-        stations_response = session.get(
-            UBA_STATIONS_URL,
-            params=station_params,
-            timeout=timeout,
-        )
-        stations_response.raise_for_status()
-        stations_payload = stations_response.json()
+        if stations_error is not None:
+            raise ValueError(stations_error)
+
+        if stations_payload is None:
+            stations_payload = fetch_uba_stations(session, timeout)
+
         station = nearest_uba_station(region_id, stations_payload)
 
         readings_payload = {}
@@ -144,6 +145,20 @@ def build_air_quality_debug_stage(
         errors=errors,
         source=UBA_SOURCE,
     )
+
+
+def fetch_uba_stations(
+    http: requests.Session,
+    timeout: float = 8,
+) -> Any:
+    response = http.get(
+        UBA_STATIONS_URL,
+        params=UBA_STATION_PARAMS,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    return response.json()
 
 
 def nearest_uba_station(

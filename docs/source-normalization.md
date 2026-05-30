@@ -56,3 +56,5 @@ The module returns a structured candidate response with required configuration, 
 - source metadata
 
 Raw source payloads are not durable app state. Debug stages expose summaries and selected fields only for temporary backend inspection.
+
+The debug builder reuses one HTTP session per request and shares the UBA station index across all requested regions before fetching per-region measurement rows.
