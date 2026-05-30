@@ -97,6 +97,7 @@ Each section returns:
 - raw response summary
 - selected fields
 - normalized output
+- compact section summary
 - warnings and errors
 - source metadata
 

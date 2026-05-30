@@ -59,6 +59,7 @@ The module returns a structured candidate response with required configuration, 
 - raw response summary
 - selected fields
 - normalized output
+- compact section summary
 - warnings and errors
 - source metadata
 

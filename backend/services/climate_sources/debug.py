@@ -167,6 +167,12 @@ def _build_section_for_region(
             "request": {},
             "selectedFields": {},
             "source": None,
+            "summary": {
+                "errorCount": 1,
+                "normalizedStatus": None,
+                "state": "error",
+                "warningCount": 0,
+            },
             "warnings": [],
         }
 
@@ -222,6 +228,12 @@ def _water_debug_stage(region_id: str) -> dict[str, Any]:
             "name": "Existing Droplet water/weather ingestion",
             "url": "backend/services/environmental_sources.py",
         },
+        "summary": {
+            "errorCount": 0,
+            "normalizedStatus": None,
+            "state": "warning",
+            "warningCount": 1,
+        },
         "warnings": [
             "Water/weather ingestion is unchanged in Phase 2; this debug section documents the existing source configuration only."
         ],
@@ -230,13 +242,35 @@ def _water_debug_stage(region_id: str) -> dict[str, Any]:
 
 def _debug_stage_to_dict(stage: DebugStage) -> dict[str, Any]:
     source = asdict(stage.source)
+    normalized = stage.normalized_output
 
     return {
         "errors": stage.errors,
-        "normalizedOutput": stage.normalized_output,
+        "normalizedOutput": normalized,
         "rawResponseSummary": stage.raw_summary,
         "request": stage.request,
         "selectedFields": stage.selected_fields,
         "source": source,
+        "summary": _stage_summary(normalized, stage.warnings, stage.errors),
         "warnings": stage.warnings,
+    }
+
+
+def _stage_summary(
+    normalized: dict[str, Any] | None,
+    warnings: list[str],
+    errors: list[str],
+) -> dict[str, Any]:
+    if errors:
+        state = "error"
+    elif warnings:
+        state = "warning"
+    else:
+        state = "ok"
+
+    return {
+        "errorCount": len(errors),
+        "normalizedStatus": normalized.get("status") if normalized else None,
+        "state": state,
+        "warningCount": len(warnings),
     }
