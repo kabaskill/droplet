@@ -16,6 +16,7 @@ UBA_STATIONS_URL = "https://www.umweltbundesamt.de/api/air_data/v4/stations/json
 UBA_MEASURES_URL = "https://www.umweltbundesamt.de/api/air_data/v4/measures/json"
 OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
+UBA_STATION_CANDIDATE_LIMIT = 6
 UBA_SOURCE = SourceMetadata(
     name="Umweltbundesamt Luftdaten API",
     url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",
@@ -90,44 +91,59 @@ def build_air_quality_debug_stage(
         if stations_payload is None:
             stations_payload = fetch_uba_stations(session, timeout)
 
-        station = nearest_uba_station(region_id, stations_payload)
-
+        station_candidates = nearest_uba_stations(
+            region_id,
+            stations_payload,
+            limit=UBA_STATION_CANDIDATE_LIMIT,
+        )
+        request["stationCandidates"] = [
+            _station_request_summary(candidate)
+            for candidate in station_candidates
+        ]
+        station = None
         readings_payload = {}
         measurement_requests = {}
+        normalized = None
 
-        for pollutant, component_id in UBA_COMPONENT_IDS.items():
-            pollutant_params = {
-                **data_params,
-                "component": component_id,
-                "station": station["id"],
-            }
-            measurement_requests[pollutant] = {
-                "params": pollutant_params,
-                "url": UBA_MEASURES_URL,
+        for candidate in station_candidates:
+            (
+                candidate_payload,
+                candidate_requests,
+                candidate_warnings,
+            ) = _fetch_uba_measurements(session, candidate, data_params, timeout)
+            warnings.extend(candidate_warnings)
+            request["measurementAttempts"] = {
+                **request.get("measurementAttempts", {}),
+                candidate["id"]: candidate_requests,
             }
 
             try:
-                readings_response = session.get(
-                    UBA_MEASURES_URL,
-                    params=pollutant_params,
-                    timeout=timeout,
+                normalized = normalize_uba_air_quality_payload(
+                    region_id,
+                    candidate,
+                    candidate_payload,
+                    warnings,
                 )
-                readings_response.raise_for_status()
-                readings_payload[pollutant] = readings_response.json()
-            except (requests.RequestException, ValueError) as exc:
-                warnings.append(f"UBA {pollutant} measurement unavailable: {exc}")
+            except ValueError as exc:
+                warnings.append(
+                    f"UBA station {candidate['id']} skipped: {exc}"
+                )
+                continue
+
+            station = candidate
+            readings_payload = candidate_payload
+            measurement_requests = candidate_requests
+            break
+
+        if normalized is None:
+            raise ValueError("no usable UBA readings from nearby station candidates")
 
         request["measurements"] = measurement_requests
-        normalized = normalize_uba_air_quality_payload(
-            region_id,
-            station,
-            readings_payload,
-            warnings,
-        )
         selected = _selected_air_fields(station, readings_payload)
         raw_summary = {
             "readings": _payload_summary(readings_payload),
             "stationCount": _station_count(stations_payload),
+            "stationCandidatesTried": len(request.get("measurementAttempts", {})),
         }
     except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
         errors.append(str(exc))
@@ -173,6 +189,14 @@ def nearest_uba_station(
     region_id: str,
     payload: Any,
 ) -> dict[str, Any]:
+    return nearest_uba_stations(region_id, payload, limit=1)[0]
+
+
+def nearest_uba_stations(
+    region_id: str,
+    payload: Any,
+    limit: int = UBA_STATION_CANDIDATE_LIMIT,
+) -> list[dict[str, Any]]:
     target = REGION_SOURCE_TARGETS[region_id]
     stations = _station_items(payload)
     candidates = []
@@ -214,7 +238,55 @@ def nearest_uba_station(
         raise ValueError("no usable UBA station coordinates")
 
     candidates.sort(key=lambda item: item[0])
-    return candidates[0][1]
+    return [candidate for _, candidate in candidates[:limit]]
+
+
+def _fetch_uba_measurements(
+    http: requests.Session,
+    station: Mapping[str, Any],
+    data_params: Mapping[str, Any],
+    timeout: float,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]], list[str]]:
+    readings_payload = {}
+    measurement_requests = {}
+    warnings = []
+
+    for pollutant, component_id in UBA_COMPONENT_IDS.items():
+        pollutant_params = {
+            **data_params,
+            "component": component_id,
+            "station": station["id"],
+        }
+        measurement_requests[pollutant] = {
+            "params": pollutant_params,
+            "url": UBA_MEASURES_URL,
+        }
+
+        try:
+            readings_response = http.get(
+                UBA_MEASURES_URL,
+                params=pollutant_params,
+                timeout=timeout,
+            )
+            readings_response.raise_for_status()
+            readings_payload[pollutant] = readings_response.json()
+        except (requests.RequestException, ValueError) as exc:
+            warnings.append(
+                f"UBA {pollutant} measurement unavailable for station {station['id']}: {exc}"
+            )
+
+    return readings_payload, measurement_requests, warnings
+
+
+def _station_request_summary(station: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "code": station.get("code"),
+        "id": station.get("id"),
+        "name": station.get("name"),
+        "network": station.get("network"),
+        "setting": station.get("setting"),
+        "stationType": station.get("stationType"),
+    }
 
 
 def normalize_uba_air_quality_payload(

@@ -45,7 +45,7 @@ Normalized fields:
 
 ### Air Quality
 
-UBA station metadata is mapped to each German state by nearest usable station coordinates. UBA measurement rows are queried by component id and normalized into:
+UBA station metadata is mapped to each German state by nearest usable station coordinates. If the nearest candidate has no usable measurements, nearby candidates are tried before falling back. UBA measurement rows are queried by component id and normalized into:
 
 - PM2.5
 - PM10

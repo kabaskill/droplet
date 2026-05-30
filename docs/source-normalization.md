@@ -26,7 +26,7 @@ Normalized output:
 
 ## Air Quality
 
-`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source.
+`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates until one yields usable measurements for the selected state.
 
 Normalized output:
 
