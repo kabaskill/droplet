@@ -15,6 +15,12 @@ from backend.services.climate_sources.solar import build_solar_debug_stage
 from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
 DEBUG_SECTIONS = ("water", "sunlight", "air", "co2")
+SECTION_ALIASES = {
+    "aq": "air",
+    "carbon": "co2",
+    "radiation": "sunlight",
+    "solar": "sunlight",
+}
 
 
 def build_source_normalization_debug(
@@ -32,6 +38,7 @@ def build_source_normalization_debug(
             "requestedLimit": region_limit,
             "requestedRegionId": region_id,
             "requestedSections": sections,
+            "sectionAliases": SECTION_ALIASES,
             "regionCount": len(selected_regions),
             "sampleOnly": region_id is None and region_limit is not None,
             "selectedRegionIds": [
@@ -71,15 +78,26 @@ def _selected_sections(sections: list[str] | None) -> list[str]:
         return list(DEBUG_SECTIONS)
 
     allowed = set(DEBUG_SECTIONS)
-    unknown = sorted({section for section in sections if section not in allowed})
+    normalized_sections = [
+        SECTION_ALIASES.get(section, section)
+        for section in sections
+    ]
+    unknown = sorted(
+        {
+            section
+            for section in normalized_sections
+            if section not in allowed
+        }
+    )
 
     if unknown:
         raise ValueError(
             "unknown debug sections: "
-            f"{', '.join(unknown)}. Allowed sections: {', '.join(DEBUG_SECTIONS)}"
+            f"{', '.join(unknown)}. Allowed sections: {', '.join(DEBUG_SECTIONS)}. "
+            f"Aliases: {', '.join(sorted(SECTION_ALIASES))}"
         )
 
-    return sections
+    return list(dict.fromkeys(normalized_sections))
 
 
 def _selected_regions(

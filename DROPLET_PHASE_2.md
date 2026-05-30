@@ -88,6 +88,7 @@ Query params:
 - `limit`: optional all-region sample size, ignored when `regionId` is present.
 - `sections`: optional comma-separated subset of `water,sunlight,air,co2`.
 
+Section names are case-insensitive and may use supported aliases such as `solar`, `radiation`, `aq`, or `carbon`.
 Unknown section values return a structured `400` error instead of silently being ignored.
 
 Each section returns:

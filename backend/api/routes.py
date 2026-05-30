@@ -111,23 +111,29 @@ def source_health():
 @api_bp.get("/debug/source-normalization")
 def source_normalization_debug():
     sections = request.args.get("sections")
+    parsed_sections = _debug_sections(sections)
 
     try:
         payload = build_source_normalization_debug(
             region_limit=_debug_region_limit(request.args.get("limit")),
             region_id=request.args.get("regionId"),
-            sections=[
-                section.strip()
-                for section in sections.split(",")
-                if section.strip()
-            ]
-            if sections
-            else None,
+            sections=parsed_sections,
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
     return jsonify(payload)
+
+
+def _debug_sections(requested_sections: str | None) -> list[str] | None:
+    if requested_sections is None:
+        return None
+
+    return [
+        section.strip().lower()
+        for section in requested_sections.split(",")
+        if section.strip()
+    ]
 
 
 def _debug_region_limit(requested_limit: str | None) -> int | None:
