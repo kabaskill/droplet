@@ -78,9 +78,11 @@ The debug route supports a `limit` query parameter for sampling all-region outpu
 Query parameters:
 
 - `regionId`: optional region id such as `berlin`.
-- `limit`: optional all-region sample size, capped by the backend and ignored when `regionId` is present.
+- `limit`: optional all-region sample size, capped by the backend and ignored when `regionId` is present. The route defaults to a one-region sample when no `regionId` or `limit` is supplied.
 - `sections`: optional comma-separated subset of `water,sunlight,air,co2`.
 
 Section names are case-insensitive. Supported aliases include `solar` and `radiation` for `sunlight`, `aq` for `air`, and `carbon` for `co2`.
+
+Both `/api/debug/source-normalization` and `/api/debug/source-normalization/` resolve to the debug response.
 
 The route is intentionally unprotected in Phase 2 and should remain temporary backend debug tooling, not a durable public API.

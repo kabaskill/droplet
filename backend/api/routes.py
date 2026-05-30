@@ -20,6 +20,7 @@ from backend.services.climate_sources.debug import build_source_normalization_de
 from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
+DEFAULT_DEBUG_REGION_LIMIT = 1
 
 
 @api_bp.get("/auth/config")
@@ -109,14 +110,16 @@ def source_health():
 
 
 @api_bp.get("/debug/source-normalization")
+@api_bp.get("/debug/source-normalization/")
 def source_normalization_debug():
     sections = request.args.get("sections")
     parsed_sections = _debug_sections(sections)
+    region_id = request.args.get("regionId")
 
     try:
         payload = build_source_normalization_debug(
-            region_limit=_debug_region_limit(request.args.get("limit")),
-            region_id=request.args.get("regionId"),
+            region_limit=_debug_region_limit(request.args.get("limit"), region_id),
+            region_id=region_id,
             sections=parsed_sections,
         )
     except ValueError as exc:
@@ -136,9 +139,12 @@ def _debug_sections(requested_sections: str | None) -> list[str] | None:
     ]
 
 
-def _debug_region_limit(requested_limit: str | None) -> int | None:
+def _debug_region_limit(
+    requested_limit: str | None,
+    region_id: str | None,
+) -> int | None:
     if requested_limit is None:
-        return None
+        return None if region_id is not None else DEFAULT_DEBUG_REGION_LIMIT
 
     try:
         parsed_limit = int(requested_limit)

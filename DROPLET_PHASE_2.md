@@ -102,11 +102,12 @@ The debug object records:
 Query params:
 
 - `regionId`: optional region id such as `berlin`.
-- `limit`: optional all-region sample size, ignored when `regionId` is present.
+- `limit`: optional all-region sample size, ignored when `regionId` is present. The route defaults to a one-region sample when no `regionId` or `limit` is supplied.
 - `sections`: optional comma-separated subset of `water,sunlight,air,co2`.
 
 Section names are case-insensitive and may use supported aliases such as `solar`, `radiation`, `aq`, or `carbon`.
 Unknown section values return a structured `400` error instead of silently being ignored.
+Both `/api/debug/source-normalization` and `/api/debug/source-normalization/` resolve to the debug response.
 
 Each section returns:
 
