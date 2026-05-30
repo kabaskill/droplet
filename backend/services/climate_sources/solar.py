@@ -136,6 +136,7 @@ def normalize_solar_payload(
         score=score,
         shortwave_radiation_w_m2=shortwave,
         source=SOLAR_SOURCE.name,
+        status=_solar_status(shortwave, observed_at, clear_sky_ratio, direct_light_share),
     )
 
 
@@ -151,6 +152,21 @@ def _solar_score(
     return round(
         clamp((radiation_score * 0.55) + (clarity_score * 0.3) + (direct_score * 0.15))
     )
+
+
+def _solar_status(
+    shortwave: float | None,
+    observed_at: datetime | None,
+    clear_sky_ratio: float | None,
+    direct_light_share: float | None,
+) -> str:
+    if shortwave is None or observed_at is None:
+        return "unavailable"
+
+    if clear_sky_ratio is None or direct_light_share is None:
+        return "partial"
+
+    return "ok"
 
 
 def _matching_hourly_value(

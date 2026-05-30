@@ -22,6 +22,7 @@ Normalized output:
 - direct-light share
 - observation timestamp
 - source metadata
+- `ok`, `partial`, or `unavailable` status
 - `0-100` solar feasibility score
 
 ## Air Quality
@@ -33,6 +34,7 @@ Normalized output:
 - PM2.5, PM10, NO2, O3, SO2, and CO values
 - observation timestamp
 - selected station metadata
+- `ok`, `partial`, or `unavailable` status
 - `0-100` air-risk score
 
 When UBA station data cannot be normalized, the module can attach Open-Meteo air-quality fallback/comparison data to the debug output. The fallback is normalized into the same air-quality contract while remaining separate from the primary UBA output.

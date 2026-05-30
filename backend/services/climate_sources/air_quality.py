@@ -318,6 +318,7 @@ def normalize_uba_air_quality_payload(
         so2_ug_m3=values["so2"],
         source=UBA_SOURCE.name,
         station=dict(station) if station is not None else None,
+        status=_air_quality_status(values, observed_at),
     )
 
 
@@ -356,6 +357,7 @@ def normalize_open_meteo_air_quality_payload(
         so2_ug_m3=values["so2"],
         source=OPEN_METEO_AIR_SOURCE.name,
         station=None,
+        status=_air_quality_status(values, observed_at),
     )
 
 
@@ -575,6 +577,21 @@ def _air_risk_score(values: Mapping[str, float | None]) -> int:
             scores.append(clamp((value / limit) * 100))
 
     return round(max(scores) if scores else 0)
+
+
+def _air_quality_status(
+    values: Mapping[str, float | None],
+    observed_at: datetime | None,
+) -> str:
+    present_count = len([value for value in values.values() if value is not None])
+
+    if present_count == 0 or observed_at is None:
+        return "unavailable"
+
+    if present_count < len(POLLUTANTS):
+        return "partial"
+
+    return "ok"
 
 
 def _station_items(payload: Any) -> list[Mapping[str, Any]]:

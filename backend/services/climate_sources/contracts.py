@@ -30,6 +30,7 @@ class NormalizedSolarReading:
     score: int
     shortwave_radiation_w_m2: float | None
     source: str
+    status: str
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ class NormalizedAirQualityReading:
     so2_ug_m3: float | None
     source: str
     station: dict[str, Any] | None
+    status: str
 
 
 @dataclass(frozen=True)
