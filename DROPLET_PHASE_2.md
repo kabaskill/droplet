@@ -101,7 +101,7 @@ Each section returns:
 - warnings and errors
 - source metadata
 
-The response also includes request metadata such as generation time, requested region, requested sections, allowed sections, selected region ids, sample mode, and region count.
+The response also includes request metadata such as generation time, requested region, requested sections, allowed sections, selected region ids, sample mode, region count, and aggregate summary counts.
 
 The debug route is intentionally unprotected for this phase and should not be treated as a durable public API.
 Within one debug request, reusable HTTP state and source metadata should be shared across section builders so multi-region inspection does not repeat avoidable source-index fetches.

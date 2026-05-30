@@ -70,6 +70,8 @@ def build_source_normalization_debug(
                 for region in selected_regions
             }
 
+    response["meta"]["summary"] = _response_summary(response, selected_sections)
+
     return response
 
 
@@ -273,4 +275,43 @@ def _stage_summary(
         "normalizedStatus": normalized.get("status") if normalized else None,
         "state": state,
         "warningCount": len(warnings),
+    }
+
+
+def _response_summary(
+    response: dict[str, Any],
+    sections: list[str],
+) -> dict[str, Any]:
+    state_counts = {"error": 0, "ok": 0, "warning": 0}
+    error_count = 0
+    warning_count = 0
+
+    for section in sections:
+        section_payload = response.get(section)
+
+        if not isinstance(section_payload, dict):
+            continue
+
+        for region_payload in section_payload.values():
+            if not isinstance(region_payload, dict):
+                continue
+
+            summary = region_payload.get("summary")
+
+            if not isinstance(summary, dict):
+                continue
+
+            state = summary.get("state")
+
+            if state in state_counts:
+                state_counts[state] += 1
+
+            error_count += int(summary.get("errorCount") or 0)
+            warning_count += int(summary.get("warningCount") or 0)
+
+    return {
+        "errorCount": error_count,
+        "resultCount": sum(state_counts.values()),
+        "stateCounts": state_counts,
+        "warningCount": warning_count,
     }
