@@ -80,9 +80,14 @@ def _selected_sections(sections: list[str] | None) -> list[str]:
         return list(DEBUG_SECTIONS)
 
     allowed = set(DEBUG_SECTIONS)
+    requested_sections = [
+        section.strip().lower()
+        for section in sections
+        if section.strip()
+    ]
     normalized_sections = [
         SECTION_ALIASES.get(section, section)
-        for section in sections
+        for section in requested_sections
     ]
     unknown = sorted(
         {

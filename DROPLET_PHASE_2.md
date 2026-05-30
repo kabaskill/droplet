@@ -2,6 +2,18 @@
 
 Phase 2 expands backend data acquisition and normalization beyond the existing water/weather snapshot model. The work stays backend-only and focuses on source-specific normalization layers for solar feasibility, air quality, and exploratory CO2 context.
 
+## Completion Status
+
+Phase 2 is implemented for the agreed backend-only scope.
+
+- Dedicated climate source modules now own sunlight, air-quality, and CO2 source handling.
+- Shared contracts define debug stages and normalized solar, air-quality, and CO2 readings.
+- Solar normalization fetches Open-Meteo satellite radiation by existing region latitude/longitude and produces score, label, status, age, units, and radiation component fields.
+- Air-quality normalization uses UBA stations and measurements first, tries nearby station candidates, converts UBA CO values to ug/m3, and can attach Open-Meteo air-quality fallback/comparison output.
+- CO2 remains exploratory and returns a CAMS/Copernicus candidate debug object with required config, expected fields, blockers, and region target metadata.
+- The temporary backend debug route exposes transformation summaries, selected fields, normalized output, section summaries, warnings, errors, and aggregate metadata.
+- Water/weather ingestion and durable reservoir snapshots remain unchanged.
+
 ## Scope
 
 - Keep existing water/weather ingestion and reservoir snapshot persistence intact.
@@ -111,17 +123,17 @@ The response also includes request metadata such as generation time, requested r
 The debug route is intentionally unprotected for this phase and should not be treated as a durable public API.
 Within one debug request, reusable HTTP state and source metadata should be shared across section builders so multi-region inspection does not repeat avoidable source-index fetches.
 
-## Commit Sequence
+## Implementation History
 
-- `add: phase 2 normalization plan`
-- `add: climate source contracts`
-- `add: solar normalization layer`
-- `add: air quality normalization layer`
-- `add: co2 source candidate`
-- `add: source normalization debug route`
-- `update: climate data documentation`
+- Added the Phase 2 normalization plan.
+- Added climate source contracts and dedicated family modules.
+- Added solar normalization for Open-Meteo satellite radiation.
+- Added air-quality normalization for UBA observations and Open-Meteo fallback/comparison data.
+- Added the exploratory CO2 source candidate for CAMS/Copernicus.
+- Added the temporary source-normalization debug route and request metadata.
+- Updated climate data-flow and source-normalization documentation.
 
-## Testing
+## Verification
 
 Automated tests are deferred for this phase. Verification is limited to code review and lightweight syntax checks when dependencies are available locally.
 
