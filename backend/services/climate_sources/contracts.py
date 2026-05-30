@@ -25,7 +25,10 @@ class DebugStage:
 class NormalizedSolarReading:
     age_minutes: int | None
     clear_sky_ratio: float | None
+    diffuse_radiation_w_m2: float | None
+    direct_normal_irradiance_w_m2: float | None
     direct_light_share: float | None
+    direct_radiation_w_m2: float | None
     observed_at: datetime | None
     region_id: str
     score: int

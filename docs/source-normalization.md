@@ -18,6 +18,7 @@ Water/weather ingestion remains in `backend/services/environmental_sources.py`.
 Normalized output:
 
 - current shortwave radiation
+- direct, diffuse, and direct-normal radiation components
 - clear-sky ratio
 - direct-light share
 - observation timestamp

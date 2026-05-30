@@ -37,6 +37,7 @@ Open-Meteo satellite radiation fields:
 Normalized fields:
 
 - current irradiance in W/m2
+- direct, diffuse, and direct-normal radiation components in W/m2
 - clear-sky ratio
 - direct-light share
 - observation timestamp

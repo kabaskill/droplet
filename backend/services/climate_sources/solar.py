@@ -98,6 +98,7 @@ def normalize_solar_payload(
     shortwave = _optional_float(current.get("shortwave_radiation"))
     direct = _optional_float(current.get("direct_radiation"))
     diffuse = _optional_float(current.get("diffuse_radiation"))
+    direct_normal_irradiance = _optional_float(current.get("direct_normal_irradiance"))
     clear_sky = _matching_hourly_value(
         payload,
         "shortwave_radiation_clear_sky",
@@ -131,7 +132,10 @@ def normalize_solar_payload(
     return NormalizedSolarReading(
         age_minutes=_age_minutes(observed_at),
         clear_sky_ratio=clear_sky_ratio,
+        diffuse_radiation_w_m2=diffuse,
+        direct_normal_irradiance_w_m2=direct_normal_irradiance,
         direct_light_share=direct_light_share,
+        direct_radiation_w_m2=direct,
         observed_at=observed_at,
         region_id=region_id,
         score=score,
