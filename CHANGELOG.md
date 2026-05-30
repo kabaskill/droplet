@@ -6,6 +6,7 @@
 - Added backend climate source contracts and dedicated normalization modules for Open-Meteo solar radiation, UBA air-quality station observations, Open-Meteo air-quality fallback comparison, and CAMS/Copernicus CO2 source candidacy.
 - Aligned solar and air-quality fetchers with Open-Meteo satellite archive responses and UBA v4 station/measurement payloads.
 - Reused debug-route HTTP state and UBA station metadata across requested regions to avoid repeated source-index downloads.
+- Normalized Open-Meteo air-quality fallback data into the same backend air-quality contract used by UBA.
 - Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
 
 ## 2026-05-29

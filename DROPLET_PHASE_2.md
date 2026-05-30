@@ -57,7 +57,7 @@ UBA station metadata is mapped to each German state by nearest usable station co
 - station metadata
 - `0-100` air-risk score
 
-If UBA does not produce a usable reading, the debug response includes a structured warning and can include Open-Meteo air-quality comparison/fallback data. UBA carbon monoxide values are converted from mg/m3 to ug/m3 in normalized output.
+If UBA does not produce a usable reading, the debug response includes a structured warning and can include Open-Meteo air-quality comparison/fallback data normalized into the same air-quality contract. UBA carbon monoxide values are converted from mg/m3 to ug/m3 in normalized output.
 
 ### CO2
 

@@ -26,6 +26,14 @@ OPEN_METEO_AIR_SOURCE = SourceMetadata(
     url="https://open-meteo.com/en/docs/air-quality-api",
     attribution="Open-Meteo",
 )
+OPEN_METEO_CURRENT_FIELDS = (
+    "pm10",
+    "pm2_5",
+    "nitrogen_dioxide",
+    "ozone",
+    "sulphur_dioxide",
+    "carbon_monoxide",
+)
 POLLUTANTS = ("pm25", "pm10", "no2", "o3", "so2", "co")
 UBA_COMPONENT_IDS = {
     "pm10": "1",
@@ -50,10 +58,10 @@ POLLUTANT_LIMITS = {
 POLLUTANT_ALIASES = {
     "pm25": {"pm25", "pm2", "pm2_5", "pm2.5", "PM2", "PM2.5"},
     "pm10": {"pm10", "PM10"},
-    "no2": {"no2", "NO2"},
-    "o3": {"o3", "O3"},
-    "so2": {"so2", "SO2"},
-    "co": {"co", "CO"},
+    "no2": {"nitrogen_dioxide", "no2", "NO2"},
+    "o3": {"ozone", "o3", "O3"},
+    "so2": {"sulphur_dioxide", "so2", "SO2"},
+    "co": {"carbon_monoxide", "co", "CO"},
 }
 
 
@@ -224,14 +232,7 @@ def normalize_uba_air_quality_payload(
     observed_at = _latest_timestamp(readings)
     values = {pollutant: _latest_value(readings, pollutant) for pollutant in POLLUTANTS}
 
-    if observed_at is None:
-        warnings.append("air-quality observation has no parseable timestamp")
-    elif datetime.now(UTC) - observed_at > timedelta(hours=12):
-        warnings.append("air-quality station reading is older than twelve hours")
-
-    missing = [pollutant for pollutant, value in values.items() if value is None]
-    if missing:
-        warnings.append(f"missing pollutant readings: {', '.join(missing)}")
+    _append_air_quality_warnings(warnings, observed_at, values, "UBA")
 
     return NormalizedAirQualityReading(
         air_risk_score=_air_risk_score(values),
@@ -248,6 +249,44 @@ def normalize_uba_air_quality_payload(
     )
 
 
+def normalize_open_meteo_air_quality_payload(
+    region_id: str,
+    payload: Any,
+    warnings: list[str] | None = None,
+) -> NormalizedAirQualityReading:
+    warnings = warnings if warnings is not None else []
+    current = payload.get("current") if isinstance(payload, Mapping) else None
+
+    if not isinstance(current, Mapping):
+        raise ValueError("missing Open-Meteo current air-quality block")
+
+    observed_at = _parse_timestamp(current.get("time"))
+    values = {
+        "co": _optional_float(current.get("carbon_monoxide")),
+        "no2": _optional_float(current.get("nitrogen_dioxide")),
+        "o3": _optional_float(current.get("ozone")),
+        "pm10": _optional_float(current.get("pm10")),
+        "pm25": _optional_float(current.get("pm2_5")),
+        "so2": _optional_float(current.get("sulphur_dioxide")),
+    }
+
+    _append_air_quality_warnings(warnings, observed_at, values, "Open-Meteo")
+
+    return NormalizedAirQualityReading(
+        air_risk_score=_air_risk_score(values),
+        co_ug_m3=values["co"],
+        no2_ug_m3=values["no2"],
+        o3_ug_m3=values["o3"],
+        observed_at=observed_at,
+        pm10_ug_m3=values["pm10"],
+        pm25_ug_m3=values["pm25"],
+        region_id=region_id,
+        so2_ug_m3=values["so2"],
+        source=OPEN_METEO_AIR_SOURCE.name,
+        station=None,
+    )
+
+
 def _open_meteo_comparison(
     region_id: str,
     http: requests.Session,
@@ -256,11 +295,13 @@ def _open_meteo_comparison(
 ) -> dict[str, Any] | None:
     target = REGION_SOURCE_TARGETS[region_id]
     params = {
-        "current": "pm10,pm2_5,nitrogen_dioxide,ozone,sulphur_dioxide,carbon_monoxide",
+        "current": ",".join(OPEN_METEO_CURRENT_FIELDS),
         "latitude": target.latitude,
         "longitude": target.longitude,
         "timezone": "UTC",
     }
+    fallback_warnings: list[str] = []
+    fallback_errors: list[str] = []
 
     try:
         response = http.get(OPEN_METEO_AIR_QUALITY_URL, params=params, timeout=timeout)
@@ -270,11 +311,24 @@ def _open_meteo_comparison(
         warnings.append(f"Open-Meteo air-quality fallback unavailable: {exc}")
         return None
 
+    try:
+        normalized = normalize_open_meteo_air_quality_payload(
+            region_id,
+            payload,
+            fallback_warnings,
+        )
+    except (TypeError, ValueError) as exc:
+        fallback_errors.append(str(exc))
+        normalized = None
+
     return {
+        "errors": fallback_errors,
+        "normalizedOutput": dataclass_to_debug_dict(normalized),
         "request": {"params": params, "url": OPEN_METEO_AIR_QUALITY_URL},
         "rawSummary": _payload_summary(payload),
-        "selectedFields": payload.get("current") if isinstance(payload, Mapping) else None,
+        "selectedFields": _selected_open_meteo_air_fields(payload),
         "source": dataclass_to_debug_dict(OPEN_METEO_AIR_SOURCE),
+        "warnings": fallback_warnings,
     }
 
 
@@ -527,6 +581,38 @@ def _payload_summary(payload: Any) -> dict[str, Any]:
         return {"items": len(payload), "type": "list"}
 
     return {"type": type(payload).__name__}
+
+
+def _selected_open_meteo_air_fields(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, Mapping):
+        return {}
+
+    current = payload.get("current")
+
+    if not isinstance(current, Mapping):
+        return {}
+
+    return {
+        key: current.get(key)
+        for key in ("time", *OPEN_METEO_CURRENT_FIELDS)
+        if key in current
+    }
+
+
+def _append_air_quality_warnings(
+    warnings: list[str],
+    observed_at: datetime | None,
+    values: Mapping[str, float | None],
+    source_name: str,
+) -> None:
+    if observed_at is None:
+        warnings.append(f"{source_name} air-quality observation has no parseable timestamp")
+    elif datetime.now(UTC) - observed_at > timedelta(hours=12):
+        warnings.append(f"{source_name} air-quality reading is older than twelve hours")
+
+    missing = [pollutant for pollutant, value in values.items() if value is None]
+    if missing:
+        warnings.append(f"{source_name} missing pollutant readings: {', '.join(missing)}")
 
 
 def _pollutant_key(value: Any) -> str | None:
