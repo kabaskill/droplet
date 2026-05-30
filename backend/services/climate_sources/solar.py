@@ -129,6 +129,7 @@ def normalize_solar_payload(
     score = _solar_score(shortwave, clear_sky_ratio, direct_light_share)
 
     return NormalizedSolarReading(
+        age_minutes=_age_minutes(observed_at),
         clear_sky_ratio=clear_sky_ratio,
         direct_light_share=direct_light_share,
         observed_at=observed_at,
@@ -167,6 +168,13 @@ def _solar_status(
         return "partial"
 
     return "ok"
+
+
+def _age_minutes(observed_at: datetime | None) -> int | None:
+    if observed_at is None:
+        return None
+
+    return round(max(0, (datetime.now(UTC) - observed_at).total_seconds()) / 60)
 
 
 def _matching_hourly_value(

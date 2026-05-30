@@ -21,6 +21,7 @@ Normalized output:
 - clear-sky ratio
 - direct-light share
 - observation timestamp
+- observation age in minutes
 - source metadata
 - `ok`, `partial`, or `unavailable` status
 - `0-100` solar feasibility score
@@ -33,6 +34,7 @@ Normalized output:
 
 - PM2.5, PM10, NO2, O3, SO2, and CO values
 - observation timestamp
+- observation age in minutes
 - selected station metadata
 - `ok`, `partial`, or `unavailable` status
 - `0-100` air-risk score

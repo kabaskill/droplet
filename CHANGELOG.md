@@ -10,6 +10,7 @@
 - Tried nearby UBA station candidates when the nearest station has no usable measurements.
 - Added debug response metadata and explicit validation for requested source-normalization sections.
 - Added normalized climate-source status fields for complete, partial, and unavailable readings.
+- Added normalized observation age fields for climate-source debug output.
 - Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
 
 ## 2026-05-29

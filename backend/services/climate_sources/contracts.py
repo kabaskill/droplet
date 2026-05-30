@@ -23,6 +23,7 @@ class DebugStage:
 
 @dataclass(frozen=True)
 class NormalizedSolarReading:
+    age_minutes: int | None
     clear_sky_ratio: float | None
     direct_light_share: float | None
     observed_at: datetime | None
@@ -35,6 +36,7 @@ class NormalizedSolarReading:
 
 @dataclass(frozen=True)
 class NormalizedAirQualityReading:
+    age_minutes: int | None
     air_risk_score: int
     co_ug_m3: float | None
     no2_ug_m3: float | None
@@ -51,6 +53,7 @@ class NormalizedAirQualityReading:
 
 @dataclass(frozen=True)
 class NormalizedCo2Reading:
+    age_minutes: int | None
     co2_ppm: float | None
     observed_at: datetime | None
     region_id: str

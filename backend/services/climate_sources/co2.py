@@ -16,6 +16,7 @@ CAMS_SOURCE = SourceMetadata(
 
 def build_co2_debug_stage(region_id: str) -> DebugStage:
     normalized = NormalizedCo2Reading(
+        age_minutes=None,
         co2_ppm=None,
         observed_at=None,
         region_id=region_id,

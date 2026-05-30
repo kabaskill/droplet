@@ -307,6 +307,7 @@ def normalize_uba_air_quality_payload(
     _append_air_quality_warnings(warnings, observed_at, values, "UBA")
 
     return NormalizedAirQualityReading(
+        age_minutes=_age_minutes(observed_at),
         air_risk_score=_air_risk_score(values),
         co_ug_m3=values["co"],
         no2_ug_m3=values["no2"],
@@ -346,6 +347,7 @@ def normalize_open_meteo_air_quality_payload(
     _append_air_quality_warnings(warnings, observed_at, values, "Open-Meteo")
 
     return NormalizedAirQualityReading(
+        age_minutes=_age_minutes(observed_at),
         air_risk_score=_air_risk_score(values),
         co_ug_m3=values["co"],
         no2_ug_m3=values["no2"],
@@ -592,6 +594,13 @@ def _air_quality_status(
         return "partial"
 
     return "ok"
+
+
+def _age_minutes(observed_at: datetime | None) -> int | None:
+    if observed_at is None:
+        return None
+
+    return round(max(0, (datetime.now(UTC) - observed_at).total_seconds()) / 60)
 
 
 def _station_items(payload: Any) -> list[Mapping[str, Any]]:

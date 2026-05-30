@@ -40,6 +40,7 @@ Normalized fields:
 - clear-sky ratio
 - direct-light share
 - observation timestamp
+- observation age in minutes
 - source metadata
 - `ok`, `partial`, or `unavailable` status
 - `0-100` solar feasibility score
@@ -55,6 +56,7 @@ UBA station metadata is mapped to each German state by nearest usable station co
 - SO2
 - CO
 - observation timestamp
+- observation age in minutes
 - station metadata
 - `ok`, `partial`, or `unavailable` status
 - `0-100` air-risk score
