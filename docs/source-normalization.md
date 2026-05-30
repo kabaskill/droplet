@@ -13,7 +13,7 @@ Water/weather ingestion remains in `backend/services/environmental_sources.py`.
 
 ## Sunlight
 
-`backend/services/climate_sources/solar.py` uses the Open-Meteo Satellite Radiation API for per-region radiation data.
+`backend/services/climate_sources/solar.py` uses the Open-Meteo Satellite Radiation API archive endpoint for per-region hourly radiation data and selects the latest usable observation.
 
 Normalized output:
 
@@ -26,7 +26,7 @@ Normalized output:
 
 ## Air Quality
 
-`backend/services/climate_sources/air_quality.py` uses UBA station observations as the primary German air-quality source.
+`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source.
 
 Normalized output:
 
@@ -36,6 +36,7 @@ Normalized output:
 - `0-100` air-risk score
 
 When UBA station data cannot be normalized, the module can attach Open-Meteo air-quality fallback/comparison data to the debug output.
+UBA carbon monoxide measurements are reported by the source in mg/m3 and converted to ug/m3 for the normalized contract.
 
 ## CO2
 

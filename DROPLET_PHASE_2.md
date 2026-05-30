@@ -16,7 +16,7 @@ Phase 2 expands backend data acquisition and normalization beyond the existing w
 |---|---|---|
 | Water/weather | Existing Pegelonline, DWD, and Open-Meteo fallback flow | Unchanged baseline. |
 | Sunlight | Open-Meteo Satellite Radiation API | Solar feasibility from per-region latitude/longitude. |
-| Air quality | Umweltbundesamt Luftdaten API | Primary station-observation source for German states. |
+| Air quality | Umweltbundesamt Luftdaten API v4 | Primary station and measurement source for German states. |
 | Air quality fallback | Open-Meteo Air Quality API | Optional fallback/comparison when UBA coverage is missing. |
 | CO2 | Copernicus/CAMS data path | Exploratory source candidate implemented last. |
 
@@ -26,7 +26,7 @@ Each climate family owns its fetch, parse, normalize, and debug-stage code. Shar
 
 ### Sunlight
 
-Open-Meteo radiation fields:
+Open-Meteo satellite radiation fields:
 
 - `shortwave_radiation`
 - `direct_radiation`
@@ -45,7 +45,7 @@ Normalized fields:
 
 ### Air Quality
 
-UBA station readings are mapped to each German state by nearest usable station coordinates. The normalized output includes:
+UBA station metadata is mapped to each German state by nearest usable station coordinates. UBA measurement rows are queried by component id and normalized into:
 
 - PM2.5
 - PM10
@@ -57,7 +57,7 @@ UBA station readings are mapped to each German state by nearest usable station c
 - station metadata
 - `0-100` air-risk score
 
-If UBA does not produce a usable reading, the debug response includes a structured warning and can include Open-Meteo air-quality comparison/fallback data.
+If UBA does not produce a usable reading, the debug response includes a structured warning and can include Open-Meteo air-quality comparison/fallback data. UBA carbon monoxide values are converted from mg/m3 to ug/m3 in normalized output.
 
 ### CO2
 

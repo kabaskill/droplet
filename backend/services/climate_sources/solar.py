@@ -12,20 +12,11 @@ from backend.services.climate_sources.contracts import (
 )
 from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
-OPEN_METEO_SATELLITE_RADIATION_URL = (
-    "https://api.open-meteo.com/v1/forecast"
-)
+OPEN_METEO_SATELLITE_RADIATION_URL = "https://satellite-api.open-meteo.com/v1/archive"
 SOLAR_SOURCE = SourceMetadata(
     name="Open-Meteo Satellite Radiation API",
     url="https://open-meteo.com/en/docs/satellite-radiation-api",
     attribution="Open-Meteo",
-)
-SOLAR_CURRENT_FIELDS = (
-    "shortwave_radiation",
-    "direct_radiation",
-    "diffuse_radiation",
-    "direct_normal_irradiance",
-    "terrestrial_radiation",
 )
 SOLAR_HOURLY_FIELDS = (
     "shortwave_radiation",
@@ -42,13 +33,14 @@ def build_solar_debug_stage(
     timeout: float = 8,
 ) -> DebugStage:
     target = REGION_SOURCE_TARGETS[region_id]
+    end_date = datetime.now(UTC).date()
+    start_date = end_date - timedelta(days=1)
     params = {
-        "current": ",".join(SOLAR_CURRENT_FIELDS),
-        "forecast_days": "1",
+        "end_date": end_date.isoformat(),
         "hourly": ",".join(SOLAR_HOURLY_FIELDS),
         "latitude": target.latitude,
         "longitude": target.longitude,
-        "past_days": "1",
+        "start_date": start_date.isoformat(),
         "timezone": "UTC",
     }
     request = {
@@ -97,10 +89,10 @@ def normalize_solar_payload(
     warnings: list[str] | None = None,
 ) -> NormalizedSolarReading:
     warnings = warnings if warnings is not None else []
-    current = payload.get("current")
+    current = _current_solar_fields(payload)
 
     if not isinstance(current, Mapping):
-        raise ValueError("missing Open-Meteo current radiation block")
+        raise ValueError("missing Open-Meteo satellite radiation observations")
 
     observed_at = _parse_timestamp(current.get("time"))
     shortwave = _optional_float(current.get("shortwave_radiation"))
@@ -219,14 +211,14 @@ def _selected_solar_fields(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, Mapping):
         return {}
 
-    current = payload.get("current")
+    current = _current_solar_fields(payload)
 
     if not isinstance(current, Mapping):
         return {}
 
     selected = {
         key: current.get(key)
-        for key in ("time", *SOLAR_CURRENT_FIELDS)
+        for key in ("time", *SOLAR_HOURLY_FIELDS)
         if key in current
     }
     selected["shortwave_radiation_clear_sky"] = _matching_hourly_value(
@@ -236,6 +228,41 @@ def _selected_solar_fields(payload: Any) -> dict[str, Any]:
     )
 
     return selected
+
+
+def _current_solar_fields(payload: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    current = payload.get("current")
+
+    if isinstance(current, Mapping):
+        return current
+
+    hourly = payload.get("hourly")
+
+    if not isinstance(hourly, Mapping):
+        return None
+
+    times = hourly.get("time")
+
+    if not isinstance(times, list):
+        return None
+
+    for index in range(len(times) - 1, -1, -1):
+        selected = {"time": times[index]}
+        has_observation = False
+
+        for field in SOLAR_HOURLY_FIELDS:
+            values = hourly.get(field)
+
+            if not isinstance(values, list) or index >= len(values):
+                continue
+
+            selected[field] = values[index]
+            has_observation = has_observation or values[index] is not None
+
+        if has_observation:
+            return selected
+
+    return None
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
