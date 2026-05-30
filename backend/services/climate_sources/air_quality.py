@@ -316,9 +316,12 @@ def normalize_uba_air_quality_payload(
 
     _append_air_quality_warnings(warnings, observed_at, values, "UBA")
 
+    air_risk_score = _air_risk_score(values)
+
     return NormalizedAirQualityReading(
         age_minutes=_age_minutes(observed_at),
-        air_risk_score=_air_risk_score(values),
+        air_risk_label=_air_risk_label(air_risk_score),
+        air_risk_score=air_risk_score,
         co_ug_m3=values["co"],
         no2_ug_m3=values["no2"],
         o3_ug_m3=values["o3"],
@@ -357,9 +360,12 @@ def normalize_open_meteo_air_quality_payload(
 
     _append_air_quality_warnings(warnings, observed_at, values, "Open-Meteo")
 
+    air_risk_score = _air_risk_score(values)
+
     return NormalizedAirQualityReading(
         age_minutes=_age_minutes(observed_at),
-        air_risk_score=_air_risk_score(values),
+        air_risk_label=_air_risk_label(air_risk_score),
+        air_risk_score=air_risk_score,
         co_ug_m3=values["co"],
         no2_ug_m3=values["no2"],
         o3_ug_m3=values["o3"],
@@ -591,6 +597,19 @@ def _air_risk_score(values: Mapping[str, float | None]) -> int:
             scores.append(clamp((value / limit) * 100))
 
     return round(max(scores) if scores else 0)
+
+
+def _air_risk_label(score: int) -> str:
+    if score >= 75:
+        return "high"
+
+    if score >= 45:
+        return "elevated"
+
+    if score >= 20:
+        return "moderate"
+
+    return "low"
 
 
 def _air_quality_status(

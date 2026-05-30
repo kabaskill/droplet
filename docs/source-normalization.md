@@ -42,6 +42,7 @@ Normalized output:
 - `ok`, `partial`, or `unavailable` status
 - units metadata for normalized numeric fields
 - `0-100` air-risk score
+- readable air-risk label
 
 When UBA station data cannot be normalized, the module can attach Open-Meteo air-quality fallback/comparison data to the debug output. The fallback is normalized into the same air-quality contract while remaining separate from the primary UBA output.
 UBA carbon monoxide measurements are reported by the source in mg/m3 and converted to ug/m3 for the normalized contract.

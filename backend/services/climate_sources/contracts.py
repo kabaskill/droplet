@@ -42,6 +42,7 @@ class NormalizedSolarReading:
 @dataclass(frozen=True)
 class NormalizedAirQualityReading:
     age_minutes: int | None
+    air_risk_label: str
     air_risk_score: int
     co_ug_m3: float | None
     no2_ug_m3: float | None
