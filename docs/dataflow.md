@@ -2,6 +2,8 @@
 
 Droplet converts live environmental observations into normalized reservoir snapshots, then exposes read models optimized for the frontend.
 
+Phase 2 adds backend-only climate source normalization for sunlight, air quality, and exploratory CO2 context. These new normalized climate readings are not persisted into reservoir snapshots yet.
+
 ## End-To-End Flow
 
 ```mermaid
@@ -9,6 +11,9 @@ flowchart TD
   A[Pegelonline water levels] --> D[Environmental readings]
   B[DWD weather observations] --> D
   C[Open-Meteo fallback weather] --> D
+  S[Open-Meteo satellite radiation] --> SD[Sunlight normalization]
+  AQ[UBA Luftdaten stations] --> AD[Air-quality normalization]
+  C2[Copernicus/CAMS research path] --> CD[CO2 candidate debug]
   F[Static fallback readings] --> D
   D --> E[Snapshot computation]
   E --> G[Historical trend adjustment]
@@ -31,6 +36,16 @@ The ingestion task starts with fallback readings for every supported German stat
 - Static fallback readings keep the app usable when external sources fail.
 
 Source failures are logged and isolated per region. A failed source does not stop the whole ingestion run.
+
+## Climate Source Normalization
+
+Climate source normalization is split by source family:
+
+- `backend/services/climate_sources/solar.py` fetches Open-Meteo radiation fields and normalizes current irradiance, clear-sky ratio, direct-light share, timestamp, source metadata, and a solar feasibility score.
+- `backend/services/climate_sources/air_quality.py` selects usable UBA stations, normalizes pollutant readings, and can attach Open-Meteo air-quality comparison data when UBA coverage is unavailable.
+- `backend/services/climate_sources/co2.py` records the CAMS/Copernicus research candidate and expected normalization fields without blocking on credentials.
+
+Raw source payloads are summarized for debug visibility only. The durable reservoir snapshot model continues to use the existing water/weather ingestion path until a later phase explicitly integrates climate signals into persistence.
 
 ## Snapshot Computation
 

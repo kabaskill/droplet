@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-30
+
+- Added the Phase 2 climate source normalization plan for backend-only solar, air-quality, and exploratory CO2 source work.
+- Added backend climate source contracts and dedicated normalization modules for Open-Meteo solar radiation, UBA air-quality station observations, Open-Meteo air-quality fallback comparison, and CAMS/Copernicus CO2 source candidacy.
+- Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
+
 ## 2026-05-29
 
 - Expanded the app documentation set and moved the docs index to the root `README.md` so GitHub shows it by default:
