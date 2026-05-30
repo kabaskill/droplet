@@ -16,6 +16,7 @@ from backend.services.analytics import build_analytics_summary
 from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
 from backend.services.ingestion_status import last_ingestion_status
+from backend.services.climate_sources.debug import build_source_normalization_debug
 from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
@@ -105,6 +106,27 @@ def source_health():
             build_source_health,
         )
     )
+
+
+@api_bp.get("/debug/source-normalization")
+def source_normalization_debug():
+    sections = request.args.get("sections")
+
+    try:
+        payload = build_source_normalization_debug(
+            region_id=request.args.get("regionId"),
+            sections=[
+                section.strip()
+                for section in sections.split(",")
+                if section.strip()
+            ]
+            if sections
+            else None,
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(payload)
 
 
 @api_bp.get("/forecasts/outlook")
