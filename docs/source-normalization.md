@@ -27,6 +27,7 @@ Normalized output:
 - `ok`, `partial`, or `unavailable` status
 - units metadata for normalized numeric fields
 - `0-100` solar feasibility score
+- readable solar feasibility label
 
 ## Air Quality
 

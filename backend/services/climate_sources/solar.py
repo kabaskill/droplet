@@ -146,6 +146,7 @@ def normalize_solar_payload(
         direct_normal_irradiance_w_m2=direct_normal_irradiance,
         direct_light_share=direct_light_share,
         direct_radiation_w_m2=direct,
+        feasibility_label=_solar_feasibility_label(score),
         observed_at=observed_at,
         region_id=region_id,
         score=score,
@@ -183,6 +184,19 @@ def _solar_status(
         return "partial"
 
     return "ok"
+
+
+def _solar_feasibility_label(score: int) -> str:
+    if score >= 75:
+        return "strong"
+
+    if score >= 45:
+        return "moderate"
+
+    if score >= 15:
+        return "limited"
+
+    return "low"
 
 
 def _age_minutes(observed_at: datetime | None) -> int | None:

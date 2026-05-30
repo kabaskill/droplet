@@ -29,6 +29,7 @@ class NormalizedSolarReading:
     direct_normal_irradiance_w_m2: float | None
     direct_light_share: float | None
     direct_radiation_w_m2: float | None
+    feasibility_label: str
     observed_at: datetime | None
     region_id: str
     score: int
