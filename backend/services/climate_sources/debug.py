@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -24,6 +25,13 @@ def build_source_normalization_debug(
     selected_sections = _selected_sections(sections)
     selected_regions = _selected_regions(region_id)
     response: dict[str, Any] = {
+        "meta": {
+            "allowedSections": list(DEBUG_SECTIONS),
+            "generatedAt": datetime.now(UTC).isoformat(),
+            "requestedRegionId": region_id,
+            "requestedSections": sections,
+            "regionCount": len(selected_regions),
+        },
         "regions": selected_regions,
         "sections": selected_sections,
     }
@@ -56,7 +64,15 @@ def _selected_sections(sections: list[str] | None) -> list[str]:
         return list(DEBUG_SECTIONS)
 
     allowed = set(DEBUG_SECTIONS)
-    return [section for section in sections if section in allowed]
+    unknown = sorted({section for section in sections if section not in allowed})
+
+    if unknown:
+        raise ValueError(
+            "unknown debug sections: "
+            f"{', '.join(unknown)}. Allowed sections: {', '.join(DEBUG_SECTIONS)}"
+        )
+
+    return sections
 
 
 def _selected_regions(region_id: str | None) -> list[dict[str, Any]]:

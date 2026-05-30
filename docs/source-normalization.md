@@ -58,3 +58,4 @@ The module returns a structured candidate response with required configuration, 
 Raw source payloads are not durable app state. Debug stages expose summaries and selected fields only for temporary backend inspection.
 
 The debug builder reuses one HTTP session per request and shares the UBA station index across all requested regions before fetching per-region measurement rows.
+Debug responses include lightweight request metadata and reject unknown section names with a `400` response.

@@ -80,6 +80,8 @@ Query params:
 - `regionId`: optional region id such as `berlin`.
 - `sections`: optional comma-separated subset of `water,sunlight,air,co2`.
 
+Unknown section values return a structured `400` error instead of silently being ignored.
+
 Each section returns:
 
 - request/source configuration
@@ -88,6 +90,8 @@ Each section returns:
 - normalized output
 - warnings and errors
 - source metadata
+
+The response also includes request metadata such as generation time, requested region, requested sections, allowed sections, and region count.
 
 The debug route is intentionally unprotected for this phase and should not be treated as a durable public API.
 Within one debug request, reusable HTTP state and source metadata should be shared across section builders so multi-region inspection does not repeat avoidable source-index fetches.

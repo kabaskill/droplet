@@ -8,6 +8,7 @@
 - Reused debug-route HTTP state and UBA station metadata across requested regions to avoid repeated source-index downloads.
 - Normalized Open-Meteo air-quality fallback data into the same backend air-quality contract used by UBA.
 - Tried nearby UBA station candidates when the nearest station has no usable measurements.
+- Added debug response metadata and explicit validation for requested source-normalization sections.
 - Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
 
 ## 2026-05-29
