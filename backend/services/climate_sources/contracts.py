@@ -35,6 +35,7 @@ class NormalizedSolarReading:
     shortwave_radiation_w_m2: float | None
     source: str
     status: str
+    units: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class NormalizedAirQualityReading:
     source: str
     station: dict[str, Any] | None
     status: str
+    units: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,7 @@ class NormalizedCo2Reading:
     region_id: str
     source: str
     status: str
+    units: dict[str, str]
 
 
 def dataclass_to_debug_dict(value: Any) -> dict[str, Any] | None:

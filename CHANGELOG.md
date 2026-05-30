@@ -12,6 +12,7 @@
 - Added normalized climate-source status fields for complete, partial, and unavailable readings.
 - Added normalized observation age fields for climate-source debug output.
 - Exposed solar direct, diffuse, and direct-normal radiation components in normalized debug output.
+- Added units metadata to normalized climate-source debug output.
 - Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
 
 ## 2026-05-29

@@ -56,6 +56,16 @@ POLLUTANT_LIMITS = {
     "so2": 350,
     "co": 10000,
 }
+AIR_QUALITY_UNITS = {
+    "ageMinutes": "minutes",
+    "airRiskScore": "0-100",
+    "co": "ug/m3",
+    "no2": "ug/m3",
+    "o3": "ug/m3",
+    "pm10": "ug/m3",
+    "pm25": "ug/m3",
+    "so2": "ug/m3",
+}
 POLLUTANT_ALIASES = {
     "pm25": {"pm25", "pm2", "pm2_5", "pm2.5", "PM2", "PM2.5"},
     "pm10": {"pm10", "PM10"},
@@ -320,6 +330,7 @@ def normalize_uba_air_quality_payload(
         source=UBA_SOURCE.name,
         station=dict(station) if station is not None else None,
         status=_air_quality_status(values, observed_at),
+        units=AIR_QUALITY_UNITS,
     )
 
 
@@ -360,6 +371,7 @@ def normalize_open_meteo_air_quality_payload(
         source=OPEN_METEO_AIR_SOURCE.name,
         station=None,
         status=_air_quality_status(values, observed_at),
+        units=AIR_QUALITY_UNITS,
     )
 
 

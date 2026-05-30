@@ -12,6 +12,10 @@ CAMS_SOURCE = SourceMetadata(
     url="https://atmosphere.copernicus.eu/data",
     attribution="Copernicus Atmosphere Monitoring Service",
 )
+CO2_UNITS = {
+    "ageMinutes": "minutes",
+    "co2": "ppm",
+}
 
 
 def build_co2_debug_stage(region_id: str) -> DebugStage:
@@ -22,6 +26,7 @@ def build_co2_debug_stage(region_id: str) -> DebugStage:
         region_id=region_id,
         source=CAMS_SOURCE.name,
         status="candidate_requires_dataset_workflow",
+        units=CO2_UNITS,
     )
 
     return DebugStage(

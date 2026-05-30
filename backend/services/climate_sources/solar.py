@@ -25,6 +25,16 @@ SOLAR_HOURLY_FIELDS = (
     "direct_normal_irradiance",
     "shortwave_radiation_clear_sky",
 )
+SOLAR_UNITS = {
+    "ageMinutes": "minutes",
+    "clearSkyRatio": "ratio",
+    "diffuseRadiation": "W/m2",
+    "directLightShare": "ratio",
+    "directNormalIrradiance": "W/m2",
+    "directRadiation": "W/m2",
+    "score": "0-100",
+    "shortwaveRadiation": "W/m2",
+}
 
 
 def build_solar_debug_stage(
@@ -142,6 +152,7 @@ def normalize_solar_payload(
         shortwave_radiation_w_m2=shortwave,
         source=SOLAR_SOURCE.name,
         status=_solar_status(shortwave, observed_at, clear_sky_ratio, direct_light_share),
+        units=SOLAR_UNITS,
     )
 
 

@@ -25,6 +25,7 @@ Normalized output:
 - observation age in minutes
 - source metadata
 - `ok`, `partial`, or `unavailable` status
+- units metadata for normalized numeric fields
 - `0-100` solar feasibility score
 
 ## Air Quality
@@ -38,6 +39,7 @@ Normalized output:
 - observation age in minutes
 - selected station metadata
 - `ok`, `partial`, or `unavailable` status
+- units metadata for normalized numeric fields
 - `0-100` air-risk score
 
 When UBA station data cannot be normalized, the module can attach Open-Meteo air-quality fallback/comparison data to the debug output. The fallback is normalized into the same air-quality contract while remaining separate from the primary UBA output.
