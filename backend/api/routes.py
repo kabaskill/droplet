@@ -114,6 +114,7 @@ def source_normalization_debug():
 
     try:
         payload = build_source_normalization_debug(
+            region_limit=_debug_region_limit(request.args.get("limit")),
             region_id=request.args.get("regionId"),
             sections=[
                 section.strip()
@@ -127,6 +128,21 @@ def source_normalization_debug():
         return jsonify({"error": str(exc)}), 400
 
     return jsonify(payload)
+
+
+def _debug_region_limit(requested_limit: str | None) -> int | None:
+    if requested_limit is None:
+        return None
+
+    try:
+        parsed_limit = int(requested_limit)
+    except ValueError:
+        raise ValueError("limit must be an integer") from None
+
+    if parsed_limit < 1:
+        raise ValueError("limit must be at least 1")
+
+    return min(parsed_limit, 16)
 
 
 @api_bp.get("/forecasts/outlook")

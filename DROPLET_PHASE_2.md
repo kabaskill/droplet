@@ -85,6 +85,7 @@ The debug object records:
 Query params:
 
 - `regionId`: optional region id such as `berlin`.
+- `limit`: optional all-region sample size, ignored when `regionId` is present.
 - `sections`: optional comma-separated subset of `water,sunlight,air,co2`.
 
 Unknown section values return a structured `400` error instead of silently being ignored.

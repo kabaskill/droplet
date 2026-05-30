@@ -19,15 +19,17 @@ DEBUG_SECTIONS = ("water", "sunlight", "air", "co2")
 
 def build_source_normalization_debug(
     region_id: str | None = None,
+    region_limit: int | None = None,
     sections: list[str] | None = None,
     timeout: float = 8,
 ) -> dict[str, Any]:
     selected_sections = _selected_sections(sections)
-    selected_regions = _selected_regions(region_id)
+    selected_regions = _selected_regions(region_id, region_limit)
     response: dict[str, Any] = {
         "meta": {
             "allowedSections": list(DEBUG_SECTIONS),
             "generatedAt": datetime.now(UTC).isoformat(),
+            "requestedLimit": region_limit,
             "requestedRegionId": region_id,
             "requestedSections": sections,
             "regionCount": len(selected_regions),
@@ -75,9 +77,12 @@ def _selected_sections(sections: list[str] | None) -> list[str]:
     return sections
 
 
-def _selected_regions(region_id: str | None) -> list[dict[str, Any]]:
+def _selected_regions(
+    region_id: str | None,
+    region_limit: int | None,
+) -> list[dict[str, Any]]:
     if region_id is None:
-        return [
+        regions = [
             {
                 "code": region["code"],
                 "id": region["id"],
@@ -85,6 +90,8 @@ def _selected_regions(region_id: str | None) -> list[dict[str, Any]]:
             }
             for region in STATE_REGIONS
         ]
+
+        return regions[:region_limit] if region_limit is not None else regions
 
     for region in STATE_REGIONS:
         if region["id"] == region_id:
