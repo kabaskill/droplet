@@ -29,7 +29,12 @@ def build_region_climate_context(
 
     with requests.Session() as http:
         solar = build_solar_debug_stage(region_id, http=http, timeout=timeout)
-        air = build_air_quality_debug_stage(region_id, http=http, timeout=timeout)
+        air = build_air_quality_debug_stage(
+            region_id,
+            cache_enabled=True,
+            http=http,
+            timeout=timeout,
+        )
 
     co2 = build_co2_debug_stage(region_id)
 

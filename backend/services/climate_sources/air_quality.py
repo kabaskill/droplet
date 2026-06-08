@@ -3,6 +3,8 @@ from typing import Any, Mapping
 
 import requests
 
+from backend.cache.keys import cache_key
+from backend.cache.redis_client import read_through_json
 from backend.domain.snapshots import clamp
 from backend.services.climate_sources.contracts import (
     DebugStage,
@@ -17,6 +19,8 @@ UBA_MEASURES_URL = "https://www.umweltbundesamt.de/api/air_data/v4/measures/json
 OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
 UBA_STATION_CANDIDATE_LIMIT = 6
+UBA_STATIONS_CACHE_TTL_SECONDS = 12 * 60 * 60
+UBA_MEASUREMENTS_CACHE_TTL_SECONDS = 30 * 60
 UBA_SOURCE = SourceMetadata(
     name="Umweltbundesamt Luftdaten API",
     url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",
@@ -81,6 +85,7 @@ def build_air_quality_debug_stage(
     http: requests.Session | None = None,
     timeout: float = 8,
     include_open_meteo_comparison: bool = True,
+    cache_enabled: bool = False,
     stations_error: str | None = None,
     stations_payload: Any | None = None,
 ) -> DebugStage:
@@ -99,7 +104,11 @@ def build_air_quality_debug_stage(
             raise ValueError(stations_error)
 
         if stations_payload is None:
-            stations_payload = fetch_uba_stations(session, timeout)
+            stations_payload = (
+                fetch_cached_uba_stations(session, timeout)
+                if cache_enabled
+                else fetch_uba_stations(session, timeout)
+            )
 
         station_candidates = nearest_uba_stations(
             region_id,
@@ -120,7 +129,13 @@ def build_air_quality_debug_stage(
                 candidate_payload,
                 candidate_requests,
                 candidate_warnings,
-            ) = _fetch_uba_measurements(session, candidate, data_params, timeout)
+            ) = _fetch_uba_measurements(
+                session,
+                candidate,
+                data_params,
+                timeout,
+                cache_enabled=cache_enabled,
+            )
             warnings.extend(candidate_warnings)
             request["measurementAttempts"] = {
                 **request.get("measurementAttempts", {}),
@@ -195,6 +210,17 @@ def fetch_uba_stations(
     return response.json()
 
 
+def fetch_cached_uba_stations(
+    http: requests.Session,
+    timeout: float = 8,
+) -> Any:
+    return read_through_json(
+        cache_key("climate:uba:stations"),
+        UBA_STATIONS_CACHE_TTL_SECONDS,
+        lambda: fetch_uba_stations(http, timeout),
+    )
+
+
 def nearest_uba_station(
     region_id: str,
     payload: Any,
@@ -256,6 +282,7 @@ def _fetch_uba_measurements(
     station: Mapping[str, Any],
     data_params: Mapping[str, Any],
     timeout: float,
+    cache_enabled: bool = False,
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]], list[str]]:
     readings_payload = {}
     measurement_requests = {}
@@ -273,19 +300,68 @@ def _fetch_uba_measurements(
         }
 
         try:
-            readings_response = http.get(
-                UBA_MEASURES_URL,
-                params=pollutant_params,
-                timeout=timeout,
+            readings_payload[pollutant] = (
+                _fetch_cached_uba_measurement(
+                    http,
+                    station["id"],
+                    pollutant,
+                    component_id,
+                    pollutant_params,
+                    timeout,
+                )
+                if cache_enabled
+                else _fetch_uba_measurement(http, pollutant_params, timeout)
             )
-            readings_response.raise_for_status()
-            readings_payload[pollutant] = readings_response.json()
         except (requests.RequestException, ValueError) as exc:
             warnings.append(
                 f"UBA {pollutant} measurement unavailable for station {station['id']}: {exc}"
             )
 
     return readings_payload, measurement_requests, warnings
+
+
+def _fetch_uba_measurement(
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    response = http.get(
+        UBA_MEASURES_URL,
+        params=params,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+
+def _fetch_cached_uba_measurement(
+    http: requests.Session,
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    return read_through_json(
+        cache_key(_uba_measurement_cache_name(station_id, pollutant, component_id, params)),
+        UBA_MEASUREMENTS_CACHE_TTL_SECONDS,
+        lambda: _fetch_uba_measurement(http, params, timeout),
+    )
+
+
+def _uba_measurement_cache_name(
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    params: Mapping[str, Any],
+) -> str:
+    return (
+        f"climate:uba:measurements:station:{station_id}:"
+        f"pollutant:{pollutant}:component:{component_id}:"
+        f"from:{params.get('date_from')}:to:{params.get('date_to')}:"
+        f"time:{params.get('time_from')}-{params.get('time_to')}"
+    )
 
 
 def _station_request_summary(station: Mapping[str, Any]) -> dict[str, Any]:
