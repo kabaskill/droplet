@@ -31,9 +31,11 @@ Normalized output:
 - `0-100` solar feasibility score
 - readable solar feasibility label
 
+Clear-sky radiation is treated as optional source context. If Open-Meteo returns core irradiance fields without clear-sky radiation, the stable endpoint leaves `clearSkyRatio` empty instead of marking sunlight as partial or surfacing a warning.
+
 ## Air Quality
 
-`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates until one yields usable measurements for the selected state.
+`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates, compares usable candidates by pollutant coverage and observation freshness, and selects the best available station for the selected state.
 
 Normalized output:
 
@@ -46,7 +48,11 @@ Normalized output:
 - `0-100` air-risk score
 - readable air-risk label
 
-When UBA station data cannot be normalized, the module can attach Open-Meteo air-quality fallback/comparison data to the debug output. The fallback is normalized into the same air-quality contract while remaining separate from the primary UBA output.
+The stable climate flow caches UBA station metadata for 12 hours and UBA station/pollutant measurement payloads for 30 minutes. The debug source-normalization route can still run live source fetches for backend inspection.
+
+When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings.
+
+Stable endpoint warnings focus on unresolved selected-source gaps. Raw upstream timeout strings and warnings from skipped station candidates remain debug details rather than UI-facing messages.
 UBA carbon monoxide measurements are reported by the source in mg/m3 and converted to ug/m3 for the normalized contract.
 
 ## CO2
@@ -62,7 +68,9 @@ The module returns a structured candidate response with dataset candidates, regi
 The endpoint:
 
 - Requires authentication with `@require_auth()` and is readable by all signed-in roles.
-- Uses a per-region Redis read-through cache with a 300 second TTL.
+- Uses a per-region Redis stale-while-revalidate cache with a 300 second fresh window and one-hour stale retention.
+- Returns a stale cached read model immediately while a background refresh updates the cache when the fresh window expires.
+- Can be refreshed by Celery tasks on a schedule controlled by `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES`, defaulting to 30 minutes.
 - Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.
 - Folds partial source failures into section warnings so one unavailable source does not fail the entire climate response.
 - Does not expose raw response summaries, request config, selected debug fields, or the debug-stage envelope.

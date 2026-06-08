@@ -4,10 +4,18 @@
 
 - Added the Phase 3 selected-region climate context read model:
   - Exposed authenticated `GET /api/climate/regions/<region_id>` for all signed-in users.
-  - Added per-region Redis caching with a 300 second TTL.
+  - Added per-region Redis stale-while-revalidate caching with a 300 second fresh window and one-hour stale retention.
+  - Added scheduled Celery refresh tasks for selected-region climate context caches.
   - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.
   - Kept raw response summaries, request config, selected debug fields, and debug-stage envelopes out of the stable endpoint.
   - Preserved `/api/debug/source-normalization` as backend inspection tooling.
+- Hardened climate-source normalization and cache behavior:
+  - Cached UBA station metadata and per-station pollutant measurements separately to reduce repeated upstream calls.
+  - Treated missing clear-sky solar radiation as optional when core irradiance fields are present.
+  - Sanitized stable climate warnings so raw upstream timeout strings stay in debug tooling only.
+  - Selected UBA air-quality stations by pollutant coverage and observation freshness instead of first usable candidate.
+  - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.
+  - Kept stable air-quality warnings focused on selected unresolved gaps instead of warnings from skipped station candidates.
 - Added frontend climate context support:
   - Added typed climate API models, `fetchRegionClimate`, `useRegionClimate`, and demo fallback data.
   - Rendered selected-state climate context in the Home right rail between region detail and forecast.

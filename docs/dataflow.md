@@ -13,6 +13,7 @@ flowchart TD
   C[Open-Meteo fallback weather] --> D
   S[Open-Meteo satellite radiation] --> SD[Sunlight normalization]
   AQ[UBA Luftdaten stations] --> AD[Air-quality normalization]
+  OMA[Open-Meteo air quality] --> AD
   C2[Copernicus/CAMS research path] --> CD[CO2 candidate context]
   F[Static fallback readings] --> D
   D --> E[Snapshot computation]
@@ -46,7 +47,7 @@ Source failures are logged and isolated per region. A failed source does not sto
 Climate source normalization is split by source family:
 
 - `backend/services/climate_sources/solar.py` fetches Open-Meteo radiation fields and normalizes current irradiance, clear-sky ratio, direct-light share, timestamp, source metadata, and a solar feasibility score.
-- `backend/services/climate_sources/air_quality.py` selects usable UBA stations, normalizes pollutant readings, and can attach Open-Meteo air-quality comparison data when UBA coverage is unavailable.
+- `backend/services/climate_sources/air_quality.py` selects UBA stations by pollutant coverage and freshness, normalizes pollutant readings, caches UBA station and measurement payloads for the stable flow, and can use Open-Meteo air-quality data to fill missing readings or fall back when UBA is unavailable.
 - `backend/services/climate_sources/co2.py` records the CAMS/Copernicus research candidate and expected normalization fields without blocking on credentials.
 - `backend/services/climate_context.py` maps normalized source stages into the stable `/api/climate/regions/<region_id>` read model used by the selected-state Home workflow.
 
@@ -135,10 +136,10 @@ The backend builds several read models from persisted snapshots:
 | Analytics summary | `/api/analytics/summary` | 120s | Dashboard summary metrics. |
 | Source health | `/api/sources/health` | 120s | Source coverage and reliability. |
 | Forecast outlook | `/api/forecasts/outlook` | 900s | 48-hour pressure estimates. |
-| Region climate context | `/api/climate/regions/<region_id>` | 300s | Selected-state sunlight, air quality, and CO2 source-status context. |
+| Region climate context | `/api/climate/regions/<region_id>` | 300s fresh, 3600s stale | Selected-state sunlight, air quality, and CO2 source-status context. |
 | AI analyses | `/api/ai/analyses` | none | User-specific analysis history. |
 
-Snapshot-backed cache keys are invalidated after snapshot ingestion creates, updates, or deletes data. Climate context is fetched on demand per selected region and expires by TTL because it is not persisted snapshot state.
+Snapshot-backed cache keys are invalidated after snapshot ingestion creates, updates, or deletes data. Climate context is not persisted snapshot state, so it uses per-region stale-while-revalidate cache entries instead: a fresh read model is served for 300 seconds, stale entries can be served for up to one hour, and expired-fresh entries trigger background refresh. Celery can also pre-refresh climate context for all supported states on the `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES` schedule.
 
 ## Frontend Data Flow
 

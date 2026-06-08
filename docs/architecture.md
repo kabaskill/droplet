@@ -26,8 +26,8 @@ flowchart TD
 |---|---|---|
 | `frontend` | `frontend/` | React workspace, routing, panels, query cache, auth client. |
 | `backend` | `backend/` | Flask API, auth enforcement, repositories, read models, AI proxy. |
-| `worker` | `backend/tasks/ingestion.py` | Snapshot refresh and cache invalidation. |
-| `scheduler` | `backend/workers/celery_app.py` | Periodic ingestion every `SNAPSHOT_REFRESH_INTERVAL_MINUTES`. |
+| `worker` | `backend/tasks/` | Snapshot refresh, climate context refresh, and cache invalidation. |
+| `scheduler` | `backend/workers/celery_app.py` | Periodic ingestion and climate context refresh schedules. |
 | `postgres` | Docker image | Regions, snapshots, and AI analysis records. |
 | `redis` | Docker image | API read-model cache, Celery broker, Celery result backend. |
 | `keycloak` | `infrastructure/keycloak/` | Local OIDC realm, users, client, and roles. |
@@ -51,12 +51,12 @@ Backend responsibilities are intentionally separated:
 
 - `api/` exposes HTTP routes and status codes.
 - `auth/` supports demo auth and Keycloak token validation.
-- `cache/` wraps Redis read-through cache behavior and cache keys.
+- `cache/` wraps Redis read-through and stale-while-revalidate cache behavior plus cache keys.
 - `domain/` contains pure region and snapshot computation rules.
 - `models/` defines SQLAlchemy database entities and sessions.
 - `repositories/` maps database rows into API-friendly objects.
 - `services/` builds read models, forecasts, source health, selected-region climate context, ingestion status, and AI analysis.
-- `tasks/` runs ingestion in Celery and invalidates affected cache keys.
+- `tasks/` runs ingestion and climate refresh work in Celery and invalidates affected cache keys.
 - `workers/` configures Celery broker, result backend, and beat schedule.
 
 ## Frontend Layers
@@ -101,7 +101,7 @@ Frontend responsibilities:
 | `POST` | `/api/ai/analyze` | Yes | Run AI analysis for one or more snapshots. |
 | `GET` | `/api/ai/analyses` | Yes | List current user's saved analyses. |
 
-Climate context is authenticated but not role-gated beyond sign-in. It is cached per region for 300 seconds and remains separate from persisted reservoir snapshot state.
+Climate context is authenticated but not role-gated beyond sign-in. It is cached per region with a 300 second fresh window and one-hour stale retention, can be refreshed in the background, and remains separate from persisted reservoir snapshot state.
 
 ## Deployment Shape
 
@@ -151,3 +151,4 @@ Production-like concerns already represented in the architecture:
 | `GEMINI_MODEL` | backend | `gemini-2.5-flash` | Gemini model name. |
 | `SNAPSHOT_RETENTION_DAYS` | worker | `395` | Snapshot retention window. |
 | `SNAPSHOT_REFRESH_INTERVAL_MINUTES` | scheduler | `30` | Scheduled ingestion interval. |
+| `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES` | scheduler | `30` | Scheduled climate context cache refresh interval. |
