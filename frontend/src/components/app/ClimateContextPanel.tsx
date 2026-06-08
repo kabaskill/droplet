@@ -163,6 +163,7 @@ type ClimateContextShellProps = {
     label: string
     storedAtLabel: string | null
     tone: "default" | "error" | "warning"
+    windowLabel: string | null
   } | null
   children: ReactNode
   statusLabel: string
@@ -186,6 +187,11 @@ function ClimateContextShell({
           {cacheSummary?.storedAtLabel ? (
             <p className="mt-1 text-xs text-muted-foreground">
               Cached {cacheSummary.storedAtLabel}
+            </p>
+          ) : null}
+          {cacheSummary?.windowLabel ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {cacheSummary.windowLabel}
             </p>
           ) : null}
         </div>
@@ -298,11 +304,7 @@ function SourceMeta({ ageMinutes, observedAt, source }: SourceMetaProps) {
       <div className="truncate">Source: {source || "unavailable"}</div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>Age: {ageMinutes === null ? "n/a" : `${ageMinutes} min`}</span>
-        <span>
-          {observedAt
-            ? new Date(observedAt).toLocaleString("en-DE")
-            : "No timestamp"}
-        </span>
+        <span>{dateTimeLabel(observedAt) ?? "No timestamp"}</span>
       </div>
     </div>
   )
@@ -418,6 +420,7 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
       label: "Refreshing",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "warning" as const,
+      windowLabel: cacheWindowLabel("Stale until", cache.staleUntil),
     }
   }
 
@@ -426,6 +429,7 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
       label: "Cache fresh",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "default" as const,
+      windowLabel: cacheWindowLabel("Fresh until", cache.freshUntil),
     }
   }
 
@@ -434,6 +438,7 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
       label: "Cache new",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "default" as const,
+      windowLabel: cacheWindowLabel("Fresh until", cache.freshUntil),
     }
   }
 
@@ -442,6 +447,7 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
       label: "Cache stale",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "warning" as const,
+      windowLabel: cacheWindowLabel("Stale until", cache.staleUntil),
     }
   }
 
@@ -449,6 +455,7 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
     label: "Cache bypass",
     storedAtLabel: shortDateTime(cache.storedAt),
     tone: "warning" as const,
+    windowLabel: null,
   }
 }
 
@@ -506,17 +513,36 @@ function capitalize(value: string) {
   return value ? value[0].toUpperCase() + value.slice(1) : "Unavailable"
 }
 
-function shortDateTime(value: string | null) {
-  if (!value) {
-    return null
-  }
+function cacheWindowLabel(prefix: string, value: string | null) {
+  const formatted = shortDateTime(value)
 
-  return new Date(value).toLocaleString("en-DE", {
+  return formatted ? `${prefix} ${formatted}` : null
+}
+
+function shortDateTime(value: string | null) {
+  return dateTimeLabel(value, {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     month: "2-digit",
   })
+}
+
+function dateTimeLabel(
+  value: string | null,
+  options?: Intl.DateTimeFormatOptions
+) {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return date.toLocaleString("en-DE", options)
 }
 
 function SkeletonBlock({ className }: { className: string }) {

@@ -160,7 +160,7 @@ The frontend uses:
 - `use-droplet-data.ts` hooks for stable query keys and role-aware history limits.
 - A Zustand app store for selected region, active map layer, and regional filters.
 
-The Home dashboard fetches climate context only for the active selected region. The frontend keeps each selected-region climate query fresh for `VITE_CLIMATE_CONTEXT_FRESH_TTL_SECONDS` and retains it for `VITE_CLIMATE_CONTEXT_STALE_TTL_SECONDS`, defaulting to the backend read-model cache windows. Climate loading, error, and partial-source states are isolated inside the climate panel so map, snapshot, region detail, and forecast workflows continue to render when climate context is unavailable.
+The Home dashboard fetches climate context only for the active selected region. The frontend keeps each selected-region climate query fresh for `VITE_CLIMATE_CONTEXT_FRESH_TTL_SECONDS` and retains it for `VITE_CLIMATE_CONTEXT_STALE_TTL_SECONDS`, defaulting to the backend read-model cache windows. The climate panel displays backend cache freshness and fresh/stale window timestamps when available. Climate loading, error, and partial-source states are isolated inside the climate panel so map, snapshot, region detail, and forecast workflows continue to render when climate context is unavailable.
 
 ## AI Analysis Flow
 

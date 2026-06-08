@@ -37,6 +37,8 @@
   - Rendered selected-state climate context in the Home right rail between region detail and forecast.
   - Added the same climate context to the mobile state detail sheet.
   - Surfaced climate read-model cache freshness in the climate panel header.
+  - Displayed fresh-until and stale-until climate cache windows when backend cache metadata provides them.
+  - Hardened climate panel timestamp formatting so malformed source timestamps fall back to unavailable labels.
   - Displayed normalized sunlight and air-quality source labels in the climate panel.
   - Included air-quality station type and network in the selected-station summary when available.
   - Aligned the frontend climate query freshness and retention windows with configurable climate cache settings.
