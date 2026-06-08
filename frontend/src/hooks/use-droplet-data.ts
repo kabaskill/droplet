@@ -8,6 +8,7 @@ import {
   fetchForecastOutlook,
   fetchIngestionStatus,
   fetchLatestSnapshots,
+  fetchRegionClimate,
   fetchRegions,
   fetchSourceHealth,
   fetchSnapshotHistory,
@@ -71,6 +72,14 @@ export function useForecastOutlook() {
   return useQuery({
     queryFn: fetchForecastOutlook,
     queryKey: ["forecasts", readModelVersion, "outlook"],
+  })
+}
+
+export function useRegionClimate(regionId: string | null) {
+  return useQuery({
+    enabled: Boolean(regionId),
+    queryFn: () => fetchRegionClimate(regionId ?? ""),
+    queryKey: ["climate", readModelVersion, "region", regionId],
   })
 }
 

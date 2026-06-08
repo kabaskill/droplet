@@ -7,6 +7,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 
+import { ClimateContextPanel } from "@/components/app/ClimateContextPanel"
 import {
   MetricTileSkeleton,
   OperationsMapSkeleton,
@@ -22,6 +23,7 @@ import { useAppStore } from "@/stores/app-store"
 import type {
   AnalyticsSummary,
   Region,
+  RegionClimate,
   ReservoirSnapshot,
   TrendDirection,
 } from "@/services/types"
@@ -34,6 +36,7 @@ export function DashboardPage() {
     activeSnapshot,
     analyticsQuery,
     allRegions,
+    climateContextQuery,
     filterCounts,
     filteredRegions,
     forecastOutlookQuery,
@@ -52,6 +55,8 @@ export function DashboardPage() {
   const metricsLoading = analyticsQuery.isPending && !analyticsQuery.data
   const forecastOutlookLoading =
     forecastOutlookQuery.isPending && !forecastOutlookQuery.data
+  const climateContextLoading =
+    climateContextQuery.isPending && !climateContextQuery.data
   const dominantTrend = useMemo(
     () => dominantTrendDirection(summary?.trendMix),
     [summary?.trendMix]
@@ -158,6 +163,12 @@ export function DashboardPage() {
             </section>
           )}
 
+          <ClimateContextPanel
+            climate={climateContextQuery.data ?? null}
+            errorMessage={panelErrorMessage(climateContextQuery.error)}
+            loading={climateContextLoading}
+          />
+
           <ForecastOutlookPanel
             errorMessage={panelErrorMessage(forecastOutlookQuery.error)}
             loading={forecastOutlookLoading}
@@ -176,6 +187,9 @@ export function DashboardPage() {
             onOpen={() => setMobileDetailOpen(true)}
           />
           <MobileRegionDetailSheet
+            climate={climateContextQuery.data ?? null}
+            climateErrorMessage={panelErrorMessage(climateContextQuery.error)}
+            climateLoading={climateContextLoading}
             open={mobileDetailOpen}
             region={activeRegion}
             snapshot={activeSnapshot}
@@ -302,6 +316,9 @@ function MobileRegionActionBar({
 }
 
 type MobileRegionDetailSheetProps = {
+  climate: RegionClimate | null
+  climateErrorMessage?: string | null
+  climateLoading?: boolean
   onClose: () => void
   open: boolean
   region: Region
@@ -309,6 +326,9 @@ type MobileRegionDetailSheetProps = {
 }
 
 function MobileRegionDetailSheet({
+  climate,
+  climateErrorMessage,
+  climateLoading = false,
   onClose,
   open,
   region,
@@ -320,6 +340,9 @@ function MobileRegionDetailSheet({
 
   return (
     <MobileRegionDetailDialog
+      climate={climate}
+      climateErrorMessage={climateErrorMessage}
+      climateLoading={climateLoading}
       region={region}
       snapshot={snapshot}
       onClose={onClose}
@@ -328,12 +351,18 @@ function MobileRegionDetailSheet({
 }
 
 type MobileRegionDetailDialogProps = {
+  climate: RegionClimate | null
+  climateErrorMessage?: string | null
+  climateLoading?: boolean
   onClose: () => void
   region: Region
   snapshot: ReservoirSnapshot
 }
 
 function MobileRegionDetailDialog({
+  climate,
+  climateErrorMessage,
+  climateLoading = false,
   onClose,
   region,
   snapshot,
@@ -388,8 +417,13 @@ function MobileRegionDetailDialog({
             <ProductIcon icon={Cancel01Icon} />
           </Button>
         </div>
-        <div className="min-w-0 overflow-hidden">
+        <div className="grid min-w-0 gap-3 overflow-hidden">
           <RegionDetailPanel region={region} snapshot={snapshot} />
+          <ClimateContextPanel
+            climate={climate}
+            errorMessage={climateErrorMessage}
+            loading={climateLoading}
+          />
         </div>
       </section>
     </div>

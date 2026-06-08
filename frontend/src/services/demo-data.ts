@@ -4,6 +4,7 @@ import type {
   ForecastOutlook,
   IngestionStatus,
   Region,
+  RegionClimate,
   ReservoirSnapshot,
   SourceHealth,
 } from "@/services/types"
@@ -482,6 +483,88 @@ export function getDemoForecastOutlook(): ForecastOutlook {
   }
 }
 
+export function getDemoRegionClimate(regionId: string): RegionClimate {
+  const phase = regionPhase(regionId)
+  const snapshot =
+    demoSnapshots.find((candidate) => candidate.regionId === regionId) ??
+    demoSnapshots[0]
+  const solarScore = clampMetric(38 + (phase % 45), 12, 92)
+  const airRiskScore = clampMetric(
+    (snapshot?.evaporationPressure ?? 42) - 14 + (phase % 18),
+    8,
+    78
+  )
+  const pm25 = Math.round((6 + (airRiskScore / 100) * 18) * 10) / 10
+  const pm10 = Math.round((14 + (airRiskScore / 100) * 34) * 10) / 10
+  const no2 = Math.round((18 + (phase % 28)) * 10) / 10
+  const shortwave = Math.round(150 + (solarScore / 100) * 620)
+  const clearSkyRatio = Math.round((0.35 + (solarScore / 100) * 0.55) * 100) / 100
+  const directLightShare = Math.round((0.28 + (solarScore / 100) * 0.5) * 100) / 100
+
+  return {
+    air: {
+      ageMinutes: 34,
+      observedAt: timestamp,
+      pollutants: {
+        co: Math.round((220 + airRiskScore * 12) * 10) / 10,
+        no2,
+        o3: Math.round((42 + (phase % 35)) * 10) / 10,
+        pm10,
+        pm25,
+        so2: Math.round((2 + (phase % 8)) * 10) / 10,
+      },
+      riskLabel: airRiskLabel(airRiskScore),
+      riskScore: airRiskScore,
+      station: {
+        id: `demo-${regionId}`,
+        name: `${regionIdToLabel(regionId)} reference station`,
+        network: "Demo air network",
+        setting: "urban",
+        stationType: "background",
+      },
+      status: "ok",
+      warnings: [],
+    },
+    co2: {
+      blockers: ["credentials", "dataset choice", "variable/unit verification"],
+      datasetCandidates: [
+        "cams-global-atmospheric-composition-forecasts",
+        "cams-global-ghg-reanalysis-egg4",
+      ],
+      requiredConfig: [
+        "CAMS_ADS_URL",
+        "CAMS_ADS_KEY",
+        "CAMS_DATASET",
+        "regional grid extraction settings",
+        "unit conversion rules for selected variable",
+      ],
+      source: "Copernicus Atmosphere Monitoring Service",
+      status: "candidate_requires_dataset_workflow",
+      warnings: [
+        "CO2 is shown as candidate source metadata until the dataset workflow is configured.",
+      ],
+    },
+    generatedAt: timestamp,
+    regionId,
+    sunlight: {
+      ageMinutes: 42,
+      clearSkyRatio,
+      directLightShare,
+      irradiance: {
+        diffuseRadiation: Math.round(shortwave * (1 - directLightShare)),
+        directNormalIrradiance: Math.round(shortwave * 1.15),
+        directRadiation: Math.round(shortwave * directLightShare),
+        shortwaveRadiation: shortwave,
+      },
+      label: sunlightLabel(solarScore),
+      observedAt: timestamp,
+      score: solarScore,
+      status: "ok",
+      warnings: [],
+    },
+  }
+}
+
 function average(values: number[]) {
   if (!values.length) {
     return 0
@@ -499,4 +582,46 @@ function regionPhase(regionId: string) {
     (total, character) => total + character.charCodeAt(0),
     0
   ) % 365
+}
+
+function sunlightLabel(score: number) {
+  if (score >= 75) {
+    return "strong"
+  }
+
+  if (score >= 45) {
+    return "moderate"
+  }
+
+  if (score >= 15) {
+    return "limited"
+  }
+
+  return "low"
+}
+
+function airRiskLabel(score: number) {
+  if (score >= 75) {
+    return "high"
+  }
+
+  if (score >= 45) {
+    return "elevated"
+  }
+
+  if (score >= 20) {
+    return "moderate"
+  }
+
+  return "low"
+}
+
+function regionIdToLabel(regionId: string) {
+  return (
+    demoRegions.find((region) => region.id === regionId)?.name ??
+    regionId
+      .split("-")
+      .map((part) => part[0]?.toUpperCase() + part.slice(1))
+      .join(" ")
+  )
 }

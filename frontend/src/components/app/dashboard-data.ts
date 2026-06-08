@@ -7,6 +7,7 @@ import {
   useIngestionStatus,
   useLatestSnapshots,
   useRegions,
+  useRegionClimate,
   useSnapshotHistory,
   useSourceHealth,
 } from "@/hooks/use-droplet-data"
@@ -75,6 +76,7 @@ export function useDashboardData() {
     snapshots[0] ??
     null
   const historyQuery = useSnapshotHistory(activeRegion?.id ?? null)
+  const climateContextQuery = useRegionClimate(activeRegion?.id ?? null)
   const regionReadModelLoading =
     (regionsQuery.isPending && regions.length === 0) ||
     (snapshotsQuery.isPending && snapshots.length === 0)
@@ -109,6 +111,12 @@ export function useDashboardData() {
       label: "Forecast",
       updatedAt: forecastOutlookQuery.dataUpdatedAt,
     },
+    {
+      error: Boolean(climateContextQuery.error),
+      isFetching: climateContextQuery.isFetching,
+      label: "Climate",
+      updatedAt: climateContextQuery.dataUpdatedAt,
+    },
   ]
 
   return {
@@ -123,6 +131,7 @@ export function useDashboardData() {
     activeSnapshot,
     analyticsQuery,
     allRegions,
+    climateContextQuery,
     comparisonMode,
     filterCounts,
     filteredRegions,
@@ -206,6 +215,7 @@ export function retryReadModels(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
   void queryClient.invalidateQueries({ queryKey: ["analytics"] })
   void queryClient.invalidateQueries({ queryKey: ["forecasts"] })
+  void queryClient.invalidateQueries({ queryKey: ["climate"] })
   void queryClient.invalidateQueries({ queryKey: ["sources"] })
   void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
 }

@@ -6,6 +6,7 @@ import {
   getDemoAnalyticsSummary,
   getDemoForecastOutlook,
   getDemoIngestionStatus,
+  getDemoRegionClimate,
   getDemoSnapshotHistory,
   getDemoSourceHealth,
 } from "@/services/demo-data"
@@ -18,6 +19,7 @@ import type {
   IngestionStatus,
   RefreshSnapshotsResult,
   Region,
+  RegionClimate,
   ReservoirSnapshot,
   SourceHealth,
 } from "@/services/types"
@@ -174,6 +176,13 @@ export function fetchForecastOutlook() {
   return withFallback(
     () => requestJson<ForecastOutlook>("/forecasts/outlook"),
     getDemoForecastOutlook
+  )
+}
+
+export function fetchRegionClimate(regionId: string) {
+  return withFallback(
+    () => requestJson<RegionClimate>(`/climate/regions/${regionId}`),
+    () => getDemoRegionClimate(regionId)
   )
 }
 

@@ -13,6 +13,10 @@ from backend.services.ai_analysis import (
     analyze_snapshot_payload,
 )
 from backend.services.analytics import build_analytics_summary
+from backend.services.climate_context import (
+    UnknownClimateRegionError,
+    build_region_climate_context,
+)
 from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
 from backend.services.ingestion_status import last_ingestion_status
@@ -107,6 +111,21 @@ def source_health():
             build_source_health,
         )
     )
+
+
+@api_bp.get("/climate/regions/<region_id>")
+@require_auth()
+def region_climate(region_id: str):
+    try:
+        payload = read_through_json(
+            cache_key(f"climate:region:{region_id}"),
+            300,
+            lambda: build_region_climate_context(region_id),
+        )
+    except UnknownClimateRegionError as exc:
+        return jsonify({"code": "unknown_region", "error": str(exc)}), 404
+
+    return jsonify(payload)
 
 
 @api_bp.get("/debug/source-normalization")

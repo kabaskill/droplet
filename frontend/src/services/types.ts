@@ -141,6 +141,58 @@ export type ForecastOutlook = {
   regions: ForecastRegionOutlook[]
 }
 
+export type RegionClimate = {
+  air: {
+    ageMinutes: number | null
+    observedAt: string | null
+    pollutants: {
+      co: number | null
+      no2: number | null
+      o3: number | null
+      pm10: number | null
+      pm25: number | null
+      so2: number | null
+    }
+    riskLabel: string
+    riskScore: number | null
+    station: {
+      id: string | null
+      name: string | null
+      network: string | null
+      setting: string | null
+      stationType: string | null
+    } | null
+    status: string
+    warnings: string[]
+  }
+  co2: {
+    blockers: string[]
+    datasetCandidates: string[]
+    requiredConfig: string[]
+    source: string
+    status: string
+    warnings: string[]
+  }
+  generatedAt: string
+  regionId: string
+  sunlight: {
+    ageMinutes: number | null
+    clearSkyRatio: number | null
+    directLightShare: number | null
+    irradiance: {
+      diffuseRadiation: number | null
+      directNormalIrradiance: number | null
+      directRadiation: number | null
+      shortwaveRadiation: number | null
+    }
+    label: string
+    observedAt: string | null
+    score: number | null
+    status: string
+    warnings: string[]
+  }
+}
+
 export type RefreshSnapshotsResult = {
   error?: string
   snapshotRefresh?: {
