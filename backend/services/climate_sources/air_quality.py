@@ -133,6 +133,7 @@ def build_air_quality_debug_stage(
         measurement_requests = {}
         normalized = None
         candidate_results: list[dict[str, Any]] = []
+        skipped_candidate_count = 0
 
         for index, candidate in enumerate(station_candidates):
             (
@@ -146,7 +147,6 @@ def build_air_quality_debug_stage(
                 timeout,
                 cache_enabled=cache_enabled,
             )
-            warnings.extend(candidate_warnings)
             request["measurementAttempts"] = {
                 **request.get("measurementAttempts", {}),
                 candidate["id"]: candidate_requests,
@@ -162,6 +162,7 @@ def build_air_quality_debug_stage(
                 )
             except ValueError as exc:
                 request["measurementAttempts"][candidate["id"]]["skipped"] = str(exc)
+                skipped_candidate_count += 1
                 continue
 
             candidate_results.append(
@@ -200,6 +201,10 @@ def build_air_quality_debug_stage(
             warnings.append(
                 "UBA selected a nearby station with better pollutant coverage"
             )
+        if skipped_candidate_count:
+            warnings.append(
+                "UBA station candidate skipped because it had no usable readings"
+            )
     except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
         errors.append(str(exc))
         station = None
@@ -216,20 +221,38 @@ def build_air_quality_debug_stage(
             comparison.get("normalizedOutput") if comparison else None
         )
 
-        if normalized is None and fallback is not None:
+        if (
+            normalized is None
+            and fallback is not None
+            and _pollutant_coverage(fallback) > 0
+        ):
             if errors:
                 warnings.append("Using Open-Meteo air-quality fallback")
                 errors = []
 
             normalized = fallback
             selected.update(_air_reading_selected_fields(normalized))
-        elif normalized is not None and fallback is not None:
+        elif (
+            normalized is not None
+            and fallback is not None
+            and _pollutant_coverage(fallback) > 0
+        ):
+            filled_pollutants = _missing_pollutants_filled_by_fallback(
+                normalized,
+                fallback,
+            )
             selected_warnings = _without_missing_pollutant_warnings(selected_warnings)
+            selected_warnings = _without_filled_measurement_warnings(
+                selected_warnings,
+                filled_pollutants,
+            )
             normalized = _merge_air_quality_readings(
                 normalized,
                 fallback,
                 warnings,
+                filled_pollutants,
             )
+            selected_warnings.extend(_missing_pollutant_warnings(normalized))
             selected.update(_air_reading_selected_fields(normalized))
 
     warnings.extend(selected_warnings)
@@ -365,6 +388,7 @@ def _fetch_uba_measurements(
                 else _fetch_uba_measurement(http, pollutant_params, timeout)
             )
         except (requests.RequestException, ValueError) as exc:
+            measurement_requests[pollutant]["error"] = str(exc)
             warnings.append(
                 f"UBA {pollutant} measurement unavailable for station {station['id']}: {exc}"
             )
@@ -573,15 +597,18 @@ def _merge_air_quality_readings(
     primary: NormalizedAirQualityReading,
     fallback: NormalizedAirQualityReading,
     warnings: list[str],
+    filled_pollutants: list[str] | None = None,
 ) -> NormalizedAirQualityReading:
     values = _air_quality_values(primary)
     fallback_values = _air_quality_values(fallback)
-    filled_pollutants = []
+    filled_pollutants = (
+        filled_pollutants
+        if filled_pollutants is not None
+        else _missing_pollutants_filled_by_fallback(primary, fallback)
+    )
 
-    for pollutant in POLLUTANTS:
-        if values[pollutant] is None and fallback_values[pollutant] is not None:
-            values[pollutant] = fallback_values[pollutant]
-            filled_pollutants.append(pollutant)
+    for pollutant in filled_pollutants:
+        values[pollutant] = fallback_values[pollutant]
 
     if not filled_pollutants:
         return primary
@@ -616,6 +643,51 @@ def _without_missing_pollutant_warnings(warnings: list[str]) -> list[str]:
         for warning in warnings
         if "missing pollutant readings:" not in warning.lower()
     ]
+
+
+def _without_filled_measurement_warnings(
+    warnings: list[str],
+    filled_pollutants: list[str],
+) -> list[str]:
+    filled = set(filled_pollutants)
+
+    return [
+        warning
+        for warning in warnings
+        if not any(
+            f"uba {pollutant} measurement unavailable" in warning.lower()
+            for pollutant in filled
+        )
+    ]
+
+
+def _missing_pollutants_filled_by_fallback(
+    primary: NormalizedAirQualityReading,
+    fallback: NormalizedAirQualityReading,
+) -> list[str]:
+    values = _air_quality_values(primary)
+    fallback_values = _air_quality_values(fallback)
+
+    return [
+        pollutant
+        for pollutant in POLLUTANTS
+        if values[pollutant] is None and fallback_values[pollutant] is not None
+    ]
+
+
+def _missing_pollutant_warnings(
+    reading: NormalizedAirQualityReading,
+) -> list[str]:
+    missing = [
+        pollutant
+        for pollutant, value in _air_quality_values(reading).items()
+        if value is None
+    ]
+
+    if not missing:
+        return []
+
+    return [f"Air quality missing pollutant readings: {', '.join(missing)}"]
 
 
 def _air_quality_values(
