@@ -46,8 +46,8 @@ Source failures are logged and isolated per region. A failed source does not sto
 
 Climate source normalization is split by source family:
 
-- `backend/services/climate_sources/solar.py` fetches Open-Meteo radiation fields, caches stable-flow source payloads for 30 minutes, and normalizes current irradiance, clear-sky ratio, direct-light share, timestamp, source metadata, and a solar feasibility score.
-- `backend/services/climate_sources/air_quality.py` selects UBA stations by pollutant coverage and freshness, normalizes pollutant readings, caches UBA station and measurement payloads for the stable flow, and can use Open-Meteo air-quality data to fill missing readings or fall back when UBA is unavailable.
+- `backend/services/climate_sources/solar.py` fetches Open-Meteo radiation fields, caches stable-flow source payloads with a 30-minute fresh window and three-hour stale fallback window, and normalizes current irradiance, clear-sky ratio, direct-light share, timestamp, source metadata, and a solar feasibility score.
+- `backend/services/climate_sources/air_quality.py` selects UBA stations by pollutant coverage and freshness, normalizes pollutant readings, caches UBA and Open-Meteo source payloads with stale fallback windows for the stable flow, and can use Open-Meteo air-quality data to fill missing readings or fall back when UBA is unavailable.
 - `backend/services/climate_sources/co2.py` records the CAMS/Copernicus research candidate and expected normalization fields without blocking on credentials.
 - `backend/services/climate_context.py` maps normalized source stages into the stable `/api/climate/regions/<region_id>` read model used by the selected-state Home workflow.
 

@@ -4,7 +4,7 @@ from typing import Any, Mapping
 import requests
 
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_through_json
+from backend.cache.redis_client import read_stale_while_revalidate_json
 from backend.domain.snapshots import clamp
 from backend.services.climate_sources.contracts import (
     DebugStage,
@@ -16,6 +16,7 @@ from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
 OPEN_METEO_SATELLITE_RADIATION_URL = "https://satellite-api.open-meteo.com/v1/archive"
 OPEN_METEO_SOLAR_CACHE_TTL_SECONDS = 30 * 60
+OPEN_METEO_SOLAR_CACHE_STALE_TTL_SECONDS = 3 * 60 * 60
 SOLAR_SOURCE = SourceMetadata(
     name="Open-Meteo Satellite Radiation API",
     url="https://open-meteo.com/en/docs/satellite-radiation-api",
@@ -113,15 +114,24 @@ def fetch_solar_payload(
 
 def fetch_cached_solar_payload(
     region_id: str,
-    http: requests.Session,
+    _http: requests.Session,
     params: Mapping[str, Any],
     timeout: float = 8,
 ) -> Any:
-    return read_through_json(
+    return read_stale_while_revalidate_json(
         cache_key(_solar_cache_name(region_id, params)),
         OPEN_METEO_SOLAR_CACHE_TTL_SECONDS,
-        lambda: fetch_solar_payload(http, params, timeout),
+        OPEN_METEO_SOLAR_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_solar_payload_for_cache(params, timeout),
     )
+
+
+def _fetch_solar_payload_for_cache(
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    with requests.Session() as http:
+        return fetch_solar_payload(http, params, timeout)
 
 
 def _solar_cache_name(region_id: str, params: Mapping[str, Any]) -> str:

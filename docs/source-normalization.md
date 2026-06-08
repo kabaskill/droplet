@@ -33,7 +33,7 @@ Normalized output:
 
 Clear-sky radiation is treated as optional source context. If Open-Meteo returns core irradiance fields without clear-sky radiation, the stable endpoint leaves `clearSkyRatio` empty instead of marking sunlight as partial or surfacing a warning.
 
-The stable climate flow caches Open-Meteo solar archive payloads per region and date window for 30 minutes. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
+The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
 
 ## Air Quality
 
@@ -50,7 +50,7 @@ Normalized output:
 - `0-100` air-risk score
 - readable air-risk label
 
-The stable climate flow caches UBA station metadata for 12 hours, UBA station/pollutant measurement payloads for 30 minutes, and Open-Meteo air-quality fallback payloads for 30 minutes. The debug source-normalization route can still run live source fetches for backend inspection.
+The stable climate flow caches UBA station metadata with a 12-hour fresh window and a seven-day stale fallback window. UBA station/pollutant measurement payloads and Open-Meteo air-quality fallback payloads use a 30-minute fresh window and a three-hour stale fallback window. The debug source-normalization route can still run live source fetches for backend inspection.
 
 When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings.
 

@@ -5,7 +5,7 @@ from typing import Any, Mapping
 import requests
 
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_through_json
+from backend.cache.redis_client import read_stale_while_revalidate_json
 from backend.domain.snapshots import clamp
 from backend.services.climate_sources.contracts import (
     DebugStage,
@@ -21,8 +21,11 @@ OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-qual
 UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
 UBA_STATION_CANDIDATE_LIMIT = 6
 UBA_STATIONS_CACHE_TTL_SECONDS = 12 * 60 * 60
+UBA_STATIONS_CACHE_STALE_TTL_SECONDS = 7 * 24 * 60 * 60
 UBA_MEASUREMENTS_CACHE_TTL_SECONDS = 30 * 60
+UBA_MEASUREMENTS_CACHE_STALE_TTL_SECONDS = 3 * 60 * 60
 OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS = 30 * 60
+OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS = 3 * 60 * 60
 UBA_SOURCE = SourceMetadata(
     name="Umweltbundesamt Luftdaten API",
     url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",
@@ -294,14 +297,20 @@ def fetch_uba_stations(
 
 
 def fetch_cached_uba_stations(
-    http: requests.Session,
+    _http: requests.Session,
     timeout: float = 8,
 ) -> Any:
-    return read_through_json(
+    return read_stale_while_revalidate_json(
         cache_key("climate:uba:stations"),
         UBA_STATIONS_CACHE_TTL_SECONDS,
-        lambda: fetch_uba_stations(http, timeout),
+        UBA_STATIONS_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_uba_stations_for_cache(timeout),
     )
+
+
+def _fetch_uba_stations_for_cache(timeout: float) -> Any:
+    with requests.Session() as http:
+        return fetch_uba_stations(http, timeout)
 
 
 def nearest_uba_station(
@@ -420,18 +429,34 @@ def _fetch_uba_measurement(
 
 
 def _fetch_cached_uba_measurement(
-    http: requests.Session,
+    _http: requests.Session,
     station_id: Any,
     pollutant: str,
     component_id: str,
     params: Mapping[str, Any],
     timeout: float,
 ) -> Any:
-    return read_through_json(
-        cache_key(_uba_measurement_cache_name(station_id, pollutant, component_id, params)),
+    return read_stale_while_revalidate_json(
+        cache_key(
+            _uba_measurement_cache_name(
+                station_id,
+                pollutant,
+                component_id,
+                params,
+            )
+        ),
         UBA_MEASUREMENTS_CACHE_TTL_SECONDS,
-        lambda: _fetch_uba_measurement(http, params, timeout),
+        UBA_MEASUREMENTS_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_uba_measurement_for_cache(params, timeout),
     )
+
+
+def _fetch_uba_measurement_for_cache(
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    with requests.Session() as http:
+        return _fetch_uba_measurement(http, params, timeout)
 
 
 def _uba_measurement_cache_name(
@@ -802,15 +827,24 @@ def _fetch_open_meteo_air_quality(
 
 def _fetch_cached_open_meteo_air_quality(
     region_id: str,
-    http: requests.Session,
+    _http: requests.Session,
     params: Mapping[str, Any],
     timeout: float,
 ) -> Any:
-    return read_through_json(
+    return read_stale_while_revalidate_json(
         cache_key(_open_meteo_air_quality_cache_name(region_id, params)),
         OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS,
-        lambda: _fetch_open_meteo_air_quality(http, params, timeout),
+        OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_open_meteo_air_quality_for_cache(params, timeout),
     )
+
+
+def _fetch_open_meteo_air_quality_for_cache(
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    with requests.Session() as http:
+        return _fetch_open_meteo_air_quality(http, params, timeout)
 
 
 def _open_meteo_air_quality_cache_name(
