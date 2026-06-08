@@ -7,8 +7,10 @@
   - Added per-region Redis stale-while-revalidate caching with a 300 second fresh window and one-hour stale retention.
   - Added scheduled Celery refresh tasks for selected-region climate context caches.
   - Added local configuration examples for the scheduled climate context refresh interval.
+  - Made selected-region climate context fresh and stale cache windows configurable.
   - Made the stable climate source timeout configurable through `CLIMATE_SOURCE_TIMEOUT_SECONDS`.
   - Hardened climate timeout config parsing so invalid values fall back to the default.
+  - Versioned selected-region climate context cache keys so read-model shape changes do not reuse older cached payloads.
   - Added stable endpoint cache metadata so callers can distinguish fresh, stale, miss, and bypass responses.
   - Added backend unit coverage for climate cache metadata and air-quality fallback normalization.
   - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.

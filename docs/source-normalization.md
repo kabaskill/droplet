@@ -72,9 +72,10 @@ The module returns a structured candidate response with dataset candidates, regi
 The endpoint:
 
 - Requires authentication with `@require_auth()` and is readable by all signed-in roles.
-- Uses a per-region Redis stale-while-revalidate cache with a 300 second fresh window and one-hour stale retention.
+- Uses a versioned per-region Redis stale-while-revalidate cache with a 300 second fresh window and one-hour stale retention by default.
 - Returns a stale cached read model immediately while a background refresh updates the cache when the fresh window expires.
 - Can be refreshed by Celery tasks on a schedule controlled by `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES`, defaulting to 30 minutes.
+- Uses `CLIMATE_CONTEXT_FRESH_TTL_SECONDS` and `CLIMATE_CONTEXT_STALE_TTL_SECONDS` for the read-model cache windows. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window.
 - Uses `CLIMATE_SOURCE_TIMEOUT_SECONDS`, defaulting to 8 seconds, for stable climate source requests.
 - Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, and whether an async refresh was started.
 - Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.

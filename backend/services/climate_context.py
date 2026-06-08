@@ -27,13 +27,29 @@ def _positive_float_env(name: str, fallback: float) -> float:
     return value if value > 0 else fallback
 
 
+def _positive_int_env(name: str, fallback: int) -> int:
+    try:
+        value = int(os.getenv(name, str(fallback)))
+    except (TypeError, ValueError):
+        return fallback
+
+    return value if value > 0 else fallback
+
+
 CLIMATE_SOURCE_TIMEOUT_SECONDS = 8.0
 CLIMATE_SOURCE_TIMEOUT_SECONDS = _positive_float_env(
     "CLIMATE_SOURCE_TIMEOUT_SECONDS",
     CLIMATE_SOURCE_TIMEOUT_SECONDS,
 )
-CLIMATE_CONTEXT_FRESH_TTL_SECONDS = 300
-CLIMATE_CONTEXT_STALE_TTL_SECONDS = 60 * 60
+CLIMATE_CONTEXT_READ_MODEL_VERSION = "read-model-v2"
+CLIMATE_CONTEXT_FRESH_TTL_SECONDS = _positive_int_env(
+    "CLIMATE_CONTEXT_FRESH_TTL_SECONDS",
+    300,
+)
+CLIMATE_CONTEXT_STALE_TTL_SECONDS = max(
+    _positive_int_env("CLIMATE_CONTEXT_STALE_TTL_SECONDS", 60 * 60),
+    CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
+)
 
 
 class UnknownClimateRegionError(ValueError):
@@ -72,7 +88,9 @@ def build_region_climate_context(
 
 
 def climate_context_cache_key(region_id: str) -> str:
-    return cache_key(f"climate:region:{region_id}")
+    return cache_key(
+        f"climate:region:{CLIMATE_CONTEXT_READ_MODEL_VERSION}:{region_id}"
+    )
 
 
 def refresh_region_climate_context_cache(region_id: str) -> dict[str, Any]:

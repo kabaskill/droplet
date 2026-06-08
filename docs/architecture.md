@@ -149,6 +149,8 @@ Production-like concerns already represented in the architecture:
 | `VITE_DEMO_FALLBACK` | frontend | enabled | Allows demo data fallback for non-auth API failures. |
 | `GEMINI_API_KEY` | backend | empty | Enables AI analysis. |
 | `GEMINI_MODEL` | backend | `gemini-2.5-flash` | Gemini model name. |
+| `CLIMATE_CONTEXT_FRESH_TTL_SECONDS` | backend, worker | `300` | Fresh window for selected-region climate context cache entries. |
+| `CLIMATE_CONTEXT_STALE_TTL_SECONDS` | backend, worker | `3600` | Stale retention window for selected-region climate context cache entries. Values below the fresh window are raised to the fresh window. |
 | `CLIMATE_SOURCE_TIMEOUT_SECONDS` | backend, worker | `8` | Stable climate source request timeout. |
 | `SNAPSHOT_RETENTION_DAYS` | worker | `395` | Snapshot retention window. |
 | `SNAPSHOT_REFRESH_INTERVAL_MINUTES` | scheduler | `30` | Scheduled ingestion interval. |
