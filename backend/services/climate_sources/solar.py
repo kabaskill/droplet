@@ -123,8 +123,6 @@ def normalize_solar_payload(
     clear_sky_ratio = None
     if shortwave is not None and clear_sky and clear_sky > 0:
         clear_sky_ratio = round(clamp(shortwave / clear_sky, 0, 1), 3)
-    elif clear_sky is None:
-        warnings.append("clear-sky radiation field is unavailable")
 
     direct_light_share = None
     total_radiation = None
@@ -174,13 +172,13 @@ def _solar_score(
 def _solar_status(
     shortwave: float | None,
     observed_at: datetime | None,
-    clear_sky_ratio: float | None,
+    _clear_sky_ratio: float | None,
     direct_light_share: float | None,
 ) -> str:
     if shortwave is None or observed_at is None:
         return "unavailable"
 
-    if clear_sky_ratio is None or direct_light_share is None:
+    if direct_light_share is None:
         return "partial"
 
     return "ok"

@@ -66,7 +66,7 @@ def _sunlight_context(stage: DebugStage) -> dict[str, Any]:
         "observedAt": normalized.get("observed_at"),
         "score": score if isinstance(score, int | float) else None,
         "status": status,
-        "warnings": _source_warnings(stage, "Sunlight source unavailable"),
+        "warnings": _sunlight_warnings(stage),
     }
 
 
@@ -90,7 +90,7 @@ def _air_context(stage: DebugStage) -> dict[str, Any]:
         "riskScore": risk_score if isinstance(risk_score, int | float) else None,
         "station": _station_summary(normalized.get("station")),
         "status": status,
-        "warnings": _source_warnings(stage, "Air quality source unavailable"),
+        "warnings": _air_warnings(stage, status),
     }
 
 
@@ -121,11 +121,84 @@ def _normalized_status(normalized: dict[str, Any]) -> str:
     return status if isinstance(status, str) and status else "unavailable"
 
 
-def _source_warnings(stage: DebugStage, error_prefix: str) -> list[str]:
-    warnings = list(stage.warnings)
-    warnings.extend(f"{error_prefix}: {error}" for error in stage.errors)
+def _sunlight_warnings(stage: DebugStage) -> list[str]:
+    warnings: list[str] = []
 
-    return warnings
+    if stage.errors:
+        warnings.append("Sunlight source unavailable")
+
+    for warning in stage.warnings:
+        normalized = warning.lower()
+
+        if "clear-sky radiation field is unavailable" in normalized:
+            continue
+
+        if "no parseable timestamp" in normalized:
+            warnings.append("Sunlight observation timestamp unavailable")
+        elif "older than six hours" in normalized:
+            warnings.append("Sunlight observation is older than six hours")
+        else:
+            warnings.append("Sunlight source returned partial data")
+
+    return _unique_warnings(warnings)
+
+
+def _air_warnings(stage: DebugStage, status: str) -> list[str]:
+    warnings: list[str] = []
+
+    if stage.errors:
+        warnings.append("Air quality source unavailable")
+    elif status == "partial":
+        warnings.append("Air quality source returned partial pollutant coverage")
+
+    for warning in stage.warnings:
+        normalized = warning.lower()
+
+        if "missing pollutant readings:" in normalized:
+            missing = warning.split(":", 1)[1]
+            warnings.append(
+                "Missing pollutant readings: "
+                f"{_format_pollutant_list(missing.split(','))}"
+            )
+        elif "air-quality reading is older than twelve hours" in normalized:
+            warnings.append("Air quality reading is older than twelve hours")
+        elif "no parseable timestamp" in normalized:
+            warnings.append("Air quality observation timestamp unavailable")
+        elif "open-meteo air-quality fallback unavailable" in normalized:
+            warnings.append("Open-Meteo air-quality fallback unavailable")
+        elif "measurement unavailable" in normalized:
+            warnings.append("Some UBA pollutant measurements were unavailable")
+        elif "station" in normalized and "skipped" in normalized:
+            warnings.append("Some nearby UBA stations lacked usable readings")
+
+    return _unique_warnings(warnings)
+
+
+def _format_pollutant_list(values: list[str]) -> str:
+    labels = [
+        _pollutant_label(value.strip())
+        for value in values
+        if value.strip()
+    ]
+
+    return ", ".join(labels) if labels else "unknown"
+
+
+def _pollutant_label(value: str) -> str:
+    labels = {
+        "co": "CO",
+        "no2": "NO2",
+        "o3": "O3",
+        "pm10": "PM10",
+        "pm25": "PM2.5",
+        "so2": "SO2",
+    }
+
+    return labels.get(value.lower(), value.upper())
+
+
+def _unique_warnings(warnings: list[str]) -> list[str]:
+    return list(dict.fromkeys(warnings))
 
 
 def _station_summary(station: Any) -> dict[str, Any] | None:
