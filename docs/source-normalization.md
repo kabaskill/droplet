@@ -35,7 +35,7 @@ Clear-sky radiation is treated as optional source context. If Open-Meteo returns
 
 Zero-radiation rows, such as nighttime observations where direct and diffuse radiation are both `0`, are treated as valid low-sunlight observations rather than partial source failures.
 
-The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
+The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window by default. These observation source-cache windows are controlled by `CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS`. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
 
 ## Air Quality
 
@@ -52,7 +52,7 @@ Normalized output:
 - `0-100` air-risk score
 - readable air-risk label
 
-The stable climate flow caches UBA station metadata with a 12-hour fresh window and a seven-day stale fallback window. UBA station/pollutant measurement payloads and Open-Meteo air-quality fallback payloads use a 30-minute fresh window and a three-hour stale fallback window. The debug source-normalization route can still run live source fetches for backend inspection.
+The stable climate flow caches UBA station metadata with a 12-hour fresh window and a seven-day stale fallback window by default. These station-index windows are controlled by `CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS`. UBA station/pollutant measurement payloads and Open-Meteo air-quality fallback payloads use the same configurable observation source-cache windows as solar. The debug source-normalization route can still run live source fetches for backend inspection.
 
 When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings. When fallback data contributes to the selected reading, its freshness and parseability warnings are retained in the stable warning pipeline.
 

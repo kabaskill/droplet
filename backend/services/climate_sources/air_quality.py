@@ -7,6 +7,12 @@ import requests
 from backend.cache.keys import cache_key
 from backend.cache.redis_client import read_stale_while_revalidate_json
 from backend.domain.snapshots import clamp
+from backend.services.climate_sources.config import (
+    CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS,
+    CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS,
+    CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS,
+    CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS,
+)
 from backend.services.climate_sources.contracts import (
     DebugStage,
     NormalizedAirQualityReading,
@@ -20,12 +26,14 @@ UBA_MEASURES_URL = "https://www.umweltbundesamt.de/api/air_data/v4/measures/json
 OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
 UBA_STATION_CANDIDATE_LIMIT = 6
-UBA_STATIONS_CACHE_TTL_SECONDS = 12 * 60 * 60
-UBA_STATIONS_CACHE_STALE_TTL_SECONDS = 7 * 24 * 60 * 60
-UBA_MEASUREMENTS_CACHE_TTL_SECONDS = 30 * 60
-UBA_MEASUREMENTS_CACHE_STALE_TTL_SECONDS = 3 * 60 * 60
-OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS = 30 * 60
-OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS = 3 * 60 * 60
+UBA_STATIONS_CACHE_TTL_SECONDS = CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS
+UBA_STATIONS_CACHE_STALE_TTL_SECONDS = CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS
+UBA_MEASUREMENTS_CACHE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS
+UBA_MEASUREMENTS_CACHE_STALE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS
+OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS
+OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS = (
+    CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS
+)
 UBA_SOURCE = SourceMetadata(
     name="Umweltbundesamt Luftdaten API",
     url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",

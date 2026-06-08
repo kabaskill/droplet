@@ -6,6 +6,10 @@ import requests
 from backend.cache.keys import cache_key
 from backend.cache.redis_client import read_stale_while_revalidate_json
 from backend.domain.snapshots import clamp
+from backend.services.climate_sources.config import (
+    CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS,
+    CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS,
+)
 from backend.services.climate_sources.contracts import (
     DebugStage,
     NormalizedSolarReading,
@@ -15,8 +19,8 @@ from backend.services.climate_sources.contracts import (
 from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
 OPEN_METEO_SATELLITE_RADIATION_URL = "https://satellite-api.open-meteo.com/v1/archive"
-OPEN_METEO_SOLAR_CACHE_TTL_SECONDS = 30 * 60
-OPEN_METEO_SOLAR_CACHE_STALE_TTL_SECONDS = 3 * 60 * 60
+OPEN_METEO_SOLAR_CACHE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS
+OPEN_METEO_SOLAR_CACHE_STALE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS
 SOLAR_SOURCE = SourceMetadata(
     name="Open-Meteo Satellite Radiation API",
     url="https://open-meteo.com/en/docs/satellite-radiation-api",

@@ -21,6 +21,7 @@
 - Hardened climate-source normalization and cache behavior:
   - Cached UBA station metadata and per-station pollutant measurements separately to reduce repeated upstream calls.
   - Cached Open-Meteo solar and air-quality fallback payloads for the stable climate flow.
+  - Made stable-flow observation and UBA station-index source cache windows configurable.
   - Added stale fallback windows to stable-flow climate source caches so recently expired payloads can remain usable during source refresh.
   - Treated missing clear-sky solar radiation as optional when core irradiance fields are present.
   - Treated zero-radiation solar rows as valid low-sunlight observations instead of partial source failures.

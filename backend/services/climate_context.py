@@ -8,6 +8,10 @@ from backend.cache.keys import cache_key
 from backend.cache.redis_client import refresh_stale_while_revalidate_json
 from backend.domain.regions import STATE_REGIONS
 from backend.services.climate_sources.air_quality import build_air_quality_debug_stage
+from backend.services.climate_sources.config import (
+    positive_int_env,
+    stale_ttl_env,
+)
 from backend.services.climate_sources.co2 import (
     CAMS_SOURCE,
     CO2_DATASET_CANDIDATES,
@@ -27,27 +31,19 @@ def _positive_float_env(name: str, fallback: float) -> float:
     return value if value > 0 else fallback
 
 
-def _positive_int_env(name: str, fallback: int) -> int:
-    try:
-        value = int(os.getenv(name, str(fallback)))
-    except (TypeError, ValueError):
-        return fallback
-
-    return value if value > 0 else fallback
-
-
 CLIMATE_SOURCE_TIMEOUT_SECONDS = 8.0
 CLIMATE_SOURCE_TIMEOUT_SECONDS = _positive_float_env(
     "CLIMATE_SOURCE_TIMEOUT_SECONDS",
     CLIMATE_SOURCE_TIMEOUT_SECONDS,
 )
 CLIMATE_CONTEXT_READ_MODEL_VERSION = "read-model-v2"
-CLIMATE_CONTEXT_FRESH_TTL_SECONDS = _positive_int_env(
+CLIMATE_CONTEXT_FRESH_TTL_SECONDS = positive_int_env(
     "CLIMATE_CONTEXT_FRESH_TTL_SECONDS",
     300,
 )
-CLIMATE_CONTEXT_STALE_TTL_SECONDS = max(
-    _positive_int_env("CLIMATE_CONTEXT_STALE_TTL_SECONDS", 60 * 60),
+CLIMATE_CONTEXT_STALE_TTL_SECONDS = stale_ttl_env(
+    "CLIMATE_CONTEXT_STALE_TTL_SECONDS",
+    60 * 60,
     CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
 )
 SUPPORTED_CLIMATE_REGION_IDS = frozenset(region["id"] for region in STATE_REGIONS)
