@@ -50,6 +50,7 @@ CLIMATE_CONTEXT_STALE_TTL_SECONDS = max(
     _positive_int_env("CLIMATE_CONTEXT_STALE_TTL_SECONDS", 60 * 60),
     CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
 )
+SUPPORTED_CLIMATE_REGION_IDS = frozenset(region["id"] for region in STATE_REGIONS)
 
 
 class UnknownClimateRegionError(ValueError):
@@ -60,7 +61,7 @@ def build_region_climate_context(
     region_id: str,
     timeout: float = CLIMATE_SOURCE_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    _validate_region_id(region_id)
+    validate_climate_region_id(region_id)
 
     with requests.Session() as http:
         solar = build_solar_debug_stage(
@@ -88,6 +89,8 @@ def build_region_climate_context(
 
 
 def climate_context_cache_key(region_id: str) -> str:
+    validate_climate_region_id(region_id)
+
     return cache_key(
         f"climate:region:{CLIMATE_CONTEXT_READ_MODEL_VERSION}:{region_id}"
     )
@@ -102,8 +105,8 @@ def refresh_region_climate_context_cache(region_id: str) -> dict[str, Any]:
     )
 
 
-def _validate_region_id(region_id: str) -> None:
-    if region_id not in {region["id"] for region in STATE_REGIONS}:
+def validate_climate_region_id(region_id: str) -> None:
+    if region_id not in SUPPORTED_CLIMATE_REGION_IDS:
         raise UnknownClimateRegionError(f"unknown regionId: {region_id}")
 
 

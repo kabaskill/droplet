@@ -101,7 +101,7 @@ Frontend responsibilities:
 | `POST` | `/api/ai/analyze` | Yes | Run AI analysis for one or more snapshots. |
 | `GET` | `/api/ai/analyses` | Yes | List current user's saved analyses. |
 
-Climate context is authenticated but not role-gated beyond sign-in. It is cached per region with a 300 second fresh window and one-hour stale retention, returns compact cache metadata, can be refreshed in the background, and remains separate from persisted reservoir snapshot state.
+Climate context is authenticated but not role-gated beyond sign-in. It is cached per validated region with a configurable fresh window and stale retention, returns compact cache metadata, can be refreshed in the background, and remains separate from persisted reservoir snapshot state.
 
 ## Deployment Shape
 
@@ -146,6 +146,8 @@ Production-like concerns already represented in the architecture:
 | `AUTH_MODE` | backend | `demo` | Backend auth validation mode. |
 | `VITE_AUTH_MODE` | frontend | `demo` | Frontend auth fallback mode. |
 | `VITE_API_BASE_URL` | frontend | `/api` | API base path for browser requests. |
+| `VITE_CLIMATE_CONTEXT_FRESH_TTL_SECONDS` | frontend | `300` | Browser freshness window for selected-region climate context queries. |
+| `VITE_CLIMATE_CONTEXT_STALE_TTL_SECONDS` | frontend | `3600` | Browser retention window for selected-region climate context queries. Values below the fresh window are raised to the fresh window. |
 | `VITE_DEMO_FALLBACK` | frontend | enabled | Allows demo data fallback for non-auth API failures. |
 | `GEMINI_API_KEY` | backend | empty | Enables AI analysis. |
 | `GEMINI_MODEL` | backend | `gemini-2.5-flash` | Gemini model name. |

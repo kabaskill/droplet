@@ -10,6 +10,7 @@
   - Made selected-region climate context fresh and stale cache windows configurable.
   - Made the stable climate source timeout configurable through `CLIMATE_SOURCE_TIMEOUT_SECONDS`.
   - Hardened climate timeout config parsing so invalid values fall back to the default.
+  - Validated climate region ids before reading or writing selected-region climate cache keys.
   - Versioned selected-region climate context cache keys so read-model shape changes do not reuse older cached payloads.
   - Added stable endpoint cache metadata so callers can distinguish fresh, stale, miss, and bypass responses.
   - Added backend unit coverage for climate cache metadata and air-quality fallback normalization.
@@ -38,7 +39,7 @@
   - Surfaced climate read-model cache freshness in the climate panel header.
   - Displayed normalized sunlight and air-quality source labels in the climate panel.
   - Included air-quality station type and network in the selected-station summary when available.
-  - Aligned the frontend climate query freshness and retention windows with the backend climate cache.
+  - Aligned the frontend climate query freshness and retention windows with configurable climate cache settings.
   - Showed all normalized air pollutant values in the climate panel.
   - Kept exploratory CO2 source status out of the panel-wide climate availability badge.
   - Added compact overflow counts when climate source sections have more warnings than the panel displays inline.
