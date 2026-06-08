@@ -254,9 +254,20 @@ def _station_summary(station: Any) -> dict[str, Any] | None:
         return None
 
     return {
-        "id": station.get("id"),
-        "name": station.get("name"),
-        "network": station.get("network"),
-        "setting": station.get("setting"),
-        "stationType": station.get("stationType"),
+        "id": _text_or_none(station.get("id")),
+        "name": _text_or_none(station.get("name")),
+        "network": _text_or_none(station.get("network")),
+        "setting": _text_or_none(station.get("setting")),
+        "stationType": _text_or_none(
+            station.get("stationType") or station.get("station_type")
+        ),
     }
+
+
+def _text_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+
+    return text or None
