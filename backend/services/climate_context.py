@@ -216,8 +216,6 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
             warnings.append("Some UBA pollutant measurements were unavailable")
         elif "better pollutant coverage" in normalized:
             warnings.append("Using nearby UBA station with better pollutant coverage")
-        elif "station" in normalized and "skipped" in normalized:
-            warnings.append("Some nearby UBA stations lacked usable readings")
 
     return _unique_warnings(warnings)
 

@@ -25,6 +25,7 @@
   - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.
   - Kept stable air-quality warnings focused on selected unresolved gaps instead of warnings from skipped station candidates.
   - Normalized stable air-quality station summary fields to predictable strings and preserved UBA station type metadata.
+  - Kept skipped UBA station candidate details out of stable air-quality warnings.
 - Added frontend climate context support:
   - Added typed climate API models, `fetchRegionClimate`, `useRegionClimate`, and demo fallback data.
   - Rendered selected-state climate context in the Home right rail between region detail and forecast.
