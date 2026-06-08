@@ -3,7 +3,7 @@ from flask import Blueprint, g, jsonify, request
 from backend.auth.decorators import require_auth
 from backend.auth.keycloak import auth_config as build_auth_config
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_through_json
+from backend.cache.redis_client import read_stale_while_revalidate_json, read_through_json
 from backend.repositories.ai_analyses import list_ai_analyses, save_ai_analysis
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
@@ -25,6 +25,8 @@ from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
 DEFAULT_DEBUG_REGION_LIMIT = 1
+CLIMATE_CONTEXT_FRESH_TTL_SECONDS = 300
+CLIMATE_CONTEXT_STALE_TTL_SECONDS = 60 * 60
 
 
 @api_bp.get("/auth/config")
@@ -117,9 +119,10 @@ def source_health():
 @require_auth()
 def region_climate(region_id: str):
     try:
-        payload = read_through_json(
+        payload = read_stale_while_revalidate_json(
             cache_key(f"climate:region:{region_id}"),
-            300,
+            CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
+            CLIMATE_CONTEXT_STALE_TTL_SECONDS,
             lambda: build_region_climate_context(region_id),
         )
     except UnknownClimateRegionError as exc:
