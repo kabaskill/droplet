@@ -51,7 +51,7 @@ Climate source normalization is split by source family:
 - `backend/services/climate_sources/co2.py` records the CAMS/Copernicus research candidate and expected normalization fields without blocking on credentials.
 - `backend/services/climate_context.py` maps normalized source stages into the stable `/api/climate/regions/<region_id>` read model used by the selected-state Home workflow.
 
-Raw source payloads are summarized for debug visibility only. The stable climate context endpoint exposes compact sunlight, air-quality, and CO2 source status fields without raw responses, request config, or selected debug fields. The durable reservoir snapshot model continues to use the existing water/weather ingestion path until a later phase explicitly integrates climate signals into persistence.
+Raw source payloads are summarized for debug visibility only. The stable climate context endpoint exposes compact sunlight, air-quality, CO2 source status, and normalized source labels without raw responses, request config, or selected debug fields. The durable reservoir snapshot model continues to use the existing water/weather ingestion path until a later phase explicitly integrates climate signals into persistence.
 
 ## Snapshot Computation
 

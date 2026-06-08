@@ -515,6 +515,7 @@ export function getDemoRegionClimate(regionId: string): RegionClimate {
       },
       riskLabel: airRiskLabel(airRiskScore),
       riskScore: airRiskScore,
+      source: "German Environment Agency UBA Air Data API",
       station: {
         id: `demo-${regionId}`,
         name: `${regionIdToLabel(regionId)} reference station`,
@@ -559,6 +560,7 @@ export function getDemoRegionClimate(regionId: string): RegionClimate {
       label: sunlightLabel(solarScore),
       observedAt: timestamp,
       score: solarScore,
+      source: "Open-Meteo Satellite Radiation API",
       status: "ok",
       warnings: [],
     },

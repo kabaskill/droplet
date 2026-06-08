@@ -107,6 +107,7 @@ def _sunlight_context(stage: DebugStage) -> dict[str, Any]:
         "label": normalized.get("feasibility_label") or "unavailable",
         "observedAt": normalized.get("observed_at"),
         "score": score if isinstance(score, int | float) else None,
+        "source": _text_or_none(normalized.get("source")) or stage.source.name,
         "status": status,
         "warnings": _sunlight_warnings(stage),
     }
@@ -130,6 +131,7 @@ def _air_context(stage: DebugStage) -> dict[str, Any]:
         },
         "riskLabel": normalized.get("air_risk_label") or "unavailable",
         "riskScore": risk_score if isinstance(risk_score, int | float) else None,
+        "source": _text_or_none(normalized.get("source")) or stage.source.name,
         "station": _station_summary(normalized.get("station")),
         "status": status,
         "warnings": _air_warnings(stage, status),

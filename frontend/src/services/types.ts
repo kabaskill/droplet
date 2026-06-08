@@ -155,6 +155,7 @@ export type RegionClimate = {
     }
     riskLabel: string
     riskScore: number | null
+    source: string
     station: {
       id: string | null
       name: string | null
@@ -195,6 +196,7 @@ export type RegionClimate = {
     label: string
     observedAt: string | null
     score: number | null
+    source: string
     status: string
     warnings: string[]
   }

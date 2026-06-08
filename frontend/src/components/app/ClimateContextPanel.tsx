@@ -86,6 +86,7 @@ export function ClimateContextPanel({
           <SourceMeta
             ageMinutes={climate.sunlight.ageMinutes}
             observedAt={climate.sunlight.observedAt}
+            source={climate.sunlight.source}
           />
           <WarningList warnings={climate.sunlight.warnings} />
         </ClimateSection>
@@ -124,11 +125,12 @@ export function ClimateContextPanel({
             />
           </div>
           <div className="mt-2 truncate text-xs text-muted-foreground">
-            Station: {climate.air.station?.name ?? "unavailable"}
+            Station: {stationLabel(climate.air.station)}
           </div>
           <SourceMeta
             ageMinutes={climate.air.ageMinutes}
             observedAt={climate.air.observedAt}
+            source={climate.air.source}
           />
           <WarningList warnings={climate.air.warnings} />
         </ClimateSection>
@@ -287,13 +289,21 @@ function ClimateMetric({ label, value }: ClimateMetricProps) {
 type SourceMetaProps = {
   ageMinutes: number | null
   observedAt: string | null
+  source: string | null
 }
 
-function SourceMeta({ ageMinutes, observedAt }: SourceMetaProps) {
+function SourceMeta({ ageMinutes, observedAt, source }: SourceMetaProps) {
   return (
-    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-      <span>Age: {ageMinutes === null ? "n/a" : `${ageMinutes} min`}</span>
-      <span>{observedAt ? new Date(observedAt).toLocaleString("en-DE") : "No timestamp"}</span>
+    <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+      <div className="truncate">Source: {source || "unavailable"}</div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>Age: {ageMinutes === null ? "n/a" : `${ageMinutes} min`}</span>
+        <span>
+          {observedAt
+            ? new Date(observedAt).toLocaleString("en-DE")
+            : "No timestamp"}
+        </span>
+      </div>
     </div>
   )
 }
@@ -476,6 +486,16 @@ function wattMetric(value: number | null) {
 
 function ratioMetric(value: number | null) {
   return value === null ? "n/a" : `${Math.round(value * 100)}%`
+}
+
+function stationLabel(station: RegionClimate["air"]["station"]) {
+  if (!station?.name) {
+    return "unavailable"
+  }
+
+  const details = [station.stationType, station.network].filter(Boolean)
+
+  return [station.name, ...details].join(" / ")
 }
 
 function formatNumber(value: number) {

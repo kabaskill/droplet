@@ -43,7 +43,7 @@ The Home page is the main operations view.
 - The map visualizes Germany by selected operational layer.
 - Regional filters narrow the map by status or risk profile.
 - Selecting a state opens detailed water level, rainfall, evaporation pressure, confidence, source, and trend data.
-- The climate context panel shows selected-state sunlight feasibility, air-quality risk, CO2 candidate source status, and climate read-model cache freshness.
+- The climate context panel shows selected-state sunlight feasibility, air-quality risk, normalized source labels, CO2 candidate source status, and climate read-model cache freshness.
 - The forecast panel shows 48-hour pressure outlooks when forecast coverage is available.
 - Offline state is detected in the browser, and cached read models are clearly labeled.
 

@@ -78,14 +78,15 @@ The endpoint:
 - Uses `CLIMATE_SOURCE_TIMEOUT_SECONDS`, defaulting to 8 seconds, for stable climate source requests.
 - Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, and whether an async refresh was started.
 - Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.
+- Includes compact source labels for normalized sunlight and air-quality readings without exposing debug request configuration or raw payload summaries.
 - Folds partial source failures into section warnings so one unavailable source does not fail the entire climate response.
 - Does not expose raw response summaries, request config, selected debug fields, or the debug-stage envelope.
 - Returns `404` with a structured error for unknown region ids.
 
 Response sections:
 
-- `sunlight`: `score`, feasibility `label`, `status`, `observedAt`, `ageMinutes`, irradiance values in `W/m2`, `clearSkyRatio`, `directLightShare`, and warnings.
-- `air`: `riskScore`, `riskLabel`, `status`, `observedAt`, `ageMinutes`, pollutant values in `ug/m3`, station summary, and warnings.
+- `sunlight`: `score`, feasibility `label`, `source`, `status`, `observedAt`, `ageMinutes`, irradiance values in `W/m2`, `clearSkyRatio`, `directLightShare`, and warnings.
+- `air`: `riskScore`, `riskLabel`, `source`, `status`, `observedAt`, `ageMinutes`, pollutant values in `ug/m3`, station summary, and warnings.
 - `cache`: cache `status`, `storedAt`, `freshUntil`, `staleUntil`, and `refreshStarted`.
 - `co2`: candidate source `status`, source name, required config, dataset candidates, blockers, and warnings.
 
