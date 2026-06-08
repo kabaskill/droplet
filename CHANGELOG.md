@@ -29,6 +29,7 @@
   - Added the same climate context to the mobile state detail sheet.
   - Surfaced climate read-model cache freshness in the climate panel header.
   - Aligned the frontend climate query freshness and retention windows with the backend climate cache.
+  - Showed all normalized air pollutant values in the climate panel.
   - Kept climate loading and error states local to the climate panel so map, snapshots, detail, and forecast remain usable.
   - Presented CO2 as candidate source metadata instead of a live operational score.
 - Updated docs for the stable climate endpoint, selected-region frontend behavior, and non-persistent climate data flow.

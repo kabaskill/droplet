@@ -110,6 +110,18 @@ export function ClimateContextPanel({
               label="NO2"
               value={pollutantMetric(climate.air.pollutants.no2)}
             />
+            <ClimateMetric
+              label="O3"
+              value={pollutantMetric(climate.air.pollutants.o3)}
+            />
+            <ClimateMetric
+              label="SO2"
+              value={pollutantMetric(climate.air.pollutants.so2)}
+            />
+            <ClimateMetric
+              label="CO"
+              value={pollutantMetric(climate.air.pollutants.co)}
+            />
           </div>
           <div className="mt-2 truncate text-xs text-muted-foreground">
             Station: {climate.air.station?.name ?? "unavailable"}
