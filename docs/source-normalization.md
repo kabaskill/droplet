@@ -39,7 +39,7 @@ The stable climate flow caches Open-Meteo solar archive payloads per region and 
 
 ## Air Quality
 
-`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates, compares usable candidates by pollutant coverage and observation freshness, and selects the best available station for the selected state.
+`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates, compares usable candidates by pollutant coverage and observation freshness, detects stale selected pollutant readings, and selects the best available station for the selected state.
 
 Normalized output:
 
@@ -54,7 +54,7 @@ Normalized output:
 
 The stable climate flow caches UBA station metadata with a 12-hour fresh window and a seven-day stale fallback window. UBA station/pollutant measurement payloads and Open-Meteo air-quality fallback payloads use a 30-minute fresh window and a three-hour stale fallback window. The debug source-normalization route can still run live source fetches for backend inspection.
 
-When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings.
+When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings. When fallback data contributes to the selected reading, its freshness and parseability warnings are retained in the stable warning pipeline.
 
 Stable endpoint warnings focus on unresolved selected-source gaps. Raw upstream timeout strings and warnings from skipped station candidates remain debug details rather than UI-facing messages.
 UBA carbon monoxide measurements are reported by the source in mg/m3 and converted to ug/m3 for the normalized contract.

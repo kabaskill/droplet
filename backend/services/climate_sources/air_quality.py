@@ -228,6 +228,9 @@ def build_air_quality_debug_stage(
             cache_enabled=cache_enabled,
         )
         selected["openMeteoFallback"] = comparison
+        fallback_warnings = (
+            list(comparison.get("warnings", [])) if comparison else []
+        )
         fallback = _normalized_air_quality_from_debug_dict(
             comparison.get("normalizedOutput") if comparison else None
         )
@@ -242,6 +245,7 @@ def build_air_quality_debug_stage(
                 errors = []
 
             normalized = fallback
+            selected_warnings.extend(fallback_warnings)
             selected.update(_air_reading_selected_fields(normalized))
         elif (
             normalized is not None
@@ -257,6 +261,10 @@ def build_air_quality_debug_stage(
                 selected_warnings,
                 filled_pollutants,
             )
+            if filled_pollutants:
+                selected_warnings.extend(
+                    _without_missing_pollutant_warnings(fallback_warnings)
+                )
             normalized = _merge_air_quality_readings(
                 normalized,
                 fallback,
@@ -480,7 +488,8 @@ def _station_request_summary(station: Mapping[str, Any]) -> dict[str, Any]:
         "name": station.get("name"),
         "network": station.get("network"),
         "setting": station.get("setting"),
-        "stationType": station.get("stationType"),
+        "stationType": station.get("stationType")
+        or station.get("station_type"),
     }
 
 
@@ -497,9 +506,19 @@ def normalize_uba_air_quality_payload(
         raise ValueError("UBA payload has no usable pollutant readings")
 
     observed_at = _latest_timestamp(readings)
-    values = {pollutant: _latest_value(readings, pollutant) for pollutant in POLLUTANTS}
+    values = {
+        pollutant: _latest_value(readings, pollutant)
+        for pollutant in POLLUTANTS
+    }
+    pollutant_timestamps = _latest_pollutant_timestamps(readings, values)
 
-    _append_air_quality_warnings(warnings, observed_at, values, "UBA")
+    _append_air_quality_warnings(
+        warnings,
+        observed_at,
+        values,
+        "UBA",
+        pollutant_timestamps=pollutant_timestamps,
+    )
 
     air_risk_score = _air_risk_score(values)
 
@@ -1018,6 +1037,33 @@ def _latest_timestamp(readings: list[Mapping[str, Any]]) -> datetime | None:
     return max(timestamps) if timestamps else None
 
 
+def _latest_pollutant_timestamps(
+    readings: list[Mapping[str, Any]],
+    values: Mapping[str, float | None],
+) -> dict[str, datetime | None]:
+    timestamps: dict[str, datetime | None] = {}
+
+    for pollutant, value in values.items():
+        if value is None:
+            timestamps[pollutant] = None
+            continue
+
+        pollutant_timestamps = [
+            parsed
+            for parsed in (
+                _parse_timestamp(item.get("timestamp"))
+                for item in readings
+                if _optional_float(item.get(pollutant)) is not None
+            )
+            if parsed is not None
+        ]
+        timestamps[pollutant] = (
+            max(pollutant_timestamps) if pollutant_timestamps else None
+        )
+
+    return timestamps
+
+
 def _air_risk_score(values: Mapping[str, float | None]) -> int:
     scores = []
 
@@ -1164,15 +1210,39 @@ def _append_air_quality_warnings(
     observed_at: datetime | None,
     values: Mapping[str, float | None],
     source_name: str,
+    pollutant_timestamps: Mapping[str, datetime | None] | None = None,
 ) -> None:
     if observed_at is None:
-        warnings.append(f"{source_name} air-quality observation has no parseable timestamp")
+        warnings.append(
+            f"{source_name} air-quality observation has no parseable timestamp"
+        )
     elif datetime.now(UTC) - observed_at > timedelta(hours=12):
         warnings.append(f"{source_name} air-quality reading is older than twelve hours")
 
     missing = [pollutant for pollutant, value in values.items() if value is None]
     if missing:
-        warnings.append(f"{source_name} missing pollutant readings: {', '.join(missing)}")
+        warnings.append(
+            f"{source_name} missing pollutant readings: {', '.join(missing)}"
+        )
+
+    if pollutant_timestamps:
+        present = [
+            pollutant
+            for pollutant, value in values.items()
+            if value is not None
+        ]
+        stale = [
+            pollutant
+            for pollutant in present
+            if pollutant_timestamps.get(pollutant) is not None
+            and datetime.now(UTC) - pollutant_timestamps[pollutant]
+            > timedelta(hours=12)
+        ]
+
+        if stale and len(stale) < len(present):
+            warnings.append(
+                f"{source_name} stale pollutant readings: {', '.join(stale)}"
+            )
 
 
 def _pollutant_key(value: Any) -> str | None:

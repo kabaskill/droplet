@@ -204,6 +204,12 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
                 "Missing pollutant readings: "
                 f"{_format_pollutant_list(missing.split(','))}"
             )
+        elif "stale pollutant readings:" in normalized:
+            stale = warning.split(":", 1)[1]
+            warnings.append(
+                "Stale pollutant readings: "
+                f"{_format_pollutant_list(stale.split(','))}"
+            )
         elif "air-quality reading is older than twelve hours" in normalized:
             warnings.append("Air quality reading is older than twelve hours")
         elif "no parseable timestamp" in normalized:

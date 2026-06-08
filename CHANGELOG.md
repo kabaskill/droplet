@@ -23,7 +23,9 @@
   - Treated zero-radiation solar rows as valid low-sunlight observations instead of partial source failures.
   - Sanitized stable climate warnings so raw upstream timeout strings stay in debug tooling only.
   - Selected UBA air-quality stations by pollutant coverage and observation freshness instead of first usable candidate.
+  - Detected stale pollutant-level UBA readings when selected pollutants have mixed observation times.
   - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.
+  - Preserved Open-Meteo fallback freshness and parseability warnings when fallback air-quality data contributes to the selected reading.
   - Kept stable air-quality warnings focused on selected unresolved gaps instead of warnings from skipped station candidates.
   - Normalized stable air-quality station summary fields to predictable strings and preserved UBA station type metadata.
   - Kept skipped UBA station candidate details out of stable air-quality warnings.
