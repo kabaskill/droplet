@@ -74,6 +74,18 @@ def read_stale_while_revalidate_json(
     return value
 
 
+def refresh_stale_while_revalidate_json(
+    key: str,
+    fresh_ttl_seconds: int,
+    stale_ttl_seconds: int,
+    loader: Callable[[], T],
+) -> T:
+    value = loader()
+    _write_stale_cache(key, fresh_ttl_seconds, stale_ttl_seconds, value)
+
+    return value
+
+
 def delete_cache_keys(keys: list[str]) -> None:
     if not keys:
         return

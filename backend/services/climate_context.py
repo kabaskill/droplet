@@ -3,6 +3,8 @@ from typing import Any
 
 import requests
 
+from backend.cache.keys import cache_key
+from backend.cache.redis_client import refresh_stale_while_revalidate_json
 from backend.domain.regions import STATE_REGIONS
 from backend.services.climate_sources.air_quality import build_air_quality_debug_stage
 from backend.services.climate_sources.co2 import (
@@ -15,6 +17,8 @@ from backend.services.climate_sources.contracts import DebugStage
 from backend.services.climate_sources.solar import build_solar_debug_stage
 
 CLIMATE_SOURCE_TIMEOUT_SECONDS = 8
+CLIMATE_CONTEXT_FRESH_TTL_SECONDS = 300
+CLIMATE_CONTEXT_STALE_TTL_SECONDS = 60 * 60
 
 
 class UnknownClimateRegionError(ValueError):
@@ -45,6 +49,19 @@ def build_region_climate_context(
         "regionId": region_id,
         "sunlight": _sunlight_context(solar),
     }
+
+
+def climate_context_cache_key(region_id: str) -> str:
+    return cache_key(f"climate:region:{region_id}")
+
+
+def refresh_region_climate_context_cache(region_id: str) -> dict[str, Any]:
+    return refresh_stale_while_revalidate_json(
+        climate_context_cache_key(region_id),
+        CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
+        CLIMATE_CONTEXT_STALE_TTL_SECONDS,
+        lambda: build_region_climate_context(region_id),
+    )
 
 
 def _validate_region_id(region_id: str) -> None:

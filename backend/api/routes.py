@@ -14,8 +14,11 @@ from backend.services.ai_analysis import (
 )
 from backend.services.analytics import build_analytics_summary
 from backend.services.climate_context import (
+    CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
+    CLIMATE_CONTEXT_STALE_TTL_SECONDS,
     UnknownClimateRegionError,
     build_region_climate_context,
+    climate_context_cache_key,
 )
 from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
@@ -25,8 +28,6 @@ from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
 DEFAULT_DEBUG_REGION_LIMIT = 1
-CLIMATE_CONTEXT_FRESH_TTL_SECONDS = 300
-CLIMATE_CONTEXT_STALE_TTL_SECONDS = 60 * 60
 
 
 @api_bp.get("/auth/config")
@@ -120,7 +121,7 @@ def source_health():
 def region_climate(region_id: str):
     try:
         payload = read_stale_while_revalidate_json(
-            cache_key(f"climate:region:{region_id}"),
+            climate_context_cache_key(region_id),
             CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
             CLIMATE_CONTEXT_STALE_TTL_SECONDS,
             lambda: build_region_climate_context(region_id),
