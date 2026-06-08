@@ -160,7 +160,7 @@ The frontend uses:
 - `use-droplet-data.ts` hooks for stable query keys and role-aware history limits.
 - A Zustand app store for selected region, active map layer, and regional filters.
 
-The Home dashboard fetches climate context only for the active selected region. Climate loading, error, and partial-source states are isolated inside the climate panel so map, snapshot, region detail, and forecast workflows continue to render when climate context is unavailable.
+The Home dashboard fetches climate context only for the active selected region. The frontend keeps each selected-region climate query fresh for five minutes and retains it for one hour, matching the backend read-model cache window. Climate loading, error, and partial-source states are isolated inside the climate panel so map, snapshot, region detail, and forecast workflows continue to render when climate context is unavailable.
 
 ## AI Analysis Flow
 

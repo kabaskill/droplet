@@ -19,6 +19,8 @@ import type { AiAnalysisRequest, ReservoirSnapshot } from "@/services/types"
 import { queryClient } from "@/app/query-client"
 
 const readModelVersion = "state-model-v2"
+const climateReadModelCacheMs = 60 * 60 * 1000
+const climateReadModelFreshMs = 5 * 60 * 1000
 
 export function useRegions() {
   return useQuery({
@@ -77,9 +79,11 @@ export function useForecastOutlook() {
 
 export function useRegionClimate(regionId: string | null) {
   return useQuery({
+    gcTime: climateReadModelCacheMs,
     enabled: Boolean(regionId),
     queryFn: () => fetchRegionClimate(regionId ?? ""),
     queryKey: ["climate", readModelVersion, "region", regionId],
+    staleTime: climateReadModelFreshMs,
   })
 }
 
