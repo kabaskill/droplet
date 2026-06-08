@@ -101,7 +101,7 @@ Frontend responsibilities:
 | `POST` | `/api/ai/analyze` | Yes | Run AI analysis for one or more snapshots. |
 | `GET` | `/api/ai/analyses` | Yes | List current user's saved analyses. |
 
-Climate context is authenticated but not role-gated beyond sign-in. It is cached per region with a 300 second fresh window and one-hour stale retention, can be refreshed in the background, and remains separate from persisted reservoir snapshot state.
+Climate context is authenticated but not role-gated beyond sign-in. It is cached per region with a 300 second fresh window and one-hour stale retention, returns compact cache metadata, can be refreshed in the background, and remains separate from persisted reservoir snapshot state.
 
 ## Deployment Shape
 

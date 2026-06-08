@@ -165,6 +165,13 @@ export type RegionClimate = {
     status: string
     warnings: string[]
   }
+  cache?: {
+    freshUntil: string | null
+    refreshStarted: boolean
+    staleUntil: string | null
+    status: "bypass" | "fresh" | "legacy" | "miss" | "stale" | "stored"
+    storedAt: string | null
+  }
   co2: {
     blockers: string[]
     datasetCandidates: string[]

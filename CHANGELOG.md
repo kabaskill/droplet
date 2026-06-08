@@ -6,6 +6,7 @@
   - Exposed authenticated `GET /api/climate/regions/<region_id>` for all signed-in users.
   - Added per-region Redis stale-while-revalidate caching with a 300 second fresh window and one-hour stale retention.
   - Added scheduled Celery refresh tasks for selected-region climate context caches.
+  - Added stable endpoint cache metadata so callers can distinguish fresh, stale, miss, and bypass responses.
   - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.
   - Kept raw response summaries, request config, selected debug fields, and debug-stage envelopes out of the stable endpoint.
   - Preserved `/api/debug/source-normalization` as backend inspection tooling.

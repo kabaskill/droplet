@@ -44,34 +44,63 @@ def read_stale_while_revalidate_json(
     stale_ttl_seconds: int,
     loader: Callable[[], T],
 ) -> T:
+    value, _metadata = read_stale_while_revalidate_json_with_metadata(
+        key,
+        fresh_ttl_seconds,
+        stale_ttl_seconds,
+        loader,
+    )
+
+    return value
+
+
+def read_stale_while_revalidate_json_with_metadata(
+    key: str,
+    fresh_ttl_seconds: int,
+    stale_ttl_seconds: int,
+    loader: Callable[[], T],
+) -> tuple[T, dict[str, Any]]:
     client = redis_client()
 
     try:
         cached = client.get(key)
 
         if cached:
-            value, fresh_until = _cached_value_and_fresh_until(cached)
+            value, metadata = _cached_value_and_metadata(cached)
+            fresh_until = _parse_datetime(metadata.get("freshUntil"))
 
             if fresh_until is not None and datetime.now(UTC) < fresh_until:
-                return value
+                return value, {**metadata, "refreshStarted": False, "status": "fresh"}
 
-            _start_cache_refresh(
+            refresh_started = _start_cache_refresh(
                 key,
                 fresh_ttl_seconds,
                 stale_ttl_seconds,
                 loader,
             )
 
-            return value
+            return value, {
+                **metadata,
+                "refreshStarted": refresh_started,
+                "status": "stale",
+            }
     except RedisError:
-        return loader()
+        return loader(), {
+            **_cache_metadata("bypass"),
+            "refreshStarted": False,
+        }
     except (TypeError, ValueError):
         pass
 
     value = loader()
-    _write_stale_cache(key, fresh_ttl_seconds, stale_ttl_seconds, value)
+    metadata = _write_stale_cache(
+        key,
+        fresh_ttl_seconds,
+        stale_ttl_seconds,
+        value,
+    )
 
-    return value
+    return value, {**metadata, "refreshStarted": False, "status": "miss"}
 
 
 def refresh_stale_while_revalidate_json(
@@ -96,13 +125,18 @@ def delete_cache_keys(keys: list[str]) -> None:
         pass
 
 
-def _cached_value_and_fresh_until(cached: bytes) -> tuple[Any, datetime | None]:
+def _cached_value_and_metadata(cached: bytes) -> tuple[Any, dict[str, Any]]:
     payload = json.loads(cached)
 
     if not isinstance(payload, dict) or payload.get("_cacheEnvelope") != "swr-json-v1":
-        return payload, None
+        return payload, _cache_metadata("legacy")
 
-    return payload.get("value"), _parse_datetime(payload.get("freshUntil"))
+    return payload.get("value"), _cache_metadata(
+        "cached",
+        fresh_until=_parse_datetime(payload.get("freshUntil")),
+        stale_until=_parse_datetime(payload.get("staleUntil")),
+        stored_at=_parse_datetime(payload.get("storedAt")),
+    )
 
 
 def _start_cache_refresh(
@@ -110,7 +144,7 @@ def _start_cache_refresh(
     fresh_ttl_seconds: int,
     stale_ttl_seconds: int,
     loader: Callable[[], T],
-) -> None:
+) -> bool:
     lock_key = f"{key}:refresh-lock"
 
     try:
@@ -121,10 +155,10 @@ def _start_cache_refresh(
             nx=True,
         )
     except RedisError:
-        return
+        return False
 
     if not acquired:
-        return
+        return False
 
     thread = threading.Thread(
         daemon=True,
@@ -132,6 +166,7 @@ def _start_cache_refresh(
         args=(key, fresh_ttl_seconds, stale_ttl_seconds, loader, lock_key),
     )
     thread.start()
+    return True
 
 
 def _refresh_stale_cache(
@@ -158,11 +193,14 @@ def _write_stale_cache(
     fresh_ttl_seconds: int,
     stale_ttl_seconds: int,
     value: Any,
-) -> None:
+) -> dict[str, Any]:
     now = datetime.now(UTC)
+    fresh_until = now + timedelta(seconds=fresh_ttl_seconds)
+    stale_until = now + timedelta(seconds=stale_ttl_seconds)
     envelope = {
         "_cacheEnvelope": "swr-json-v1",
-        "freshUntil": (now + timedelta(seconds=fresh_ttl_seconds)).isoformat(),
+        "freshUntil": fresh_until.isoformat(),
+        "staleUntil": stale_until.isoformat(),
         "storedAt": now.isoformat(),
         "value": value,
     }
@@ -175,6 +213,31 @@ def _write_stale_cache(
         )
     except RedisError:
         pass
+
+    return _cache_metadata(
+        "stored",
+        fresh_until=fresh_until,
+        stale_until=stale_until,
+        stored_at=now,
+    )
+
+
+def _cache_metadata(
+    status: str,
+    fresh_until: datetime | None = None,
+    stale_until: datetime | None = None,
+    stored_at: datetime | None = None,
+) -> dict[str, Any]:
+    return {
+        "freshUntil": _datetime_isoformat(fresh_until),
+        "staleUntil": _datetime_isoformat(stale_until),
+        "status": status,
+        "storedAt": _datetime_isoformat(stored_at),
+    }
+
+
+def _datetime_isoformat(value: datetime | None) -> str | None:
+    return value.isoformat() if value is not None else None
 
 
 def _parse_datetime(value: Any) -> datetime | None:

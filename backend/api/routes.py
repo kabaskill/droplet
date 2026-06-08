@@ -3,7 +3,10 @@ from flask import Blueprint, g, jsonify, request
 from backend.auth.decorators import require_auth
 from backend.auth.keycloak import auth_config as build_auth_config
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_stale_while_revalidate_json, read_through_json
+from backend.cache.redis_client import (
+    read_stale_while_revalidate_json_with_metadata,
+    read_through_json,
+)
 from backend.repositories.ai_analyses import list_ai_analyses, save_ai_analysis
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
@@ -120,7 +123,7 @@ def source_health():
 @require_auth()
 def region_climate(region_id: str):
     try:
-        payload = read_stale_while_revalidate_json(
+        payload, cache_metadata = read_stale_while_revalidate_json_with_metadata(
             climate_context_cache_key(region_id),
             CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
             CLIMATE_CONTEXT_STALE_TTL_SECONDS,
@@ -129,7 +132,7 @@ def region_climate(region_id: str):
     except UnknownClimateRegionError as exc:
         return jsonify({"code": "unknown_region", "error": str(exc)}), 404
 
-    return jsonify(payload)
+    return jsonify({**payload, "cache": cache_metadata})
 
 
 @api_bp.get("/debug/source-normalization")

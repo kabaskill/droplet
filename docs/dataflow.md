@@ -139,7 +139,7 @@ The backend builds several read models from persisted snapshots:
 | Region climate context | `/api/climate/regions/<region_id>` | 300s fresh, 3600s stale | Selected-state sunlight, air quality, and CO2 source-status context. |
 | AI analyses | `/api/ai/analyses` | none | User-specific analysis history. |
 
-Snapshot-backed cache keys are invalidated after snapshot ingestion creates, updates, or deletes data. Climate context is not persisted snapshot state, so it uses per-region stale-while-revalidate cache entries instead: a fresh read model is served for 300 seconds, stale entries can be served for up to one hour, and expired-fresh entries trigger background refresh. Celery can also pre-refresh climate context for all supported states on the `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES` schedule. Inside each refresh, stable-flow source caches reduce repeated UBA and Open-Meteo calls.
+Snapshot-backed cache keys are invalidated after snapshot ingestion creates, updates, or deletes data. Climate context is not persisted snapshot state, so it uses per-region stale-while-revalidate cache entries instead: a fresh read model is served for 300 seconds, stale entries can be served for up to one hour, and expired-fresh entries trigger background refresh. The climate response includes a compact `cache` section so callers can see whether the payload was fresh, stale, a miss, or a cache bypass. Celery can also pre-refresh climate context for all supported states on the `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES` schedule. Inside each refresh, stable-flow source caches reduce repeated UBA and Open-Meteo calls.
 
 ## Frontend Data Flow
 
