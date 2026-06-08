@@ -188,8 +188,14 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
             warnings.append("Air quality observation timestamp unavailable")
         elif "open-meteo air-quality fallback unavailable" in normalized:
             warnings.append("Open-Meteo air-quality fallback unavailable")
+        elif "open-meteo filled missing uba pollutant readings:" in normalized:
+            warnings.append(warning)
+        elif "using open-meteo air-quality fallback" in normalized:
+            warnings.append("Using Open-Meteo air-quality fallback")
         elif "measurement unavailable" in normalized:
             warnings.append("Some UBA pollutant measurements were unavailable")
+        elif "better pollutant coverage" in normalized:
+            warnings.append("Using nearby UBA station with better pollutant coverage")
         elif "station" in normalized and "skipped" in normalized:
             warnings.append("Some nearby UBA stations lacked usable readings")
 

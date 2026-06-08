@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Mapping
 
@@ -40,6 +41,14 @@ OPEN_METEO_CURRENT_FIELDS = (
     "carbon_monoxide",
 )
 POLLUTANTS = ("pm25", "pm10", "no2", "o3", "so2", "co")
+POLLUTANT_LABELS = {
+    "co": "CO",
+    "no2": "NO2",
+    "o3": "O3",
+    "pm10": "PM10",
+    "pm25": "PM2.5",
+    "so2": "SO2",
+}
 UBA_COMPONENT_IDS = {
     "pm10": "1",
     "co": "2",
@@ -123,8 +132,9 @@ def build_air_quality_debug_stage(
         readings_payload = {}
         measurement_requests = {}
         normalized = None
+        candidate_results: list[dict[str, Any]] = []
 
-        for candidate in station_candidates:
+        for index, candidate in enumerate(station_candidates):
             (
                 candidate_payload,
                 candidate_requests,
@@ -141,35 +151,55 @@ def build_air_quality_debug_stage(
                 **request.get("measurementAttempts", {}),
                 candidate["id"]: candidate_requests,
             }
+            candidate_normalization_warnings = list(candidate_warnings)
 
             try:
-                normalized = normalize_uba_air_quality_payload(
+                candidate_normalized = normalize_uba_air_quality_payload(
                     region_id,
                     candidate,
                     candidate_payload,
-                    warnings,
+                    candidate_normalization_warnings,
                 )
             except ValueError as exc:
-                warnings.append(
-                    f"UBA station {candidate['id']} skipped: {exc}"
-                )
+                request["measurementAttempts"][candidate["id"]]["skipped"] = str(exc)
                 continue
 
-            station = candidate
-            readings_payload = candidate_payload
-            measurement_requests = candidate_requests
-            break
+            candidate_results.append(
+                {
+                    "candidateIndex": index,
+                    "normalized": candidate_normalized,
+                    "payload": candidate_payload,
+                    "requests": candidate_requests,
+                    "station": candidate,
+                    "warnings": candidate_normalization_warnings,
+                }
+            )
 
-        if normalized is None:
+            if _pollutant_coverage(candidate_normalized) == len(POLLUTANTS):
+                break
+
+        if not candidate_results:
             raise ValueError("no usable UBA readings from nearby station candidates")
 
+        selected_result = max(candidate_results, key=_air_candidate_score)
+        normalized = selected_result["normalized"]
+        selected_warnings = selected_result["warnings"]
+        station = selected_result["station"]
+        readings_payload = selected_result["payload"]
+        measurement_requests = selected_result["requests"]
         request["measurements"] = measurement_requests
+        request["selectedStation"] = _station_request_summary(station)
+        request["selectedStationCandidateIndex"] = selected_result["candidateIndex"]
         selected = _selected_air_fields(station, readings_payload)
         raw_summary = {
             "readings": _payload_summary(readings_payload),
             "stationCount": _station_count(stations_payload),
             "stationCandidatesTried": len(request.get("measurementAttempts", {})),
         }
+        if selected_result["candidateIndex"] > 0:
+            warnings.append(
+                "UBA selected a nearby station with better pollutant coverage"
+            )
     except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
         errors.append(str(exc))
         station = None
@@ -177,10 +207,32 @@ def build_air_quality_debug_stage(
         normalized = None
         selected = {}
         raw_summary = None
+        selected_warnings = []
 
-    if normalized is None and include_open_meteo_comparison:
+    if include_open_meteo_comparison and _needs_open_meteo_air_quality(normalized):
         comparison = _open_meteo_comparison(region_id, session, timeout, warnings)
         selected["openMeteoFallback"] = comparison
+        fallback = _normalized_air_quality_from_debug_dict(
+            comparison.get("normalizedOutput") if comparison else None
+        )
+
+        if normalized is None and fallback is not None:
+            if errors:
+                warnings.append("Using Open-Meteo air-quality fallback")
+                errors = []
+
+            normalized = fallback
+            selected.update(_air_reading_selected_fields(normalized))
+        elif normalized is not None and fallback is not None:
+            selected_warnings = _without_missing_pollutant_warnings(selected_warnings)
+            normalized = _merge_air_quality_readings(
+                normalized,
+                fallback,
+                warnings,
+            )
+            selected.update(_air_reading_selected_fields(normalized))
+
+    warnings.extend(selected_warnings)
 
     if http is None:
         session.close()
@@ -454,6 +506,154 @@ def normalize_open_meteo_air_quality_payload(
         station=None,
         status=_air_quality_status(values, observed_at),
         units=AIR_QUALITY_UNITS,
+    )
+
+
+def _air_candidate_score(result: Mapping[str, Any]) -> tuple[int, float, int]:
+    normalized = result["normalized"]
+    observed_at = normalized.observed_at
+    observed_score = observed_at.timestamp() if observed_at is not None else 0
+
+    return (
+        _pollutant_coverage(normalized),
+        observed_score,
+        -int(result["candidateIndex"]),
+    )
+
+
+def _pollutant_coverage(reading: NormalizedAirQualityReading) -> int:
+    return len(
+        [
+            value
+            for value in _air_quality_values(reading).values()
+            if value is not None
+        ]
+    )
+
+
+def _needs_open_meteo_air_quality(
+    reading: NormalizedAirQualityReading | None,
+) -> bool:
+    if reading is None:
+        return True
+
+    return _pollutant_coverage(reading) < len(POLLUTANTS)
+
+
+def _normalized_air_quality_from_debug_dict(
+    value: Any,
+) -> NormalizedAirQualityReading | None:
+    if not isinstance(value, Mapping):
+        return None
+
+    return NormalizedAirQualityReading(
+        age_minutes=_optional_int(value.get("age_minutes")),
+        air_risk_label=str(value.get("air_risk_label") or "low"),
+        air_risk_score=_optional_int(value.get("air_risk_score")) or 0,
+        co_ug_m3=_optional_float(value.get("co_ug_m3")),
+        no2_ug_m3=_optional_float(value.get("no2_ug_m3")),
+        o3_ug_m3=_optional_float(value.get("o3_ug_m3")),
+        observed_at=_parse_timestamp(value.get("observed_at")),
+        pm10_ug_m3=_optional_float(value.get("pm10_ug_m3")),
+        pm25_ug_m3=_optional_float(value.get("pm25_ug_m3")),
+        region_id=str(value.get("region_id") or ""),
+        so2_ug_m3=_optional_float(value.get("so2_ug_m3")),
+        source=str(value.get("source") or OPEN_METEO_AIR_SOURCE.name),
+        station=value.get("station")
+        if isinstance(value.get("station"), dict)
+        else None,
+        status=str(value.get("status") or "unavailable"),
+        units=value.get("units")
+        if isinstance(value.get("units"), dict)
+        else AIR_QUALITY_UNITS,
+    )
+
+
+def _merge_air_quality_readings(
+    primary: NormalizedAirQualityReading,
+    fallback: NormalizedAirQualityReading,
+    warnings: list[str],
+) -> NormalizedAirQualityReading:
+    values = _air_quality_values(primary)
+    fallback_values = _air_quality_values(fallback)
+    filled_pollutants = []
+
+    for pollutant in POLLUTANTS:
+        if values[pollutant] is None and fallback_values[pollutant] is not None:
+            values[pollutant] = fallback_values[pollutant]
+            filled_pollutants.append(pollutant)
+
+    if not filled_pollutants:
+        return primary
+
+    observed_at = _latest_observed_at(primary.observed_at, fallback.observed_at)
+    risk_score = _air_risk_score(values)
+    warnings.append(
+        "Open-Meteo filled missing UBA pollutant readings: "
+        f"{_pollutant_display_list(filled_pollutants)}"
+    )
+
+    return replace(
+        primary,
+        age_minutes=_age_minutes(observed_at),
+        air_risk_label=_air_risk_label(risk_score),
+        air_risk_score=risk_score,
+        co_ug_m3=values["co"],
+        no2_ug_m3=values["no2"],
+        o3_ug_m3=values["o3"],
+        observed_at=observed_at,
+        pm10_ug_m3=values["pm10"],
+        pm25_ug_m3=values["pm25"],
+        so2_ug_m3=values["so2"],
+        source=f"{UBA_SOURCE.name}, {OPEN_METEO_AIR_SOURCE.name}",
+        status=_air_quality_status(values, observed_at),
+    )
+
+
+def _without_missing_pollutant_warnings(warnings: list[str]) -> list[str]:
+    return [
+        warning
+        for warning in warnings
+        if "missing pollutant readings:" not in warning.lower()
+    ]
+
+
+def _air_quality_values(
+    reading: NormalizedAirQualityReading,
+) -> dict[str, float | None]:
+    return {
+        "co": reading.co_ug_m3,
+        "no2": reading.no2_ug_m3,
+        "o3": reading.o3_ug_m3,
+        "pm10": reading.pm10_ug_m3,
+        "pm25": reading.pm25_ug_m3,
+        "so2": reading.so2_ug_m3,
+    }
+
+
+def _air_reading_selected_fields(
+    reading: NormalizedAirQualityReading,
+) -> dict[str, Any]:
+    return {
+        "pollutants": _air_quality_values(reading),
+        "station": reading.station,
+        "timestamp": reading.observed_at.isoformat() if reading.observed_at else None,
+    }
+
+
+def _latest_observed_at(
+    primary: datetime | None,
+    fallback: datetime | None,
+) -> datetime | None:
+    values = [value for value in (primary, fallback) if value is not None]
+
+    return max(values) if values else None
+
+
+def _pollutant_display_list(pollutants: list[str]) -> str:
+    return ", ".join(
+        POLLUTANT_LABELS.get(pollutant, pollutant.upper())
+        for pollutant in pollutants
     )
 
 
@@ -856,6 +1056,12 @@ def _optional_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _optional_int(value: Any) -> int | None:
+    parsed = _optional_float(value)
+
+    return round(parsed) if parsed is not None else None
 
 
 def _convert_pollutant_value(pollutant: str, value: Any) -> float | None:
