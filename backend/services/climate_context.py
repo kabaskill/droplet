@@ -17,8 +17,20 @@ from backend.services.climate_sources.co2 import (
 from backend.services.climate_sources.contracts import DebugStage
 from backend.services.climate_sources.solar import build_solar_debug_stage
 
-CLIMATE_SOURCE_TIMEOUT_SECONDS = float(
-    os.getenv("CLIMATE_SOURCE_TIMEOUT_SECONDS", "8")
+
+def _positive_float_env(name: str, fallback: float) -> float:
+    try:
+        value = float(os.getenv(name, str(fallback)))
+    except (TypeError, ValueError):
+        return fallback
+
+    return value if value > 0 else fallback
+
+
+CLIMATE_SOURCE_TIMEOUT_SECONDS = 8.0
+CLIMATE_SOURCE_TIMEOUT_SECONDS = _positive_float_env(
+    "CLIMATE_SOURCE_TIMEOUT_SECONDS",
+    CLIMATE_SOURCE_TIMEOUT_SECONDS,
 )
 CLIMATE_CONTEXT_FRESH_TTL_SECONDS = 300
 CLIMATE_CONTEXT_STALE_TTL_SECONDS = 60 * 60
