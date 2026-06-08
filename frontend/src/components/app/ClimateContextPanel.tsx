@@ -303,14 +303,30 @@ function WarningList({ warnings }: { warnings: string[] }) {
     return null
   }
 
+  const visibleWarnings = warnings.slice(0, 2)
+  const hiddenWarningCount = warnings.length - visibleWarnings.length
+
   return (
     <div className="mt-2 grid gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-      {warnings.slice(0, 2).map((warning) => (
-        <div className="flex min-w-0 items-start gap-1.5" key={warning}>
-          <ProductIcon className="mt-0.5 shrink-0" icon={Alert01Icon} size={13} />
+      {visibleWarnings.map((warning, index) => (
+        <div
+          className="flex min-w-0 items-start gap-1.5"
+          key={`${warning}-${index}`}
+        >
+          <ProductIcon
+            className="mt-0.5 shrink-0"
+            icon={Alert01Icon}
+            size={13}
+          />
           <span className="min-w-0 break-words">{warning}</span>
         </div>
       ))}
+      {hiddenWarningCount > 0 ? (
+        <div className="pl-[19px] text-amber-800 dark:text-amber-300">
+          +{hiddenWarningCount} more warning
+          {hiddenWarningCount === 1 ? "" : "s"}
+        </div>
+      ) : null}
     </div>
   )
 }
