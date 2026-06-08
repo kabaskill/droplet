@@ -359,7 +359,7 @@ function StatusBadge({
 }
 
 function overallStatusLabel(climate: RegionClimate) {
-  const statuses = [climate.sunlight.status, climate.air.status, climate.co2.status]
+  const statuses = [climate.sunlight.status, climate.air.status]
 
   if (statuses.some((status) => status === "unavailable")) {
     return "Partial"
