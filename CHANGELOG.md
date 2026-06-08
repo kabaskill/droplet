@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-08
+
+- Added the Phase 3 selected-region climate context read model:
+  - Exposed authenticated `GET /api/climate/regions/<region_id>` for all signed-in users.
+  - Added per-region Redis caching with a 300 second TTL.
+  - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.
+  - Kept raw response summaries, request config, selected debug fields, and debug-stage envelopes out of the stable endpoint.
+  - Preserved `/api/debug/source-normalization` as backend inspection tooling.
+- Added frontend climate context support:
+  - Added typed climate API models, `fetchRegionClimate`, `useRegionClimate`, and demo fallback data.
+  - Rendered selected-state climate context in the Home right rail between region detail and forecast.
+  - Added the same climate context to the mobile state detail sheet.
+  - Kept climate loading and error states local to the climate panel so map, snapshots, detail, and forecast remain usable.
+  - Presented CO2 as candidate source metadata instead of a live operational score.
+- Updated docs for the stable climate endpoint, selected-region frontend behavior, and non-persistent climate data flow.
+
 ## 2026-05-30
 
 - Added the Phase 2 climate source normalization plan for backend-only solar, air-quality, and exploratory CO2 source work.

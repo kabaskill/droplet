@@ -1,6 +1,8 @@
 # Source Normalization
 
-Droplet normalizes external climate sources in source-family modules. Phase 2 keeps these climate readings backend-only and does not persist them into reservoir snapshots.
+Droplet normalizes external climate sources in source-family modules. Climate readings remain non-persistent contextual data and are not stored in reservoir snapshots.
+
+Phase 3 adds a stable selected-region climate read model for the frontend while keeping the debug source-normalization route available for backend inspection.
 
 ## Existing Water And Weather
 
@@ -53,6 +55,27 @@ UBA carbon monoxide measurements are reported by the source in mg/m3 and convert
 
 The module returns a structured candidate response with dataset candidates, region target coordinates, required configuration, known blockers, expected fields, and implementation notes instead of blocking on credentials or dataset workflow setup.
 
+## Stable Climate Context Endpoint
+
+`GET /api/climate/regions/<region_id>` exposes the UI-facing climate read model for one selected state.
+
+The endpoint:
+
+- Requires authentication with `@require_auth()` and is readable by all signed-in roles.
+- Uses a per-region Redis read-through cache with a 300 second TTL.
+- Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.
+- Folds partial source failures into section warnings so one unavailable source does not fail the entire climate response.
+- Does not expose raw response summaries, request config, selected debug fields, or the debug-stage envelope.
+- Returns `404` with a structured error for unknown region ids.
+
+Response sections:
+
+- `sunlight`: `score`, feasibility `label`, `status`, `observedAt`, `ageMinutes`, irradiance values in `W/m2`, `clearSkyRatio`, `directLightShare`, and warnings.
+- `air`: `riskScore`, `riskLabel`, `status`, `observedAt`, `ageMinutes`, pollutant values in `ug/m3`, station summary, and warnings.
+- `co2`: candidate source `status`, source name, required config, dataset candidates, blockers, and warnings.
+
+CO2 remains candidate metadata. It should not be interpreted as a live measured operational score.
+
 ## Debug Stages
 
 `backend/services/climate_sources/contracts.py` defines the shared debug-stage envelope:
@@ -85,4 +108,4 @@ Section names are case-insensitive. Supported aliases include `solar` and `radia
 
 Both `/api/debug/source-normalization` and `/api/debug/source-normalization/` resolve to the debug response.
 
-The route is intentionally unprotected in Phase 2 and should remain temporary backend debug tooling, not a durable public API.
+The route remains backend inspection tooling, not the frontend API. The frontend consumes `/api/climate/regions/<region_id>` instead.

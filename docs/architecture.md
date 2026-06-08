@@ -55,7 +55,7 @@ Backend responsibilities are intentionally separated:
 - `domain/` contains pure region and snapshot computation rules.
 - `models/` defines SQLAlchemy database entities and sessions.
 - `repositories/` maps database rows into API-friendly objects.
-- `services/` builds read models, forecasts, source health, ingestion status, and AI analysis.
+- `services/` builds read models, forecasts, source health, selected-region climate context, ingestion status, and AI analysis.
 - `tasks/` runs ingestion in Celery and invalidates affected cache keys.
 - `workers/` configures Celery broker, result backend, and beat schedule.
 
@@ -97,8 +97,11 @@ Frontend responsibilities:
 | `GET` | `/api/analytics/summary` | Analyst or municipality | Aggregate dashboard metrics. |
 | `GET` | `/api/sources/health` | Analyst or municipality | Source coverage and confidence. |
 | `GET` | `/api/forecasts/outlook` | Analyst or municipality | 48-hour forecast pressure outlook. |
+| `GET` | `/api/climate/regions/<region_id>` | Yes | Selected-region sunlight, air-quality, and CO2 source context. |
 | `POST` | `/api/ai/analyze` | Yes | Run AI analysis for one or more snapshots. |
 | `GET` | `/api/ai/analyses` | Yes | List current user's saved analyses. |
+
+Climate context is authenticated but not role-gated beyond sign-in. It is cached per region for 300 seconds and remains separate from persisted reservoir snapshot state.
 
 ## Deployment Shape
 

@@ -2,7 +2,7 @@
 
 Droplet converts live environmental observations into normalized reservoir snapshots, then exposes read models optimized for the frontend.
 
-Phase 2 adds backend-only climate source normalization for sunlight, air quality, and exploratory CO2 context. These new normalized climate readings are not persisted into reservoir snapshots yet.
+Climate source normalization for sunlight, air quality, and exploratory CO2 context is exposed as selected-region context. These normalized climate readings are not persisted into reservoir snapshots.
 
 ## End-To-End Flow
 
@@ -13,14 +13,18 @@ flowchart TD
   C[Open-Meteo fallback weather] --> D
   S[Open-Meteo satellite radiation] --> SD[Sunlight normalization]
   AQ[UBA Luftdaten stations] --> AD[Air-quality normalization]
-  C2[Copernicus/CAMS research path] --> CD[CO2 candidate debug]
+  C2[Copernicus/CAMS research path] --> CD[CO2 candidate context]
   F[Static fallback readings] --> D
   D --> E[Snapshot computation]
   E --> G[Historical trend adjustment]
   G --> H[(PostgreSQL reservoir_snapshots)]
   H --> I[Repository queries]
   I --> J[Read-model services]
+  SD --> CJ[Climate context read model]
+  AD --> CJ
+  CD --> CJ
   J --> K[(Redis cache)]
+  CJ --> K
   K --> L[Flask API responses]
   L --> M[React Query cache]
   M --> N[Dashboard panels]
@@ -44,8 +48,9 @@ Climate source normalization is split by source family:
 - `backend/services/climate_sources/solar.py` fetches Open-Meteo radiation fields and normalizes current irradiance, clear-sky ratio, direct-light share, timestamp, source metadata, and a solar feasibility score.
 - `backend/services/climate_sources/air_quality.py` selects usable UBA stations, normalizes pollutant readings, and can attach Open-Meteo air-quality comparison data when UBA coverage is unavailable.
 - `backend/services/climate_sources/co2.py` records the CAMS/Copernicus research candidate and expected normalization fields without blocking on credentials.
+- `backend/services/climate_context.py` maps normalized source stages into the stable `/api/climate/regions/<region_id>` read model used by the selected-state Home workflow.
 
-Raw source payloads are summarized for debug visibility only. The durable reservoir snapshot model continues to use the existing water/weather ingestion path until a later phase explicitly integrates climate signals into persistence.
+Raw source payloads are summarized for debug visibility only. The stable climate context endpoint exposes compact sunlight, air-quality, and CO2 source status fields without raw responses, request config, or selected debug fields. The durable reservoir snapshot model continues to use the existing water/weather ingestion path until a later phase explicitly integrates climate signals into persistence.
 
 ## Snapshot Computation
 
@@ -130,9 +135,10 @@ The backend builds several read models from persisted snapshots:
 | Analytics summary | `/api/analytics/summary` | 120s | Dashboard summary metrics. |
 | Source health | `/api/sources/health` | 120s | Source coverage and reliability. |
 | Forecast outlook | `/api/forecasts/outlook` | 900s | 48-hour pressure estimates. |
+| Region climate context | `/api/climate/regions/<region_id>` | 300s | Selected-state sunlight, air quality, and CO2 source-status context. |
 | AI analyses | `/api/ai/analyses` | none | User-specific analysis history. |
 
-Cache keys are invalidated after snapshot ingestion creates, updates, or deletes data.
+Snapshot-backed cache keys are invalidated after snapshot ingestion creates, updates, or deletes data. Climate context is fetched on demand per selected region and expires by TTL because it is not persisted snapshot state.
 
 ## Frontend Data Flow
 
@@ -152,6 +158,8 @@ The frontend uses:
 - TanStack Query for server-state caching, loading, error, and retry behavior.
 - `use-droplet-data.ts` hooks for stable query keys and role-aware history limits.
 - A Zustand app store for selected region, active map layer, and regional filters.
+
+The Home dashboard fetches climate context only for the active selected region. Climate loading, error, and partial-source states are isolated inside the climate panel so map, snapshot, region detail, and forecast workflows continue to render when climate context is unavailable.
 
 ## AI Analysis Flow
 
