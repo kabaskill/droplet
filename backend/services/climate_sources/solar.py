@@ -3,6 +3,8 @@ from typing import Any, Mapping
 
 import requests
 
+from backend.cache.keys import cache_key
+from backend.cache.redis_client import read_through_json
 from backend.domain.snapshots import clamp
 from backend.services.climate_sources.contracts import (
     DebugStage,
@@ -13,6 +15,7 @@ from backend.services.climate_sources.contracts import (
 from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
 OPEN_METEO_SATELLITE_RADIATION_URL = "https://satellite-api.open-meteo.com/v1/archive"
+OPEN_METEO_SOLAR_CACHE_TTL_SECONDS = 30 * 60
 SOLAR_SOURCE = SourceMetadata(
     name="Open-Meteo Satellite Radiation API",
     url="https://open-meteo.com/en/docs/satellite-radiation-api",
@@ -41,6 +44,7 @@ def build_solar_debug_stage(
     region_id: str,
     http: requests.Session | None = None,
     timeout: float = 8,
+    cache_enabled: bool = False,
 ) -> DebugStage:
     target = REGION_SOURCE_TARGETS[region_id]
     end_date = datetime.now(UTC).date()
@@ -54,6 +58,7 @@ def build_solar_debug_stage(
         "timezone": "UTC",
     }
     request = {
+        "cacheEnabled": cache_enabled,
         "method": "GET",
         "params": params,
         "url": OPEN_METEO_SATELLITE_RADIATION_URL,
@@ -63,13 +68,11 @@ def build_solar_debug_stage(
     session = http or requests.Session()
 
     try:
-        response = session.get(
-            OPEN_METEO_SATELLITE_RADIATION_URL,
-            params=params,
-            timeout=timeout,
+        payload = (
+            fetch_cached_solar_payload(region_id, session, params, timeout)
+            if cache_enabled
+            else fetch_solar_payload(session, params, timeout)
         )
-        response.raise_for_status()
-        payload = response.json()
         normalized = normalize_solar_payload(region_id, payload, warnings)
         raw_summary = _solar_raw_summary(payload)
         selected = _selected_solar_fields(payload)
@@ -90,6 +93,42 @@ def build_solar_debug_stage(
         warnings=warnings,
         errors=errors,
         source=SOLAR_SOURCE,
+    )
+
+
+def fetch_solar_payload(
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float = 8,
+) -> Any:
+    response = http.get(
+        OPEN_METEO_SATELLITE_RADIATION_URL,
+        params=params,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+
+def fetch_cached_solar_payload(
+    region_id: str,
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float = 8,
+) -> Any:
+    return read_through_json(
+        cache_key(_solar_cache_name(region_id, params)),
+        OPEN_METEO_SOLAR_CACHE_TTL_SECONDS,
+        lambda: fetch_solar_payload(http, params, timeout),
+    )
+
+
+def _solar_cache_name(region_id: str, params: Mapping[str, Any]) -> str:
+    return (
+        f"climate:open-meteo:solar:region:{region_id}:"
+        f"from:{params.get('start_date')}:to:{params.get('end_date')}:"
+        f"hourly:{params.get('hourly')}"
     )
 
 

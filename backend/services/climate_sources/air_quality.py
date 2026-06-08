@@ -22,6 +22,7 @@ UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
 UBA_STATION_CANDIDATE_LIMIT = 6
 UBA_STATIONS_CACHE_TTL_SECONDS = 12 * 60 * 60
 UBA_MEASUREMENTS_CACHE_TTL_SECONDS = 30 * 60
+OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS = 30 * 60
 UBA_SOURCE = SourceMetadata(
     name="Umweltbundesamt Luftdaten API",
     url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",
@@ -100,6 +101,7 @@ def build_air_quality_debug_stage(
 ) -> DebugStage:
     data_params = _measurement_window_params()
     request = {
+        "cacheEnabled": cache_enabled,
         "method": "GET",
         "primary": {"params": UBA_STATION_PARAMS, "url": UBA_STATIONS_URL},
         "readings": {"params": data_params, "url": UBA_MEASURES_URL},
@@ -215,7 +217,13 @@ def build_air_quality_debug_stage(
         selected_warnings = []
 
     if include_open_meteo_comparison and _needs_open_meteo_air_quality(normalized):
-        comparison = _open_meteo_comparison(region_id, session, timeout, warnings)
+        comparison = _open_meteo_comparison(
+            region_id,
+            session,
+            timeout,
+            warnings,
+            cache_enabled=cache_enabled,
+        )
         selected["openMeteoFallback"] = comparison
         fallback = _normalized_air_quality_from_debug_dict(
             comparison.get("normalizedOutput") if comparison else None
@@ -734,6 +742,7 @@ def _open_meteo_comparison(
     http: requests.Session,
     timeout: float,
     warnings: list[str],
+    cache_enabled: bool = False,
 ) -> dict[str, Any] | None:
     target = REGION_SOURCE_TARGETS[region_id]
     params = {
@@ -746,9 +755,11 @@ def _open_meteo_comparison(
     fallback_errors: list[str] = []
 
     try:
-        response = http.get(OPEN_METEO_AIR_QUALITY_URL, params=params, timeout=timeout)
-        response.raise_for_status()
-        payload = response.json()
+        payload = (
+            _fetch_cached_open_meteo_air_quality(region_id, http, params, timeout)
+            if cache_enabled
+            else _fetch_open_meteo_air_quality(http, params, timeout)
+        )
     except (requests.RequestException, ValueError) as exc:
         warnings.append(f"Open-Meteo air-quality fallback unavailable: {exc}")
         return None
@@ -766,12 +777,50 @@ def _open_meteo_comparison(
     return {
         "errors": fallback_errors,
         "normalizedOutput": dataclass_to_debug_dict(normalized),
-        "request": {"params": params, "url": OPEN_METEO_AIR_QUALITY_URL},
+        "request": {
+            "cacheEnabled": cache_enabled,
+            "params": params,
+            "url": OPEN_METEO_AIR_QUALITY_URL,
+        },
         "rawSummary": _payload_summary(payload),
         "selectedFields": _selected_open_meteo_air_fields(payload),
         "source": dataclass_to_debug_dict(OPEN_METEO_AIR_SOURCE),
         "warnings": fallback_warnings,
     }
+
+
+def _fetch_open_meteo_air_quality(
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    response = http.get(OPEN_METEO_AIR_QUALITY_URL, params=params, timeout=timeout)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def _fetch_cached_open_meteo_air_quality(
+    region_id: str,
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    return read_through_json(
+        cache_key(_open_meteo_air_quality_cache_name(region_id, params)),
+        OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS,
+        lambda: _fetch_open_meteo_air_quality(http, params, timeout),
+    )
+
+
+def _open_meteo_air_quality_cache_name(
+    region_id: str,
+    params: Mapping[str, Any],
+) -> str:
+    return (
+        f"climate:open-meteo:air-quality:region:{region_id}:"
+        f"current:{params.get('current')}"
+    )
 
 
 def _extract_pollutant_readings(payload: Any) -> list[dict[str, Any]]:
