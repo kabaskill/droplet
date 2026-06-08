@@ -18,6 +18,7 @@
   - Cached Open-Meteo solar and air-quality fallback payloads for the stable climate flow.
   - Added stale fallback windows to stable-flow climate source caches so recently expired payloads can remain usable during source refresh.
   - Treated missing clear-sky solar radiation as optional when core irradiance fields are present.
+  - Treated zero-radiation solar rows as valid low-sunlight observations instead of partial source failures.
   - Sanitized stable climate warnings so raw upstream timeout strings stay in debug tooling only.
   - Selected UBA air-quality stations by pollutant coverage and observation freshness instead of first usable candidate.
   - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.

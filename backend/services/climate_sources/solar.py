@@ -183,6 +183,8 @@ def normalize_solar_payload(
 
     if direct is not None and total_radiation and total_radiation > 0:
         direct_light_share = round(clamp(direct / total_radiation, 0, 1), 3)
+    elif _zero_radiation_observation(direct, diffuse, total_radiation):
+        direct_light_share = 0
 
     score = _solar_score(shortwave, clear_sky_ratio, direct_light_share)
 
@@ -231,6 +233,14 @@ def _solar_status(
         return "partial"
 
     return "ok"
+
+
+def _zero_radiation_observation(
+    direct: float | None,
+    diffuse: float | None,
+    total_radiation: float | None,
+) -> bool:
+    return direct == 0 and diffuse == 0 and total_radiation == 0
 
 
 def _solar_feasibility_label(score: int) -> str:
