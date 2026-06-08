@@ -51,6 +51,7 @@ export function ClimateContextPanel({
 
   return (
     <ClimateContextShell
+      cacheSummary={climateCacheSummary(climate.cache)}
       statusLabel={overallStatusLabel(climate)}
       statusTone={overallStatusTone(climate)}
     >
@@ -144,12 +145,18 @@ export function ClimateContextPanel({
 }
 
 type ClimateContextShellProps = {
+  cacheSummary?: {
+    label: string
+    storedAtLabel: string | null
+    tone: "default" | "error" | "warning"
+  } | null
   children: ReactNode
   statusLabel: string
   statusTone?: "default" | "error" | "warning"
 }
 
 function ClimateContextShell({
+  cacheSummary,
   children,
   statusLabel,
   statusTone = "default",
@@ -162,8 +169,18 @@ function ClimateContextShell({
           <p className="mt-1 text-sm text-muted-foreground">
             Selected-state sunlight, air, and CO2 source status
           </p>
+          {cacheSummary?.storedAtLabel ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Cached {cacheSummary.storedAtLabel}
+            </p>
+          ) : null}
         </div>
-        <StatusBadge label={statusLabel} tone={statusTone} />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <StatusBadge label={statusLabel} tone={statusTone} />
+          {cacheSummary ? (
+            <StatusBadge label={cacheSummary.label} tone={cacheSummary.tone} />
+          ) : null}
+        </div>
       </div>
       {children}
     </section>
@@ -351,6 +368,52 @@ function overallStatusTone(climate: RegionClimate) {
     : "default"
 }
 
+function climateCacheSummary(cache: RegionClimate["cache"]) {
+  if (!cache) {
+    return null
+  }
+
+  const refreshing = cache.refreshStarted
+
+  if (refreshing) {
+    return {
+      label: "Refreshing",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "warning" as const,
+    }
+  }
+
+  if (cache.status === "fresh") {
+    return {
+      label: "Cache fresh",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "default" as const,
+    }
+  }
+
+  if (cache.status === "miss" || cache.status === "stored") {
+    return {
+      label: "Cache new",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "default" as const,
+    }
+  }
+
+  if (cache.status === "stale") {
+    return {
+      label: "Cache stale",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "warning" as const,
+    }
+  }
+
+  return {
+    label: "Cache bypass",
+    storedAtLabel: shortDateTime(cache.storedAt),
+    tone: "warning" as const,
+  }
+}
+
 function statusLabel(status: string) {
   if (status.includes("candidate")) {
     return "candidate"
@@ -393,6 +456,19 @@ function formatNumber(value: number) {
 
 function capitalize(value: string) {
   return value ? value[0].toUpperCase() + value.slice(1) : "Unavailable"
+}
+
+function shortDateTime(value: string | null) {
+  if (!value) {
+    return null
+  }
+
+  return new Date(value).toLocaleString("en-DE", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+  })
 }
 
 function SkeletonBlock({ className }: { className: string }) {
