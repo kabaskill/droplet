@@ -172,7 +172,7 @@ def _co2_context(stage: DebugStage) -> dict[str, Any]:
         ],
         "source": normalized.get("source") or CAMS_SOURCE.name,
         "status": normalized.get("status") or "candidate_requires_dataset_workflow",
-        "warnings": list(stage.warnings),
+        "warnings": _co2_warnings(stage),
     }
 
 
@@ -241,6 +241,23 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
             warnings.append("Some UBA pollutant measurements were unavailable")
         elif "better pollutant coverage" in normalized:
             warnings.append("Using nearby UBA station with better pollutant coverage")
+
+    return _unique_warnings(warnings)
+
+
+def _co2_warnings(stage: DebugStage) -> list[str]:
+    warnings: list[str] = []
+
+    if stage.errors:
+        warnings.append("CO2 source candidate unavailable")
+
+    for warning in stage.warnings:
+        normalized = warning.lower()
+
+        if "credentials" in normalized or "dataset workflow" in normalized:
+            warnings.append("CO2 source candidate requires dataset workflow setup")
+        else:
+            warnings.append("CO2 source is candidate metadata")
 
     return _unique_warnings(warnings)
 

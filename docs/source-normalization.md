@@ -92,7 +92,7 @@ Response sections:
 - `cache`: cache `status`, `storedAt`, `freshUntil`, `staleUntil`, and `refreshStarted`.
 - `co2`: candidate source `status`, source name, required config, dataset candidates, blockers, and warnings.
 
-CO2 remains candidate metadata. It should not be interpreted as a live measured operational score.
+CO2 remains candidate metadata. It should not be interpreted as a live measured operational score. The stable endpoint keeps CO2 warnings focused on candidate availability and required workflow setup; detailed CAMS/Copernicus research notes stay in the debug route.
 
 ## Debug Stages
 

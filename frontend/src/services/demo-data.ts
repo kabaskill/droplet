@@ -542,7 +542,7 @@ export function getDemoRegionClimate(regionId: string): RegionClimate {
       source: "Copernicus Atmosphere Monitoring Service",
       status: "candidate_requires_dataset_workflow",
       warnings: [
-        "CO2 is shown as candidate source metadata until the dataset workflow is configured.",
+        "CO2 source candidate requires dataset workflow setup",
       ],
     },
     generatedAt: timestamp,
