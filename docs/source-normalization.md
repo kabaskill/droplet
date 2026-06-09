@@ -83,6 +83,7 @@ The endpoint:
 - Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, and whether an async refresh was started.
 - Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.
 - Includes compact source labels for normalized sunlight and air-quality readings without exposing debug request configuration or raw payload summaries.
+- Coerces malformed, boolean, or non-finite normalized numeric values to `null` before returning the stable read model.
 - Folds partial source failures into section warnings so one unavailable source does not fail the entire climate response.
 - Does not expose raw response summaries, request config, selected debug fields, or the debug-stage envelope.
 - Returns `404` with a structured error for unknown region ids.
@@ -95,6 +96,8 @@ Response sections:
 - `co2`: candidate source `status`, source name, required config, dataset candidates, blockers, and warnings.
 
 CO2 remains candidate metadata. It should not be interpreted as a live measured operational score. The stable endpoint keeps CO2 warnings focused on candidate availability and required workflow setup; detailed CAMS/Copernicus research notes stay in the debug route.
+
+Stable climate scores, irradiance values, ratios, pollutant values, and observation ages are finite numbers when available. Invalid normalized numbers are returned as `null` rather than leaking source artifacts into the frontend contract.
 
 ## Debug Stages
 

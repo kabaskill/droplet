@@ -15,6 +15,7 @@
   - Added stable endpoint cache metadata so callers can distinguish fresh, stale, miss, and bypass responses.
   - Added backend unit coverage for climate cache metadata and air-quality fallback normalization.
   - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.
+  - Coerced malformed, boolean, or non-finite normalized climate numeric fields to `null` in the stable read model.
   - Kept raw response summaries, request config, selected debug fields, and debug-stage envelopes out of the stable endpoint.
   - Added compact stable source labels for normalized sunlight and air-quality readings.
   - Preserved `/api/debug/source-normalization` as backend inspection tooling.

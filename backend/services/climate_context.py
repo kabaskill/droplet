@@ -1,3 +1,4 @@
+import math
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -109,21 +110,28 @@ def validate_climate_region_id(region_id: str) -> None:
 def _sunlight_context(stage: DebugStage) -> dict[str, Any]:
     normalized = stage.normalized_output or {}
     status = _normalized_status(normalized)
-    score = normalized.get("score")
 
     return {
-        "ageMinutes": normalized.get("age_minutes"),
-        "clearSkyRatio": normalized.get("clear_sky_ratio"),
-        "directLightShare": normalized.get("direct_light_share"),
+        "ageMinutes": _number_or_none(normalized.get("age_minutes")),
+        "clearSkyRatio": _number_or_none(normalized.get("clear_sky_ratio")),
+        "directLightShare": _number_or_none(normalized.get("direct_light_share")),
         "irradiance": {
-            "diffuseRadiation": normalized.get("diffuse_radiation_w_m2"),
-            "directNormalIrradiance": normalized.get("direct_normal_irradiance_w_m2"),
-            "directRadiation": normalized.get("direct_radiation_w_m2"),
-            "shortwaveRadiation": normalized.get("shortwave_radiation_w_m2"),
+            "diffuseRadiation": _number_or_none(
+                normalized.get("diffuse_radiation_w_m2")
+            ),
+            "directNormalIrradiance": _number_or_none(
+                normalized.get("direct_normal_irradiance_w_m2")
+            ),
+            "directRadiation": _number_or_none(
+                normalized.get("direct_radiation_w_m2")
+            ),
+            "shortwaveRadiation": _number_or_none(
+                normalized.get("shortwave_radiation_w_m2")
+            ),
         },
-        "label": normalized.get("feasibility_label") or "unavailable",
-        "observedAt": normalized.get("observed_at"),
-        "score": score if isinstance(score, int | float) else None,
+        "label": _text_or_none(normalized.get("feasibility_label")) or "unavailable",
+        "observedAt": _text_or_none(normalized.get("observed_at")),
+        "score": _number_or_none(normalized.get("score")),
         "source": _text_or_none(normalized.get("source")) or stage.source.name,
         "status": status,
         "warnings": _sunlight_warnings(stage),
@@ -133,21 +141,20 @@ def _sunlight_context(stage: DebugStage) -> dict[str, Any]:
 def _air_context(stage: DebugStage) -> dict[str, Any]:
     normalized = stage.normalized_output or {}
     status = _normalized_status(normalized)
-    risk_score = normalized.get("air_risk_score")
 
     return {
-        "ageMinutes": normalized.get("age_minutes"),
-        "observedAt": normalized.get("observed_at"),
+        "ageMinutes": _number_or_none(normalized.get("age_minutes")),
+        "observedAt": _text_or_none(normalized.get("observed_at")),
         "pollutants": {
-            "co": normalized.get("co_ug_m3"),
-            "no2": normalized.get("no2_ug_m3"),
-            "o3": normalized.get("o3_ug_m3"),
-            "pm10": normalized.get("pm10_ug_m3"),
-            "pm25": normalized.get("pm25_ug_m3"),
-            "so2": normalized.get("so2_ug_m3"),
+            "co": _number_or_none(normalized.get("co_ug_m3")),
+            "no2": _number_or_none(normalized.get("no2_ug_m3")),
+            "o3": _number_or_none(normalized.get("o3_ug_m3")),
+            "pm10": _number_or_none(normalized.get("pm10_ug_m3")),
+            "pm25": _number_or_none(normalized.get("pm25_ug_m3")),
+            "so2": _number_or_none(normalized.get("so2_ug_m3")),
         },
-        "riskLabel": normalized.get("air_risk_label") or "unavailable",
-        "riskScore": risk_score if isinstance(risk_score, int | float) else None,
+        "riskLabel": _text_or_none(normalized.get("air_risk_label")) or "unavailable",
+        "riskScore": _number_or_none(normalized.get("air_risk_score")),
         "source": _text_or_none(normalized.get("source")) or stage.source.name,
         "station": _station_summary(normalized.get("station")),
         "status": status,
@@ -334,3 +341,18 @@ def _text_or_none(value: Any) -> str | None:
     text = str(value).strip()
 
     return text or None
+
+
+def _number_or_none(value: Any) -> int | float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if not math.isfinite(parsed):
+        return None
+
+    return int(parsed) if parsed.is_integer() else parsed
