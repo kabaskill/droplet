@@ -205,6 +205,12 @@ def _sunlight_warnings(stage: DebugStage) -> list[str]:
             warnings.append("Sunlight observation timestamp unavailable")
         elif "older than six hours" in normalized:
             warnings.append("Sunlight observation is older than six hours")
+        elif "source cache served stale data" in normalized:
+            warnings.append("Using stale cached sunlight source data")
+        elif "source cache served cached data with unknown freshness" in normalized:
+            warnings.append("Using cached sunlight source data with unknown freshness")
+        elif "source cache bypassed" in normalized:
+            warnings.append("Sunlight source cache unavailable")
         elif "shortwave radiation field is unavailable" in normalized:
             warnings.append("Sunlight shortwave radiation unavailable")
         elif "direct radiation field is unavailable" in normalized:
@@ -250,6 +256,24 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
             )
         elif "using open-meteo air-quality fallback" in normalized:
             warnings.append("Using Open-Meteo air-quality fallback")
+        elif "uba station index source cache served stale data" in normalized:
+            warnings.append("Using stale cached UBA station metadata")
+        elif (
+            "uba" in normalized
+            and "measurement source cache served stale data" in normalized
+        ):
+            warnings.append("Using stale cached UBA pollutant measurements")
+        elif (
+            "open-meteo air-quality fallback source cache served stale data"
+            in normalized
+        ):
+            warnings.append("Using stale cached Open-Meteo air-quality fallback")
+        elif "source cache served cached data with unknown freshness" in normalized:
+            warnings.append(
+                "Using cached air-quality source data with unknown freshness"
+            )
+        elif "source cache bypassed" in normalized:
+            warnings.append("Air quality source cache unavailable")
         elif "measurement unavailable" in normalized:
             warnings.append("Some UBA pollutant measurements were unavailable")
         elif "better pollutant coverage" in normalized:

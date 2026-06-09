@@ -5,7 +5,7 @@ from typing import Any, Mapping
 import requests
 
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_stale_while_revalidate_json
+from backend.cache.redis_client import read_stale_while_revalidate_json_with_metadata
 from backend.domain.snapshots import clamp
 from backend.services.climate_sources.config import (
     CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS,
@@ -18,6 +18,7 @@ from backend.services.climate_sources.contracts import (
     NormalizedAirQualityReading,
     SourceMetadata,
     dataclass_to_debug_dict,
+    source_cache_warnings,
 )
 from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
@@ -120,17 +121,23 @@ def build_air_quality_debug_stage(
     warnings: list[str] = []
     errors: list[str] = []
     session = http or requests.Session()
+    station_cache_warnings: list[str] = []
 
     try:
         if stations_error is not None:
             raise ValueError(stations_error)
 
         if stations_payload is None:
-            stations_payload = (
-                fetch_cached_uba_stations(session, timeout)
-                if cache_enabled
-                else fetch_uba_stations(session, timeout)
-            )
+            if cache_enabled:
+                stations_payload, station_cache = (
+                    fetch_cached_uba_stations_with_metadata(session, timeout)
+                )
+                request["stationIndexCache"] = station_cache
+                station_cache_warnings.extend(
+                    source_cache_warnings("UBA station index", station_cache)
+                )
+            else:
+                stations_payload = fetch_uba_stations(session, timeout)
 
         station_candidates = nearest_uba_stations(
             region_id,
@@ -218,6 +225,7 @@ def build_air_quality_debug_stage(
             warnings.append(
                 "UBA station candidate skipped because it had no usable readings"
             )
+        warnings.extend(station_cache_warnings)
     except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
         errors.append(str(exc))
         station = None
@@ -316,7 +324,14 @@ def fetch_cached_uba_stations(
     _http: requests.Session,
     timeout: float = 8,
 ) -> Any:
-    return read_stale_while_revalidate_json(
+    return fetch_cached_uba_stations_with_metadata(_http, timeout)[0]
+
+
+def fetch_cached_uba_stations_with_metadata(
+    _http: requests.Session,
+    timeout: float = 8,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
         cache_key("climate:uba:stations"),
         UBA_STATIONS_CACHE_TTL_SECONDS,
         UBA_STATIONS_CACHE_STALE_TTL_SECONDS,
@@ -408,8 +423,11 @@ def _fetch_uba_measurements(
         }
 
         try:
-            readings_payload[pollutant] = (
-                _fetch_cached_uba_measurement(
+            if cache_enabled:
+                (
+                    readings_payload[pollutant],
+                    measurement_cache,
+                ) = _fetch_cached_uba_measurement_with_metadata(
                     http,
                     station["id"],
                     pollutant,
@@ -417,9 +435,19 @@ def _fetch_uba_measurements(
                     pollutant_params,
                     timeout,
                 )
-                if cache_enabled
-                else _fetch_uba_measurement(http, pollutant_params, timeout)
-            )
+                measurement_requests[pollutant]["cache"] = measurement_cache
+                warnings.extend(
+                    source_cache_warnings(
+                        f"UBA {pollutant} measurement",
+                        measurement_cache,
+                    )
+                )
+            else:
+                readings_payload[pollutant] = _fetch_uba_measurement(
+                    http,
+                    pollutant_params,
+                    timeout,
+                )
         except (requests.RequestException, ValueError) as exc:
             measurement_requests[pollutant]["error"] = str(exc)
             warnings.append(
@@ -452,7 +480,25 @@ def _fetch_cached_uba_measurement(
     params: Mapping[str, Any],
     timeout: float,
 ) -> Any:
-    return read_stale_while_revalidate_json(
+    return _fetch_cached_uba_measurement_with_metadata(
+        _http,
+        station_id,
+        pollutant,
+        component_id,
+        params,
+        timeout,
+    )[0]
+
+
+def _fetch_cached_uba_measurement_with_metadata(
+    _http: requests.Session,
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
         cache_key(
             _uba_measurement_cache_name(
                 station_id,
@@ -805,16 +851,37 @@ def _open_meteo_comparison(
     }
     fallback_warnings: list[str] = []
     fallback_errors: list[str] = []
+    fallback_cache: dict[str, Any] | None = None
 
     try:
-        payload = (
-            _fetch_cached_open_meteo_air_quality(region_id, http, params, timeout)
-            if cache_enabled
-            else _fetch_open_meteo_air_quality(http, params, timeout)
-        )
+        if cache_enabled:
+            payload, fallback_cache = (
+                _fetch_cached_open_meteo_air_quality_with_metadata(
+                    region_id,
+                    http,
+                    params,
+                    timeout,
+                )
+            )
+            fallback_warnings.extend(
+                source_cache_warnings(
+                    "Open-Meteo air-quality fallback",
+                    fallback_cache,
+                )
+            )
+        else:
+            payload = _fetch_open_meteo_air_quality(http, params, timeout)
     except (requests.RequestException, ValueError) as exc:
         warnings.append(f"Open-Meteo air-quality fallback unavailable: {exc}")
         return None
+
+    request = {
+        "cacheEnabled": cache_enabled,
+        "params": params,
+        "url": OPEN_METEO_AIR_QUALITY_URL,
+    }
+    if fallback_cache is not None:
+        request["cache"] = fallback_cache
 
     try:
         normalized = normalize_open_meteo_air_quality_payload(
@@ -829,11 +896,7 @@ def _open_meteo_comparison(
     return {
         "errors": fallback_errors,
         "normalizedOutput": dataclass_to_debug_dict(normalized),
-        "request": {
-            "cacheEnabled": cache_enabled,
-            "params": params,
-            "url": OPEN_METEO_AIR_QUALITY_URL,
-        },
+        "request": request,
         "rawSummary": _payload_summary(payload),
         "selectedFields": _selected_open_meteo_air_fields(payload),
         "source": dataclass_to_debug_dict(OPEN_METEO_AIR_SOURCE),
@@ -858,7 +921,21 @@ def _fetch_cached_open_meteo_air_quality(
     params: Mapping[str, Any],
     timeout: float,
 ) -> Any:
-    return read_stale_while_revalidate_json(
+    return _fetch_cached_open_meteo_air_quality_with_metadata(
+        region_id,
+        _http,
+        params,
+        timeout,
+    )[0]
+
+
+def _fetch_cached_open_meteo_air_quality_with_metadata(
+    region_id: str,
+    _http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
         cache_key(_open_meteo_air_quality_cache_name(region_id, params)),
         OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS,
         OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS,

@@ -37,7 +37,7 @@ Missing shortwave or direct radiation fields are treated as selected-source gaps
 
 Zero-radiation rows, such as nighttime observations where direct and diffuse radiation are both `0`, are treated as valid low-sunlight observations rather than partial source failures.
 
-The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window by default. These observation source-cache windows are controlled by `CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS`. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
+The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window by default. These observation source-cache windows are controlled by `CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS`. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window. When stale, legacy, or bypassed source-cache data contributes to the stable flow, the sunlight section receives a compact UI-facing warning. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
 
 ## Air Quality
 
@@ -54,7 +54,7 @@ Normalized output:
 - `0-100` air-risk score
 - readable air-risk label
 
-The stable climate flow caches UBA station metadata with a 12-hour fresh window and a seven-day stale fallback window by default. These station-index windows are controlled by `CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS`. UBA station/pollutant measurement payloads and Open-Meteo air-quality fallback payloads use the same configurable observation source-cache windows as solar. The debug source-normalization route can still run live source fetches for backend inspection.
+The stable climate flow caches UBA station metadata with a 12-hour fresh window and a seven-day stale fallback window by default. These station-index windows are controlled by `CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS`. UBA station/pollutant measurement payloads and Open-Meteo air-quality fallback payloads use the same configurable observation source-cache windows as solar. When source-cache metadata shows that stale, legacy, or bypassed cache data contributed to the selected air-quality reading, the stable warning pipeline reports it without exposing raw cache envelopes. The debug source-normalization route can still run live source fetches for backend inspection.
 
 When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings. When fallback data contributes to the selected reading, its freshness and parseability warnings are retained in the stable warning pipeline.
 
@@ -80,10 +80,11 @@ The endpoint:
 - Uses `CLIMATE_CONTEXT_FRESH_TTL_SECONDS` and `CLIMATE_CONTEXT_STALE_TTL_SECONDS` for the read-model cache windows. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window.
 - Validates the region id before reading or writing a climate context cache key.
 - Uses `CLIMATE_SOURCE_TIMEOUT_SECONDS`, defaulting to 8 seconds, for stable climate source requests.
-- Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, and whether an async refresh was started.
+- Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, and whether an async refresh was started. Status can be `fresh`, `stale`, `legacy`, `miss`, or `bypass`.
 - Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.
 - Includes compact source labels for normalized sunlight and air-quality readings without exposing debug request configuration or raw payload summaries.
 - Coerces malformed, boolean, or non-finite normalized numeric values to `null` before returning the stable read model.
+- Reports stale, unknown-freshness, or unavailable source-cache use through compact section warnings.
 - Folds partial source failures into section warnings so one unavailable source does not fail the entire climate response.
 - Does not expose raw response summaries, request config, selected debug fields, or the debug-stage envelope.
 - Returns `404` with a structured error for unknown region ids.
@@ -116,6 +117,7 @@ Raw source payloads are not durable app state. Debug stages expose summaries and
 The debug builder reuses one HTTP session per request and shares the UBA station index across all requested regions before fetching per-region measurement rows.
 Debug responses include lightweight request metadata, aggregate summary counts, normalize duplicate or aliased section names, and reject unknown section names with a `400` response.
 The debug route supports a `limit` query parameter for sampling all-region output during backend inspection and marks limited all-region responses as sample-only metadata.
+When a cached source builder is used internally, its request metadata includes the source-cache status so backend inspection can distinguish fresh, stale, miss, legacy, and bypass states.
 
 ## Temporary Debug Route
 

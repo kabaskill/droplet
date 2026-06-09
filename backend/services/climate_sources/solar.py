@@ -4,7 +4,7 @@ from typing import Any, Mapping
 import requests
 
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_stale_while_revalidate_json
+from backend.cache.redis_client import read_stale_while_revalidate_json_with_metadata
 from backend.domain.snapshots import clamp
 from backend.services.climate_sources.config import (
     CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS,
@@ -15,6 +15,7 @@ from backend.services.climate_sources.contracts import (
     NormalizedSolarReading,
     SourceMetadata,
     dataclass_to_debug_dict,
+    source_cache_warnings,
 )
 from backend.services.environmental_sources import REGION_SOURCE_TARGETS
 
@@ -73,11 +74,17 @@ def build_solar_debug_stage(
     session = http or requests.Session()
 
     try:
-        payload = (
-            fetch_cached_solar_payload(region_id, session, params, timeout)
-            if cache_enabled
-            else fetch_solar_payload(session, params, timeout)
-        )
+        if cache_enabled:
+            payload, source_cache = fetch_cached_solar_payload_with_metadata(
+                region_id,
+                session,
+                params,
+                timeout,
+            )
+            request["sourceCache"] = source_cache
+            warnings.extend(source_cache_warnings("Open-Meteo solar", source_cache))
+        else:
+            payload = fetch_solar_payload(session, params, timeout)
         normalized = normalize_solar_payload(region_id, payload, warnings)
         raw_summary = _solar_raw_summary(payload)
         selected = _selected_solar_fields(payload)
@@ -122,7 +129,21 @@ def fetch_cached_solar_payload(
     params: Mapping[str, Any],
     timeout: float = 8,
 ) -> Any:
-    return read_stale_while_revalidate_json(
+    return fetch_cached_solar_payload_with_metadata(
+        region_id,
+        _http,
+        params,
+        timeout,
+    )[0]
+
+
+def fetch_cached_solar_payload_with_metadata(
+    region_id: str,
+    _http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float = 8,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
         cache_key(_solar_cache_name(region_id, params)),
         OPEN_METEO_SOLAR_CACHE_TTL_SECONDS,
         OPEN_METEO_SOLAR_CACHE_STALE_TTL_SECONDS,

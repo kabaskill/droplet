@@ -13,6 +13,7 @@
   - Validated climate region ids before reading or writing selected-region climate cache keys.
   - Versioned selected-region climate context cache keys so read-model shape changes do not reuse older cached payloads.
   - Added stable endpoint cache metadata so callers can distinguish fresh, stale, miss, and bypass responses.
+  - Preserved legacy cache status in stale-while-revalidate metadata instead of collapsing it into stale.
   - Added backend unit coverage for climate cache metadata and air-quality fallback normalization.
   - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.
   - Coerced malformed, boolean, or non-finite normalized climate numeric fields to `null` in the stable read model.
@@ -24,6 +25,7 @@
   - Cached Open-Meteo solar and air-quality fallback payloads for the stable climate flow.
   - Made stable-flow observation and UBA station-index source cache windows configurable.
   - Added stale fallback windows to stable-flow climate source caches so recently expired payloads can remain usable during source refresh.
+  - Surfaced stale, legacy, or bypassed climate source-cache states through sanitized stable warnings.
   - Treated missing clear-sky solar radiation as optional when core irradiance fields are present.
   - Added stable sunlight warnings for missing shortwave or direct radiation fields.
   - Treated zero-radiation solar rows as valid low-sunlight observations instead of partial source failures.

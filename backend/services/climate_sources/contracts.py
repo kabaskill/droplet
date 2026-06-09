@@ -21,6 +21,29 @@ class DebugStage:
     source: SourceMetadata
 
 
+def source_cache_warnings(
+    source_label: str,
+    metadata: dict[str, Any] | None,
+) -> list[str]:
+    if not metadata:
+        return []
+
+    status = metadata.get("status")
+
+    if status == "stale":
+        return [f"{source_label} source cache served stale data"]
+
+    if status == "legacy":
+        return [
+            f"{source_label} source cache served cached data with unknown freshness"
+        ]
+
+    if status == "bypass":
+        return [f"{source_label} source cache bypassed"]
+
+    return []
+
+
 @dataclass(frozen=True)
 class NormalizedSolarReading:
     age_minutes: int | None

@@ -78,11 +78,12 @@ def read_stale_while_revalidate_json_with_metadata(
                 stale_ttl_seconds,
                 loader,
             )
+            status = "legacy" if metadata.get("status") == "legacy" else "stale"
 
             return value, {
                 **metadata,
                 "refreshStarted": refresh_started,
-                "status": "stale",
+                "status": status,
             }
     except RedisError:
         return loader(), {
