@@ -33,6 +33,8 @@ Normalized output:
 
 Clear-sky radiation is treated as optional source context. If Open-Meteo returns core irradiance fields without clear-sky radiation, the stable endpoint leaves `clearSkyRatio` empty instead of marking sunlight as partial or surfacing a warning.
 
+Missing shortwave or direct radiation fields are treated as selected-source gaps and appear as stable sunlight warnings because they affect source availability and direct-light share.
+
 Zero-radiation rows, such as nighttime observations where direct and diffuse radiation are both `0`, are treated as valid low-sunlight observations rather than partial source failures.
 
 The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window by default. These observation source-cache windows are controlled by `CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS`. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.

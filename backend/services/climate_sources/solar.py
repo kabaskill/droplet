@@ -173,6 +173,8 @@ def normalize_solar_payload(
     elif datetime.now(UTC) - observed_at > timedelta(hours=6):
         warnings.append("solar observation is older than six hours")
 
+    _append_solar_field_warnings(warnings, shortwave, direct)
+
     clear_sky_ratio = None
     if shortwave is not None and clear_sky and clear_sky > 0:
         clear_sky_ratio = round(clamp(shortwave / clear_sky, 0, 1), 3)
@@ -245,6 +247,18 @@ def _zero_radiation_observation(
     total_radiation: float | None,
 ) -> bool:
     return direct == 0 and diffuse == 0 and total_radiation == 0
+
+
+def _append_solar_field_warnings(
+    warnings: list[str],
+    shortwave: float | None,
+    direct: float | None,
+) -> None:
+    if shortwave is None:
+        warnings.append("solar shortwave radiation field is unavailable")
+
+    if direct is None:
+        warnings.append("solar direct radiation field is unavailable")
 
 
 def _solar_feasibility_label(score: int) -> str:

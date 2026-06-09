@@ -24,6 +24,7 @@
   - Made stable-flow observation and UBA station-index source cache windows configurable.
   - Added stale fallback windows to stable-flow climate source caches so recently expired payloads can remain usable during source refresh.
   - Treated missing clear-sky solar radiation as optional when core irradiance fields are present.
+  - Added stable sunlight warnings for missing shortwave or direct radiation fields.
   - Treated zero-radiation solar rows as valid low-sunlight observations instead of partial source failures.
   - Sanitized stable climate warnings so raw upstream timeout strings stay in debug tooling only.
   - Selected UBA air-quality stations by pollutant coverage and observation freshness instead of first usable candidate.

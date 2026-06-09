@@ -198,6 +198,10 @@ def _sunlight_warnings(stage: DebugStage) -> list[str]:
             warnings.append("Sunlight observation timestamp unavailable")
         elif "older than six hours" in normalized:
             warnings.append("Sunlight observation is older than six hours")
+        elif "shortwave radiation field is unavailable" in normalized:
+            warnings.append("Sunlight shortwave radiation unavailable")
+        elif "direct radiation field is unavailable" in normalized:
+            warnings.append("Sunlight direct radiation unavailable")
         else:
             warnings.append("Sunlight source returned partial data")
 
