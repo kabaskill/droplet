@@ -31,6 +31,7 @@
   - Detected stale pollutant-level UBA readings when selected pollutants have mixed observation times.
   - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.
   - Preserved Open-Meteo fallback freshness and parseability warnings when fallback air-quality data contributes to the selected reading.
+  - Reduced redundant stable air-quality partial-coverage warnings when specific pollutant gaps are already reported.
   - Kept stable air-quality warnings focused on selected unresolved gaps instead of warnings from skipped station candidates.
   - Normalized stable air-quality station summary fields to predictable strings and preserved UBA station type metadata.
   - Kept skipped UBA station candidate details out of stable air-quality warnings.

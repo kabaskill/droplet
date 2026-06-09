@@ -58,7 +58,7 @@ The stable climate flow caches UBA station metadata with a 12-hour fresh window 
 
 When selected UBA station coverage is partial, Open-Meteo air-quality data can fill missing pollutant readings. When UBA has no usable readings and Open-Meteo has at least one usable pollutant value, Open-Meteo becomes the air-quality fallback source. Empty Open-Meteo fallback payloads are not treated as successful readings. When fallback data contributes to the selected reading, its freshness and parseability warnings are retained in the stable warning pipeline.
 
-Stable endpoint warnings focus on unresolved selected-source gaps. Raw upstream timeout strings and warnings from skipped station candidates remain debug details rather than UI-facing messages.
+Stable endpoint warnings focus on unresolved selected-source gaps. Raw upstream timeout strings, warnings from skipped station candidates, and redundant generic partial-coverage warnings remain debug details rather than UI-facing messages when a specific pollutant gap is already reported.
 UBA carbon monoxide measurements are reported by the source in mg/m3 and converted to ug/m3 for the normalized contract.
 
 ## CO2

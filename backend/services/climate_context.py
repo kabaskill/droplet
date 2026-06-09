@@ -213,8 +213,6 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
 
     if stage.errors:
         warnings.append("Air quality source unavailable")
-    elif status == "partial":
-        warnings.append("Air quality source returned partial pollutant coverage")
 
     for warning in stage.warnings:
         normalized = warning.lower()
@@ -238,13 +236,20 @@ def _air_warnings(stage: DebugStage, status: str) -> list[str]:
         elif "open-meteo air-quality fallback unavailable" in normalized:
             warnings.append("Open-Meteo air-quality fallback unavailable")
         elif "open-meteo filled missing uba pollutant readings:" in normalized:
-            warnings.append(warning)
+            filled = warning.split(":", 1)[1]
+            warnings.append(
+                "Open-Meteo filled missing pollutant readings: "
+                f"{_format_pollutant_list(filled.split(','))}"
+            )
         elif "using open-meteo air-quality fallback" in normalized:
             warnings.append("Using Open-Meteo air-quality fallback")
         elif "measurement unavailable" in normalized:
             warnings.append("Some UBA pollutant measurements were unavailable")
         elif "better pollutant coverage" in normalized:
             warnings.append("Using nearby UBA station with better pollutant coverage")
+
+    if status == "partial" and not _has_air_coverage_warning(warnings):
+        warnings.append("Air quality source returned partial pollutant coverage")
 
     return _unique_warnings(warnings)
 
@@ -264,6 +269,20 @@ def _co2_warnings(stage: DebugStage) -> list[str]:
             warnings.append("CO2 source is candidate metadata")
 
     return _unique_warnings(warnings)
+
+
+def _has_air_coverage_warning(warnings: list[str]) -> bool:
+    coverage_phrases = (
+        "filled missing pollutant readings",
+        "missing pollutant readings",
+        "pollutant measurements were unavailable",
+        "stale pollutant readings",
+    )
+
+    return any(
+        any(phrase in warning.lower() for phrase in coverage_phrases)
+        for warning in warnings
+    )
 
 
 def _format_pollutant_list(values: list[str]) -> str:
