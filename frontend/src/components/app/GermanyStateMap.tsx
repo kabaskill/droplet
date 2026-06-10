@@ -1,40 +1,64 @@
-import Panzoom, {
-  type PanzoomEventDetail,
-  type PanzoomObject,
-} from "@panzoom/panzoom"
 import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-  type MouseEvent,
-  type ReactNode,
-} from "react"
+  Add01Icon,
+  CenterFocusIcon,
+  FitToScreenIcon,
+  MinusSignIcon,
+  RefreshIcon,
+} from "@hugeicons/core-free-icons"
+import * as d3 from "d3"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import type { ZoomBehavior, ZoomTransform } from "d3"
 
 import germanySvgUrl from "@/assets/germany.svg?url"
+import { ProductIcon } from "@/components/app/ProductIcon"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   buildGermanyStateMetrics,
+  homeLayerConfigs,
+  homeLayerLabel,
   type GermanyStateMetric,
   type GermanyStateStatus,
 } from "@/services/germany-state-map"
 import type { RegionWithSnapshot } from "@/services/regional-filters"
-import type { MapLayer } from "@/stores/app-store"
+import type { ForecastOutlook } from "@/services/types"
+import { useAppStore, type HomeLayer } from "@/stores/app-store"
 
 type GermanyStateMapProps = {
-  activeLayer: MapLayer
-  controls?: ReactNode
-  filteredRegions: RegionWithSnapshot[]
+  activeLayer: HomeLayer
+  forecastOutlook: ForecastOutlook | null
+  mapRegions: RegionWithSnapshot[]
+  onLayerChange: (layer: HomeLayer) => void
+  onOpenDetails: () => void
   onSelectRegion: (regionId: string) => void
   selectedRegionId: string | null
 }
 
+type StateShape = {
+  code: string
+  d: string
+  title: string
+}
+
+type SvgViewBox = {
+  height: number
+  width: number
+  x: number
+  y: number
+}
+
+const fallbackViewBox: SvgViewBox = {
+  height: 792.66785,
+  width: 585.5141,
+  x: 0,
+  y: 0,
+}
+
 const stateFills: Record<GermanyStateStatus, string> = {
-  critical: "#ef4444",
-  healthy: "#10b981",
-  stale: "#f59e0b",
-  watch: "#f59e0b",
+  critical: "#dc2626",
+  healthy: "#059669",
+  stale: "#d97706",
+  watch: "#ca8a04",
 }
 
 const labelPositions: Record<string, { x: number; y: number }> = {
@@ -58,38 +82,35 @@ const labelPositions: Record<string, { x: number; y: number }> = {
 
 export function GermanyStateMap({
   activeLayer,
-  controls,
-  filteredRegions,
+  forecastOutlook,
+  mapRegions,
+  onLayerChange,
+  onOpenDetails,
   onSelectRegion,
   selectedRegionId,
 }: GermanyStateMapProps) {
-  const [isPending, startTransition] = useTransition()
-  const [svgMarkup, setSvgMarkup] = useState("")
-  const [computedLabelPositions, setComputedLabelPositions] = useState<
-    Record<string, { x: number; y: number }>
-  >({})
-  const [activeInfoStateCode, setActiveInfoStateCode] = useState<string | null>(null)
-  const [viewState, setViewState] = useState({ scale: 1, x: 0, y: 0 })
-  const mapLayerRef = useRef<HTMLDivElement>(null)
-  const mapViewportRef = useRef<HTMLDivElement>(null)
-  const panzoomRef = useRef<PanzoomObject | null>(null)
-  const suppressClickRef = useRef(false)
+  const mapViewport = useAppStore((state) => state.mapViewport)
+  const setMapViewport = useAppStore((state) => state.setMapViewport)
+  const [shapes, setShapes] = useState<StateShape[]>([])
+  const [viewBox, setViewBox] = useState<SvgViewBox>(fallbackViewBox)
+  const [inspectedStateCode, setInspectedStateCode] = useState<string | null>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const pathRefs = useRef<Record<string, SVGPathElement | null>>({})
+  const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const stateMetrics = useMemo(
-    () => buildGermanyStateMetrics(filteredRegions, activeLayer),
-    [activeLayer, filteredRegions]
+    () => buildGermanyStateMetrics(mapRegions, activeLayer, forecastOutlook),
+    [activeLayer, forecastOutlook, mapRegions]
   )
   const selectedStateCode = selectedRegionId
     ? Object.values(stateMetrics).find((state) =>
         state.regions.some(({ region }) => region.id === selectedRegionId)
       )?.code
     : null
-  const observedStates = Object.values(stateMetrics).sort(
-    (first, second) => second.metric - first.metric
-  )
-  const activeInfoState = activeInfoStateCode
-    ? stateMetrics[activeInfoStateCode]
-    : null
-  const showLabels = observedStates.length > 0
+  const selectedState = selectedStateCode ? stateMetrics[selectedStateCode] : null
+  const inspectedState = inspectedStateCode ? stateMetrics[inspectedStateCode] : null
+  const activeInfoState = inspectedState ?? selectedState
+  const observedStateCount = Object.keys(stateMetrics).length
+  const viewBoxValue = `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`
 
   useEffect(() => {
     let active = true
@@ -97,13 +118,17 @@ export function GermanyStateMap({
     fetch(germanySvgUrl)
       .then((response) => response.text())
       .then((markup) => {
-        if (active) {
-          setSvgMarkup(normalizeSvgMarkup(markup))
+        if (!active) {
+          return
         }
+
+        const parsed = parseGermanySvg(markup)
+        setShapes(parsed.shapes)
+        setViewBox(parsed.viewBox)
       })
       .catch(() => {
         if (active) {
-          setSvgMarkup("")
+          setShapes([])
         }
       })
 
@@ -113,427 +138,436 @@ export function GermanyStateMap({
   }, [])
 
   useEffect(() => {
-    const mapLayer = mapLayerRef.current
-    const mapViewport = mapViewportRef.current
+    const svg = svgRef.current
 
-    if (!mapLayer || !mapViewport || !svgMarkup) {
+    if (!svg) {
       return
     }
 
-    const panzoom = Panzoom(mapLayer, {
-      canvas: true,
-      cursor: "grab",
-      duration: 160,
-      easing: "ease-out",
-      excludeClass: "panzoom-exclude",
-      maxScale: 3.4,
-      minScale: 1,
-      overflow: "hidden",
-      panOnlyWhenZoomed: true,
-      pinchAndPan: true,
-      step: 0.25,
-    })
-    panzoomRef.current = panzoom
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.85, 5])
+      .translateExtent([
+        [-viewBox.width * 0.65, -viewBox.height * 0.65],
+        [viewBox.width * 1.65, viewBox.height * 1.65],
+      ])
+      .on("zoom", (event) => {
+        const transform = event.transform
 
-    const updateViewState = (event: Event) => {
-      const detail = (event as CustomEvent<PanzoomEventDetail>).detail
-
-      setViewState({
-        scale: detail.scale,
-        x: detail.x,
-        y: detail.y,
+        setMapViewport({
+          scale: transform.k,
+          x: transform.x,
+          y: transform.y,
+        })
       })
-    }
-    const markPanGesture = () => {
-      suppressClickRef.current = true
-      window.setTimeout(() => {
-        suppressClickRef.current = false
-      }, 120)
-    }
-    const zoomWithWheel = (event: WheelEvent) => {
-      panzoom.zoomWithWheel(event)
-    }
-    const constrainPanIntoView = () => {
-      if (panzoom.getScale() <= 1) {
-        return
-      }
 
-      const viewportRect = mapViewport.getBoundingClientRect()
-      const layerRect = mapLayer.getBoundingClientRect()
-      const scale = panzoom.getScale()
-      const minVisibleX = Math.min(160, viewportRect.width * 0.35)
-      const minVisibleY = Math.min(180, viewportRect.height * 0.35)
-      let deltaX = 0
-      let deltaY = 0
-
-      if (layerRect.right < viewportRect.left + minVisibleX) {
-        deltaX = viewportRect.left + minVisibleX - layerRect.right
-      } else if (layerRect.left > viewportRect.right - minVisibleX) {
-        deltaX = viewportRect.right - minVisibleX - layerRect.left
-      }
-
-      if (layerRect.bottom < viewportRect.top + minVisibleY) {
-        deltaY = viewportRect.top + minVisibleY - layerRect.bottom
-      } else if (layerRect.top > viewportRect.bottom - minVisibleY) {
-        deltaY = viewportRect.bottom - minVisibleY - layerRect.top
-      }
-
-      if (deltaX !== 0 || deltaY !== 0) {
-        updateFromPanzoom(
-          panzoom.pan(deltaX / scale, deltaY / scale, {
-            animate: true,
-            force: true,
-            relative: true,
-          })
-        )
-      }
-    }
-
-    mapLayer.addEventListener("panzoomchange", updateViewState)
-    mapLayer.addEventListener("panzoompan", markPanGesture)
-    mapLayer.addEventListener("panzoomend", constrainPanIntoView)
-    mapViewport.addEventListener("wheel", zoomWithWheel, { passive: false })
+    zoomRef.current = zoom
+    d3.select(svg).call(zoom)
 
     return () => {
-      mapLayer.removeEventListener("panzoomchange", updateViewState)
-      mapLayer.removeEventListener("panzoompan", markPanGesture)
-      mapLayer.removeEventListener("panzoomend", constrainPanIntoView)
-      mapViewport.removeEventListener("wheel", zoomWithWheel)
-      panzoom.destroy()
-      panzoomRef.current = null
+      d3.select(svg).on(".zoom", null)
+      zoomRef.current = null
     }
-  }, [svgMarkup])
+  }, [setMapViewport, viewBox.height, viewBox.width])
 
   useEffect(() => {
-    if (!svgMarkup) {
+    const svg = svgRef.current
+    const zoom = zoomRef.current
+
+    if (!svg || !zoom) {
       return
     }
 
-    const animationFrame = window.requestAnimationFrame(() => {
-      const mapLayer = mapLayerRef.current
-      const svg = mapLayer?.querySelector<SVGSVGElement>("svg")
+    const currentTransform = d3.zoomTransform(svg)
 
-      if (!svg) {
-        return
-      }
-
-      const viewBox = svg.viewBox.baseVal
-      const nextPositions = Object.keys(stateMetrics).reduce(
-        (positions, stateCode) => {
-          const path = svg.querySelector<SVGGraphicsElement>(`[id="${stateCode}"]`)
-
-          if (!path || viewBox.width === 0 || viewBox.height === 0) {
-            return positions
-          }
-
-          const box = path.getBBox()
-
-          return {
-            ...positions,
-            [stateCode]: {
-              x: ((box.x + box.width / 2 - viewBox.x) / viewBox.width) * 100,
-              y: ((box.y + box.height / 2 - viewBox.y) / viewBox.height) * 100,
-            },
-          }
-        },
-        {} as Record<string, { x: number; y: number }>
-      )
-
-      setComputedLabelPositions(nextPositions)
-    })
-
-    return () => window.cancelAnimationFrame(animationFrame)
-  }, [stateMetrics, svgMarkup])
-
-  const handleMapClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
+    if (
+      currentTransform.k === mapViewport.scale &&
+      currentTransform.x === mapViewport.x &&
+      currentTransform.y === mapViewport.y
+    ) {
       return
     }
 
-    const path = (event.target as Element).closest<SVGPathElement>("path[id]")
-    const state = path ? stateMetrics[path.id] : null
+    d3.select(svg).call(
+      zoom.transform,
+      d3.zoomIdentity
+        .translate(mapViewport.x, mapViewport.y)
+        .scale(mapViewport.scale)
+    )
+  }, [mapViewport.scale, mapViewport.x, mapViewport.y])
 
+  const selectState = (state: GermanyStateMetric | undefined) => {
     if (!state) {
       return
     }
 
-    setActiveInfoStateCode(state.code)
-    startTransition(() => onSelectRegion(state.primaryRegionId))
+    onSelectRegion(state.primaryRegionId)
   }
 
-  function updateFromPanzoom(values: { scale: number; x: number; y: number }) {
-    setViewState({
-      scale: values.scale,
-      x: values.x,
-      y: values.y,
-    })
+  const resetMap = () => {
+    applyTransform(d3.zoomIdentity)
   }
-  const zoomAtCenter = (nextScale: number) => {
-    const panzoom = panzoomRef.current
-    const viewport = mapViewportRef.current
 
-    if (!panzoom || !viewport) {
+  const zoomBy = (factor: number) => {
+    const svg = svgRef.current
+    const zoom = zoomRef.current
+
+    if (!svg || !zoom) {
       return
     }
 
-    const rect = viewport.getBoundingClientRect()
-    updateFromPanzoom(
-      panzoom.zoomToPoint(nextScale, {
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2,
-      }, {
-        animate: true,
-        force: true,
-      })
+    d3.select(svg).call(zoom.scaleBy, factor)
+  }
+
+  const focusSelectedState = () => {
+    if (!selectedStateCode) {
+      resetMap()
+      return
+    }
+
+    focusState(selectedStateCode)
+  }
+
+  const focusState = (stateCode: string) => {
+    const path = pathRefs.current[stateCode]
+
+    if (!path) {
+      return
+    }
+
+    const box = path.getBBox()
+    const scale = Math.min(
+      4.2,
+      Math.max(
+        1.35,
+        Math.min(viewBox.width / Math.max(box.width, 1), viewBox.height / Math.max(box.height, 1)) *
+          0.48
+      )
     )
+    const centerX = box.x + box.width / 2
+    const centerY = box.y + box.height / 2
+    const nextTransform = d3.zoomIdentity
+      .translate(viewBox.width / 2 - centerX * scale, viewBox.height / 2 - centerY * scale)
+      .scale(scale)
+
+    applyTransform(nextTransform)
+  }
+
+  const applyTransform = (transform: ZoomTransform) => {
+    const svg = svgRef.current
+    const zoom = zoomRef.current
+
+    if (!svg || !zoom) {
+      return
+    }
+
+    d3.select(svg).call(zoom.transform, transform)
   }
 
   return (
-    <div className="grid min-h-0 gap-3 xl:h-full">
-      <div
-        className={cn(
-          "relative flex aspect-[585/793] min-h-0 w-full items-center justify-center overflow-hidden rounded-md border bg-background p-3 xl:h-full xl:min-h-[760px] xl:aspect-auto",
-          isPending && "opacity-80"
-        )}
-        ref={mapViewportRef}
-      >
-        {controls ? (
-          <div className="absolute left-3 top-3 z-20 w-[min(320px,calc(100%-1.5rem))]">
-            {controls}
+    <section className="grid min-h-0 gap-3">
+      <div className="flex flex-col gap-3 rounded-md border bg-card p-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-medium">Germany state canvas</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {homeLayerConfigs.find((layer) => layer.id === activeLayer)?.description}
+          </p>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {homeLayerConfigs.map((layer) => (
+            <Button
+              aria-pressed={activeLayer === layer.id}
+              key={layer.id}
+              size="sm"
+              variant={activeLayer === layer.id ? "default" : "outline"}
+              onClick={() => onLayerChange(layer.id)}
+            >
+              {layer.shortLabel}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative min-h-[520px] overflow-hidden rounded-md border bg-background shadow-sm xl:min-h-[calc(100svh-7.5rem)]">
+        <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur">
+          <MapToolButton label="Zoom in" onClick={() => zoomBy(1.2)}>
+            <ProductIcon icon={Add01Icon} />
+          </MapToolButton>
+          <MapToolButton label="Zoom out" onClick={() => zoomBy(0.84)}>
+            <ProductIcon icon={MinusSignIcon} />
+          </MapToolButton>
+          <MapToolButton label="Fit map" onClick={resetMap}>
+            <ProductIcon icon={FitToScreenIcon} />
+          </MapToolButton>
+          <MapToolButton label="Focus selected state" onClick={focusSelectedState}>
+            <ProductIcon icon={CenterFocusIcon} />
+          </MapToolButton>
+        </div>
+
+        <div className="absolute right-3 top-3 z-20 rounded-md border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
+          {observedStateCount} observed · {homeLayerLabel(activeLayer)}
+        </div>
+
+        <svg
+          aria-label="Germany state map"
+          className="h-full min-h-[520px] w-full touch-none xl:min-h-[calc(100svh-7.5rem)]"
+          ref={svgRef}
+          role="img"
+          viewBox={viewBoxValue}
+        >
+          <rect
+            className="fill-muted/20"
+            height={viewBox.height}
+            width={viewBox.width}
+            x={viewBox.x}
+            y={viewBox.y}
+          />
+          <g
+            transform={`translate(${mapViewport.x} ${mapViewport.y}) scale(${mapViewport.scale})`}
+          >
+            {shapes.map((shape) => {
+              const state = stateMetrics[shape.code]
+              const selected = selectedStateCode === shape.code
+              const fill = state ? stateFills[state.status] : "hsl(var(--muted))"
+              const disabled = !state
+
+              return (
+                <path
+                  aria-label={stateAriaLabel(shape, state, activeLayer)}
+                  aria-pressed={selected || undefined}
+                  className={cn(
+                    "outline-none transition-[fill,opacity,stroke-width] duration-150 focus-visible:stroke-primary focus-visible:stroke-[3px]",
+                    disabled ? "cursor-default opacity-35" : "cursor-pointer opacity-85 hover:opacity-100",
+                    selected && "opacity-100"
+                  )}
+                  d={shape.d}
+                  fill={fill}
+                  key={shape.code}
+                  onClick={() => selectState(state)}
+                  onFocus={() => setInspectedStateCode(shape.code)}
+                  onKeyDown={(event) => handleStateKeyDown(event, state, selectState)}
+                  onMouseEnter={() => setInspectedStateCode(shape.code)}
+                  onMouseLeave={() => setInspectedStateCode(null)}
+                  ref={(node) => {
+                    pathRefs.current[shape.code] = node
+                  }}
+                  role={disabled ? "img" : "button"}
+                  stroke={selected ? "hsl(var(--primary))" : "hsl(var(--background))"}
+                  strokeLinejoin="round"
+                  strokeWidth={selected ? 3.4 : 1.35}
+                  tabIndex={disabled ? -1 : 0}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )
+            })}
+            {Object.values(stateMetrics).map((state) => {
+              const position = labelPositions[state.code]
+
+              if (!position) {
+                return null
+              }
+
+              const x = viewBox.x + (position.x / 100) * viewBox.width
+              const y = viewBox.y + (position.y / 100) * viewBox.height
+
+              return (
+                <text
+                  className={cn(
+                    "pointer-events-none text-[10px] font-medium",
+                    selectedStateCode === state.code
+                      ? "fill-primary"
+                      : "fill-foreground"
+                  )}
+                  dominantBaseline="middle"
+                  key={state.code}
+                  paintOrder="stroke"
+                  stroke="hsl(var(--background))"
+                  strokeLinejoin="round"
+                  strokeWidth={4}
+                  textAnchor="middle"
+                  transform={`translate(${x} ${y}) scale(${Math.max(0.72, 1 / mapViewport.scale)})`}
+                >
+                  {state.title}
+                </text>
+              )
+            })}
+          </g>
+        </svg>
+
+        {!shapes.length ? (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+            Loading map
           </div>
         ) : null}
-        <div className="absolute right-3 top-3 z-10 flex rounded-md border bg-background/95 p-0.5 shadow-sm backdrop-blur">
-          <button
-            aria-label="Zoom map in"
-            className="size-8 rounded-sm text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            onClick={() => zoomAtCenter(Math.min(3.4, viewState.scale + 0.35))}
-            type="button"
-          >
-            +
-          </button>
-          <button
-            aria-label="Zoom map out"
-            className="size-8 rounded-sm text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            onClick={() => zoomAtCenter(Math.max(1, viewState.scale - 0.35))}
-            type="button"
-          >
-            -
-          </button>
-          <button
-            aria-label="Reset map view"
-            className="h-8 rounded-sm px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            onClick={() => {
-              const values = panzoomRef.current?.reset({ animate: true, force: true })
 
-              if (values) {
-                updateFromPanzoom(values)
-              }
-            }}
-            type="button"
-          >
-            Reset
-          </button>
-        </div>
-        <style>{stateStyleSheet(stateMetrics, selectedStateCode ?? null)}</style>
-        <p className="sr-only" id="germany-map-accessible-note">
-          Geographic overview of observed German states. Use the state controls
-          below the map to select states with a keyboard.
-        </p>
-        <div
-          aria-describedby="germany-map-accessible-note"
-          aria-label="Germany state map"
-          className={cn(
-            "germany-state-map relative flex h-full w-full touch-none items-center justify-center",
-            viewState.scale > 1 && "cursor-grab active:cursor-grabbing"
-          )}
-          id="droplet-germany-map"
-          onClick={handleMapClick}
-          role="img"
-        >
-          {svgMarkup ? (
-            <div
-              className="relative h-auto w-full max-h-full xl:h-full xl:w-auto"
-              ref={mapLayerRef}
-              style={{ aspectRatio: "585.5141 / 792.66785" }}
-            >
-              <div
-                className="h-full w-full"
-                // The SVG is a checked-in local asset. Styling and click behavior are applied by state IDs.
-                dangerouslySetInnerHTML={{ __html: svgMarkup }}
-              />
-              {showLabels ? (
-                <div className="pointer-events-none absolute inset-0 z-10">
-                  {observedStates
-                    .filter((state) => state.code !== activeInfoStateCode)
-                    .map((state) => {
-                      const position =
-                        computedLabelPositions[state.code] ?? labelPositions[state.code]
-
-                      if (!position) {
-                        return null
-                      }
-
-                      return (
-                        <span
-                          className={cn(
-                            "absolute z-10 max-w-32 truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground shadow-sm ring-1 ring-border/70 backdrop-blur",
-                            state.code === selectedStateCode &&
-                              "bg-primary text-primary-foreground ring-primary"
-                          )}
-                          key={state.code}
-                          style={{
-                            left: `${position.x}%`,
-                            top: `${position.y}%`,
-                            transform: `translate(-50%, -50%) scale(${Math.max(0.62, 1 / viewState.scale)})`,
-                          }}
-                        >
-                          {state.title}
-                        </span>
-                      )
-                    })}
-                </div>
-              ) : null}
-              {activeInfoState ? (
-                <SelectedStateCard
-                  activeLayer={activeLayer}
-                  position={
-                    computedLabelPositions[activeInfoState.code] ??
-                    labelPositions[activeInfoState.code]
-                  }
-                  scale={viewState.scale}
-                  state={activeInfoState}
-                />
-              ) : null}
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">Loading map</div>
-          )}
-        </div>
+        {activeInfoState ? (
+          <StateInfoCard
+            activeLayer={activeLayer}
+            state={activeInfoState}
+            onFocus={() => focusState(activeInfoState.code)}
+            onOpenDetails={onOpenDetails}
+          />
+        ) : null}
       </div>
-    </div>
+    </section>
   )
 }
 
-function stateStyleSheet(
-  stateMetrics: Record<string, GermanyStateMetric>,
-  selectedStateCode: string | null
-) {
-  const stateRules = Object.values(stateMetrics)
-    .map((state) => {
-      const fill = stateFills[state.status]
-      const opacity = state.status === "stale" ? 0.72 : 0.86
-
-      return `
-        #droplet-germany-map [id="${state.code}"] {
-          cursor: pointer;
-          fill: ${fill};
-          opacity: ${opacity};
-          stroke: hsl(var(--background));
-        }
-        #droplet-germany-map [id="${state.code}"]:hover {
-          opacity: 1;
-          stroke-width: 2.8;
-        }
-      `
-    })
-    .join("\n")
-
-  const selectedRule = selectedStateCode
-    ? `
-        #droplet-germany-map [id="${selectedStateCode}"] {
-          opacity: 1;
-          stroke: hsl(var(--primary));
-          stroke-width: 3.2;
-        }
-      `
-    : ""
-
-  return `
-    #droplet-germany-map svg {
-      display: block;
-      height: 100%;
-      width: 100%;
-    }
-    #droplet-germany-map path {
-      fill: hsl(var(--muted));
-      opacity: 0.58;
-      stroke: hsl(var(--background));
-      stroke-linejoin: round;
-      stroke-width: 1.45;
-      transition: fill 160ms ease, opacity 160ms ease, stroke-width 160ms ease;
-      vector-effect: non-scaling-stroke;
-    }
-    ${stateRules}
-    ${selectedRule}
-  `
-}
-
-type SelectedStateCardProps = {
-  activeLayer: MapLayer
-  position: { x: number; y: number } | undefined
-  scale: number
-  state: GermanyStateMetric
-}
-
-function SelectedStateCard({
-  activeLayer,
-  position,
-  scale,
-  state,
-}: SelectedStateCardProps) {
-  const primaryRegion = state.regions[0]?.region
-
-  if (!position || !primaryRegion) {
-    return null
-  }
-
+function MapToolButton({
+  children,
+  label,
+  onClick,
+}: {
+  children: React.ReactNode
+  label: string
+  onClick: () => void
+}) {
   return (
-    <div
-      className="panzoom-exclude pointer-events-none absolute z-20 w-44 rounded-md border border-primary/50 bg-background/95 p-2 text-xs shadow-lg backdrop-blur"
-      style={{
-        left: `${position.x}%`,
-        top: `${position.y}%`,
-        transform: `translate(-50%, calc(-100% - 10px)) scale(${Math.max(0.68, 1 / scale)})`,
-        transformOrigin: "bottom center",
-      }}
-    >
-      <div className="truncate font-semibold">{state.title}</div>
-      <div className="mt-1 truncate text-muted-foreground">
-        {primaryRegion.basin} water system
+    <Button aria-label={label} size="icon-sm" title={label} variant="ghost" onClick={onClick}>
+      {children}
+    </Button>
+  )
+}
+
+function StateInfoCard({
+  activeLayer,
+  onFocus,
+  onOpenDetails,
+  state,
+}: {
+  activeLayer: HomeLayer
+  onFocus: () => void
+  onOpenDetails: () => void
+  state: GermanyStateMetric
+}) {
+  return (
+    <div className="absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-md border bg-background/95 p-3 text-sm shadow-lg backdrop-blur">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-semibold">{state.title}</div>
+          <div className="mt-1 truncate text-xs text-muted-foreground">
+            {state.regions.length} observed region
+            {state.regions.length === 1 ? "" : "s"} · {homeLayerLabel(activeLayer)}
+          </div>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-md px-2 py-1 text-xs font-medium capitalize",
+            state.status === "healthy" &&
+              "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+            state.status === "watch" &&
+              "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+            state.status === "stale" &&
+              "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200",
+            state.status === "critical" &&
+              "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200"
+          )}
+        >
+          {state.status}
+        </span>
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-muted-foreground">{layerLabel(activeLayer)}</span>
-        <span className="font-semibold">{state.metric}%</span>
+
+      <div className="mt-3 grid grid-cols-5 gap-1.5">
+        {homeLayerConfigs.map((layer) => (
+          <div className="min-w-0 rounded-md border bg-card px-2 py-1.5" key={layer.id}>
+            <div className="truncate text-[10px] uppercase text-muted-foreground">
+              {layer.shortLabel}
+            </div>
+            <div className="mt-0.5 text-sm font-semibold">
+              {state.layerValues[layer.id]}%
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {state.warnings.length ? (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          {state.warnings[0]}
+          {state.warnings.length > 1 ? ` +${state.warnings.length - 1} more` : ""}
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" onClick={onFocus}>
+          <ProductIcon icon={CenterFocusIcon} />
+          Focus
+        </Button>
+        <Button size="sm" onClick={onOpenDetails}>
+          <ProductIcon icon={RefreshIcon} />
+          Details
+        </Button>
       </div>
     </div>
   )
 }
 
-function layerLabel(activeLayer: MapLayer) {
-  if (activeLayer === "rainfall") {
-    return "Rainfall"
+function handleStateKeyDown(
+  event: KeyboardEvent<SVGPathElement>,
+  state: GermanyStateMetric | undefined,
+  selectState: (state: GermanyStateMetric | undefined) => void
+) {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return
   }
 
-  if (activeLayer === "confidence") {
-    return "Confidence"
-  }
-
-  return "Water level"
+  event.preventDefault()
+  selectState(state)
 }
 
-function normalizeSvgMarkup(markup: string) {
-  const width = markup.match(/\bwidth="([0-9.]+)"/)?.[1]
-  const height = markup.match(/\bheight="([0-9.]+)"/)?.[1]
+function stateAriaLabel(
+  shape: StateShape,
+  state: GermanyStateMetric | undefined,
+  activeLayer: HomeLayer
+) {
+  if (!state) {
+    return `${shape.title}, no current observations`
+  }
 
-  const normalizedMarkup =
-    markup.includes("viewBox=") || !width || !height
-      ? markup
-      : markup.replace(
-          "<svg",
-          `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet"`
-        )
+  return `${state.title}, ${homeLayerLabel(activeLayer)} ${state.metric} percent, ${state.status}`
+}
 
-  return normalizedMarkup
-    .replace(/\swidth="[^"]+"/, "")
-    .replace(/\sheight="[^"]+"/, "")
+function parseGermanySvg(markup: string) {
+  const document = new DOMParser().parseFromString(markup, "image/svg+xml")
+  const svg = document.querySelector("svg")
+  const viewBox = parseViewBox(svg)
+  const shapes = Array.from(document.querySelectorAll("path[id]"))
+    .map((path) => ({
+      code: path.id,
+      d: path.getAttribute("d") ?? "",
+      title: path.getAttribute("title") ?? path.id,
+    }))
+    .filter((shape) => shape.d)
+
+  return {
+    shapes,
+    viewBox,
+  }
+}
+
+function parseViewBox(svg: SVGSVGElement | null): SvgViewBox {
+  if (!svg) {
+    return fallbackViewBox
+  }
+
+  const viewBox = svg.getAttribute("viewBox")
+
+  if (viewBox) {
+    const [x, y, width, height] = viewBox
+      .split(/\s+/)
+      .map((value) => Number.parseFloat(value))
+
+    if ([x, y, width, height].every((value) => Number.isFinite(value))) {
+      return { height, width, x, y }
+    }
+  }
+
+  const width = Number.parseFloat(svg.getAttribute("width") ?? `${fallbackViewBox.width}`)
+  const height = Number.parseFloat(svg.getAttribute("height") ?? `${fallbackViewBox.height}`)
+
+  return {
+    height: Number.isFinite(height) ? height : fallbackViewBox.height,
+    width: Number.isFinite(width) ? width : fallbackViewBox.width,
+    x: 0,
+    y: 0,
+  }
 }
