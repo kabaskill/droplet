@@ -15,7 +15,7 @@ Water/weather ingestion remains in `backend/services/environmental_sources.py`.
 
 ## Sunlight
 
-`backend/services/climate_sources/solar.py` uses the Open-Meteo Satellite Radiation API archive endpoint for per-region hourly radiation data and selects the latest usable observation.
+`backend/services/climate_sources/solar.py` uses the Open-Meteo Satellite Radiation API archive endpoint for per-region hourly radiation data and selects the latest usable observation at or before the current UTC time.
 
 Normalized output:
 
@@ -36,6 +36,8 @@ Clear-sky radiation is treated as optional source context. If Open-Meteo returns
 Missing shortwave or direct radiation fields are treated as selected-source gaps and appear as stable sunlight warnings because they affect source availability and direct-light share.
 
 Zero-radiation rows, such as nighttime observations where direct and diffuse radiation are both `0`, are treated as valid low-sunlight observations rather than partial source failures.
+
+Open-Meteo archive responses can include full-day future rows. The solar normalizer skips future rows so evening or end-of-day zeros do not mask the current daylight observation.
 
 The stable climate flow caches Open-Meteo solar archive payloads per region and date window with a 30-minute fresh window and a three-hour stale fallback window by default. These observation source-cache windows are controlled by `CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS` and `CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS`. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window. When stale, legacy, or bypassed source-cache data contributes to the stable flow, the sunlight section receives a compact UI-facing warning. The debug source-normalization route keeps live fetch behavior unless a caller explicitly opts into cached source builders in code.
 
@@ -75,12 +77,14 @@ The endpoint:
 
 - Requires authentication with `@require_auth()` and is readable by all signed-in roles.
 - Uses a versioned per-region Redis stale-while-revalidate cache with a 300 second fresh window and one-hour stale retention by default.
-- Returns a stale cached read model immediately while a background refresh updates the cache when the fresh window expires.
-- Can be refreshed by Celery tasks on a schedule controlled by `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES`, defaulting to 30 minutes.
+- Returns fresh or stale cached read models immediately without fetching upstream climate sources in the API request path.
+- Returns a pending unavailable read model on cache miss and queues a Celery refresh for the selected region.
+- Queues Celery refreshes when cached climate data is stale, legacy, missing, or bypassed; Redis refresh locks prevent duplicate region refreshes.
+- Can be refreshed by scheduled Celery tasks controlled by `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES`, defaulting to 30 minutes.
 - Uses `CLIMATE_CONTEXT_FRESH_TTL_SECONDS` and `CLIMATE_CONTEXT_STALE_TTL_SECONDS` for the read-model cache windows. Invalid values fall back to defaults, and stale retention is never shorter than the fresh window.
 - Validates the region id before reading or writing a climate context cache key.
 - Uses `CLIMATE_SOURCE_TIMEOUT_SECONDS`, defaulting to 8 seconds, for stable climate source requests.
-- Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, and whether an async refresh was started. Status can be `fresh`, `stale`, `legacy`, `miss`, or `bypass`.
+- Includes a compact `cache` section with status, stored time, fresh-until time, stale-until time, refresh state, queued task id, and the last refresh error when available. Cache status can be `fresh`, `stale`, `legacy`, `miss`, or `bypass`; refresh state can be `idle`, `queued`, `locked`, or `failed`.
 - Returns sunlight, air-quality, and CO2 source-status context in compact camelCase fields.
 - Includes compact source labels for normalized sunlight and air-quality readings without exposing debug request configuration or raw payload summaries.
 - Coerces malformed, boolean, or non-finite normalized numeric values to `null` before returning the stable read model.
@@ -93,7 +97,7 @@ Response sections:
 
 - `sunlight`: `score`, feasibility `label`, `source`, `status`, `observedAt`, `ageMinutes`, irradiance values in `W/m2`, `clearSkyRatio`, `directLightShare`, and warnings.
 - `air`: `riskScore`, `riskLabel`, `source`, `status`, `observedAt`, `ageMinutes`, pollutant values in `ug/m3`, station summary, and warnings.
-- `cache`: cache `status`, `storedAt`, `freshUntil`, `staleUntil`, and `refreshStarted`.
+- `cache`: cache `status`, `storedAt`, `freshUntil`, `staleUntil`, `refreshStarted`, `refreshState`, optional `taskId`, and optional `lastRefreshError`.
 - `co2`: candidate source `status`, source name, required config, dataset candidates, blockers, and warnings.
 
 CO2 remains candidate metadata. It should not be interpreted as a live measured operational score. The stable endpoint keeps CO2 warnings focused on candidate availability and required workflow setup; detailed CAMS/Copernicus research notes stay in the debug route.

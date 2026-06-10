@@ -43,11 +43,13 @@ The Home page is the main operations view.
 - The map visualizes Germany by selected operational layer.
 - Regional filters narrow the map by status or risk profile.
 - Selecting a state opens detailed water level, rainfall, evaporation pressure, confidence, source, and trend data.
-- The climate context panel shows selected-state sunlight feasibility, air-quality risk, normalized source labels, CO2 candidate source status, and climate read-model cache freshness windows.
+- The climate context panel shows selected-state sunlight feasibility, air-quality risk, normalized source labels, CO2 candidate source status, climate read-model cache freshness windows, and refresh state.
 - The forecast panel shows 48-hour pressure outlooks when forecast coverage is available.
 - Offline state is detected in the browser, and cached read models are clearly labeled.
 
-Climate context is supplemental. It does not change the persisted reservoir snapshot and should not block water-state review if a climate source is partial or unavailable. CO2 appears as candidate source metadata rather than a live measured score.
+Climate context is supplemental. It does not change the persisted reservoir snapshot and should not block water-state review if a climate source is pending, partial, or unavailable. CO2 appears as candidate source metadata rather than a live measured score.
+
+Climate data is refreshed through backend workers. On a cold cache, the panel can show pending climate context while a region refresh is queued. On stale cache, the panel keeps showing the cached context and labels whether refresh is queued, pending behind an existing lock, failed, or idle.
 
 ## Trends
 
