@@ -4,7 +4,7 @@ from backend.auth.decorators import require_auth
 from backend.auth.keycloak import auth_config as build_auth_config
 from backend.cache.keys import cache_key
 from backend.cache.redis_client import (
-    read_stale_while_revalidate_json_with_metadata,
+    read_stale_json_cache,
     read_through_json,
 )
 from backend.repositories.ai_analyses import list_ai_analyses, save_ai_analysis
@@ -17,11 +17,13 @@ from backend.services.ai_analysis import (
 )
 from backend.services.analytics import build_analytics_summary
 from backend.services.climate_context import (
-    CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
-    CLIMATE_CONTEXT_STALE_TTL_SECONDS,
     UnknownClimateRegionError,
-    build_region_climate_context,
+    build_pending_region_climate_context,
     climate_context_cache_key,
+)
+from backend.services.climate_refresh import (
+    enqueue_region_climate_refresh,
+    idle_region_climate_refresh,
 )
 from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
@@ -123,16 +125,24 @@ def source_health():
 @require_auth()
 def region_climate(region_id: str):
     try:
-        payload, cache_metadata = read_stale_while_revalidate_json_with_metadata(
-            climate_context_cache_key(region_id),
-            CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
-            CLIMATE_CONTEXT_STALE_TTL_SECONDS,
-            lambda: build_region_climate_context(region_id),
+        payload, cache_metadata = read_stale_json_cache(
+            climate_context_cache_key(region_id)
         )
+        refresh_metadata = (
+            idle_region_climate_refresh(region_id)
+            if cache_metadata["status"] == "fresh"
+            else enqueue_region_climate_refresh(region_id)
+        )
+
+        if payload is None:
+            payload = build_pending_region_climate_context(
+                region_id,
+                _pending_climate_warning(refresh_metadata),
+            )
     except UnknownClimateRegionError as exc:
         return jsonify({"code": "unknown_region", "error": str(exc)}), 404
 
-    return jsonify({**payload, "cache": cache_metadata})
+    return jsonify({**payload, "cache": {**cache_metadata, **refresh_metadata}})
 
 
 @api_bp.get("/debug/source-normalization")
@@ -163,6 +173,21 @@ def _debug_sections(requested_sections: str | None) -> list[str] | None:
         for section in requested_sections.split(",")
         if section.strip()
     ]
+
+
+def _pending_climate_warning(refresh_metadata: dict[str, object]) -> str:
+    refresh_state = refresh_metadata.get("refreshState")
+
+    if refresh_state == "queued":
+        return "Climate refresh queued"
+
+    if refresh_state == "locked":
+        return "Climate refresh already queued"
+
+    if refresh_state == "failed":
+        return "Climate refresh unavailable"
+
+    return "Climate context pending"
 
 
 def _debug_region_limit(

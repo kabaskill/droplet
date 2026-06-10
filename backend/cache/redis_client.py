@@ -104,6 +104,44 @@ def read_stale_while_revalidate_json_with_metadata(
     return value, {**metadata, "refreshStarted": False, "status": "miss"}
 
 
+def read_stale_json_cache(key: str) -> tuple[Any | None, dict[str, Any]]:
+    client = redis_client()
+
+    try:
+        cached = client.get(key)
+
+        if cached:
+            value, metadata = _cached_value_and_metadata(cached)
+            fresh_until = _parse_datetime(metadata.get("freshUntil"))
+
+            if fresh_until is not None and datetime.now(UTC) < fresh_until:
+                return value, {
+                    **metadata,
+                    "refreshStarted": False,
+                    "status": "fresh",
+                }
+
+            status = "legacy" if metadata.get("status") == "legacy" else "stale"
+
+            return value, {
+                **metadata,
+                "refreshStarted": False,
+                "status": status,
+            }
+    except RedisError:
+        return None, {
+            **_cache_metadata("bypass"),
+            "refreshStarted": False,
+        }
+    except (TypeError, ValueError):
+        pass
+
+    return None, {
+        **_cache_metadata("miss"),
+        "refreshStarted": False,
+    }
+
+
 def refresh_stale_while_revalidate_json(
     key: str,
     fresh_ttl_seconds: int,

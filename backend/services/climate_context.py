@@ -85,6 +85,56 @@ def build_region_climate_context(
     }
 
 
+def build_pending_region_climate_context(
+    region_id: str,
+    warning: str = "Climate refresh queued",
+) -> dict[str, Any]:
+    validate_climate_region_id(region_id)
+
+    co2 = build_co2_debug_stage(region_id)
+
+    return {
+        "air": {
+            "ageMinutes": None,
+            "observedAt": None,
+            "pollutants": {
+                "co": None,
+                "no2": None,
+                "o3": None,
+                "pm10": None,
+                "pm25": None,
+                "so2": None,
+            },
+            "riskLabel": "unavailable",
+            "riskScore": None,
+            "source": "pending climate refresh",
+            "station": None,
+            "status": "unavailable",
+            "warnings": [warning],
+        },
+        "co2": _co2_context(co2),
+        "generatedAt": datetime.now(UTC).isoformat(),
+        "regionId": region_id,
+        "sunlight": {
+            "ageMinutes": None,
+            "clearSkyRatio": None,
+            "directLightShare": None,
+            "irradiance": {
+                "diffuseRadiation": None,
+                "directNormalIrradiance": None,
+                "directRadiation": None,
+                "shortwaveRadiation": None,
+            },
+            "label": "unavailable",
+            "observedAt": None,
+            "score": None,
+            "source": "pending climate refresh",
+            "status": "unavailable",
+            "warnings": [warning],
+        },
+    }
+
+
 def climate_context_cache_key(region_id: str) -> str:
     validate_climate_region_id(region_id)
 
