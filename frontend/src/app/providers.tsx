@@ -6,9 +6,10 @@ import { queryClient } from "@/app/query-client"
 import { AuthProvider } from "@/features/auth/AuthProvider"
 
 const readModelVersion = "state-model-v2"
+const persistenceVersion = `${readModelVersion}-climate-model-v3`
 
 const persister = createSyncStoragePersister({
-  key: `droplet-query-cache-${readModelVersion}`,
+  key: `droplet-query-cache-${persistenceVersion}`,
   storage: window.localStorage,
 })
 
@@ -21,7 +22,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{
-        buster: readModelVersion,
+        buster: persistenceVersion,
         maxAge: 1000 * 60 * 60 * 24,
         persister,
       }}

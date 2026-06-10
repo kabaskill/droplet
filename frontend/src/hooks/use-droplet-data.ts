@@ -19,7 +19,7 @@ import type { AiAnalysisRequest, ReservoirSnapshot } from "@/services/types"
 import { queryClient } from "@/app/query-client"
 
 const readModelVersion = "state-model-v2"
-const climateReadModelVersion = "climate-model-v2"
+const climateReadModelVersion = "climate-model-v3"
 const climateReadModelFreshSeconds = positiveIntEnv(
   import.meta.env.VITE_CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
   300
@@ -29,7 +29,6 @@ const climateReadModelCacheSeconds = Math.max(
   climateReadModelFreshSeconds
 )
 const climateReadModelCacheMs = climateReadModelCacheSeconds * 1000
-const climateReadModelFreshMs = climateReadModelFreshSeconds * 1000
 
 export function useRegions() {
   return useQuery({
@@ -92,7 +91,8 @@ export function useRegionClimate(regionId: string | null) {
     enabled: Boolean(regionId),
     queryFn: () => fetchRegionClimate(regionId ?? ""),
     queryKey: ["climate", climateReadModelVersion, "region", regionId],
-    staleTime: climateReadModelFreshMs,
+    refetchOnMount: "always",
+    staleTime: 0,
   })
 }
 

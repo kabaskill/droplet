@@ -168,10 +168,16 @@ export type RegionClimate = {
   }
   cache?: {
     freshUntil: string | null
+    lastRefreshError?: {
+      message?: string
+      recordedAt?: string
+    } | null
     refreshStarted: boolean
+    refreshState?: "failed" | "idle" | "locked" | "queued" | "refreshing"
     staleUntil: string | null
     status: "bypass" | "fresh" | "legacy" | "miss" | "stale" | "stored"
     storedAt: string | null
+    taskId?: string | null
   }
   co2: {
     blockers: string[]

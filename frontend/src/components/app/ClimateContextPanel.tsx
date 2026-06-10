@@ -160,6 +160,7 @@ export function ClimateContextPanel({
 
 type ClimateContextShellProps = {
   cacheSummary?: {
+    detailLabel: string | null
     label: string
     storedAtLabel: string | null
     tone: "default" | "error" | "warning"
@@ -192,6 +193,11 @@ function ClimateContextShell({
           {cacheSummary?.windowLabel ? (
             <p className="mt-1 text-xs text-muted-foreground">
               {cacheSummary.windowLabel}
+            </p>
+          ) : null}
+          {cacheSummary?.detailLabel ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {cacheSummary.detailLabel}
             </p>
           ) : null}
         </div>
@@ -413,19 +419,42 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
     return null
   }
 
-  const refreshing = cache.refreshStarted
+  const refreshState =
+    cache.refreshState ?? (cache.refreshStarted ? "queued" : "idle")
 
-  if (refreshing) {
+  if (refreshState === "queued" || refreshState === "refreshing") {
     return {
-      label: "Refreshing",
+      detailLabel: null,
+      label: refreshState === "queued" ? "Refresh queued" : "Refreshing",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "warning" as const,
-      windowLabel: cacheWindowLabel("Stale until", cache.staleUntil),
+      windowLabel: activeCacheWindowLabel(cache),
+    }
+  }
+
+  if (refreshState === "locked") {
+    return {
+      detailLabel: null,
+      label: "Refresh pending",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "warning" as const,
+      windowLabel: activeCacheWindowLabel(cache),
+    }
+  }
+
+  if (refreshState === "failed") {
+    return {
+      detailLabel: refreshErrorLabel(cache),
+      label: "Refresh failed",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "error" as const,
+      windowLabel: activeCacheWindowLabel(cache),
     }
   }
 
   if (cache.status === "fresh") {
     return {
+      detailLabel: null,
       label: "Cache fresh",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "default" as const,
@@ -435,7 +464,8 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
 
   if (cache.status === "miss" || cache.status === "stored") {
     return {
-      label: "Cache new",
+      detailLabel: null,
+      label: cache.status === "miss" ? "Climate pending" : "Cache new",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "default" as const,
       windowLabel: cacheWindowLabel("Fresh until", cache.freshUntil),
@@ -444,6 +474,7 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
 
   if (cache.status === "stale") {
     return {
+      detailLabel: null,
       label: "Cache stale",
       storedAtLabel: shortDateTime(cache.storedAt),
       tone: "warning" as const,
@@ -451,8 +482,19 @@ function climateCacheSummary(cache: RegionClimate["cache"]) {
     }
   }
 
+  if (cache.status === "legacy") {
+    return {
+      detailLabel: null,
+      label: "Cache legacy",
+      storedAtLabel: shortDateTime(cache.storedAt),
+      tone: "warning" as const,
+      windowLabel: cacheWindowLabel("Stale until", cache.staleUntil),
+    }
+  }
+
   return {
-    label: "Cache bypass",
+    detailLabel: null,
+    label: "Cache unavailable",
     storedAtLabel: shortDateTime(cache.storedAt),
     tone: "warning" as const,
     windowLabel: null,
@@ -517,6 +559,24 @@ function cacheWindowLabel(prefix: string, value: string | null) {
   const formatted = shortDateTime(value)
 
   return formatted ? `${prefix} ${formatted}` : null
+}
+
+function activeCacheWindowLabel(cache: NonNullable<RegionClimate["cache"]>) {
+  if (
+    cache.status === "fresh" ||
+    cache.status === "miss" ||
+    cache.status === "stored"
+  ) {
+    return cacheWindowLabel("Fresh until", cache.freshUntil)
+  }
+
+  return cacheWindowLabel("Stale until", cache.staleUntil)
+}
+
+function refreshErrorLabel(cache: NonNullable<RegionClimate["cache"]>) {
+  const message = cache.lastRefreshError?.message
+
+  return message ? `Last refresh error: ${message}` : null
 }
 
 function shortDateTime(value: string | null) {
