@@ -39,13 +39,13 @@ flowchart TD
 
 The Home page is the main operations view.
 
-- Summary tiles show observed regions, dominant trend, and data freshness.
-- The map visualizes Germany by selected operational layer.
-- Regional filters narrow the map by status or risk profile.
-- Selecting a state opens detailed water level, rainfall, evaporation pressure, confidence, source, and trend data.
-- The climate context panel shows selected-state sunlight feasibility, air-quality risk, normalized source labels, CO2 candidate source status, climate read-model cache freshness windows, and refresh state.
-- The forecast panel shows 48-hour pressure outlooks when forecast coverage is available.
-- Offline state is detected in the browser, and cached read models are clearly labeled.
+- The workspace shell uses a collapsible sidebar for navigation, refresh state, session controls, and state search.
+- The D3 Germany state canvas supports pan, zoom, reset, fit-to-view, selected-state focus, pointer selection, and keyboard state selection.
+- Home layers are Overview, Water, Climate, Forecast, and Data quality. Overview blends the other four signals into one operational score.
+- Regional filters narrow visible states by status or risk profile without switching into water-system-only map modes.
+- Selecting a state updates the right rail with region metadata, water snapshot, climate context, forecast outlook, source tags, warnings, and read-model freshness.
+- On mobile, selected-state details open in a responsive sheet while navigation remains in the sidebar drawer.
+- Offline state is detected in the browser, and cached read models remain labeled through the freshness panel.
 
 Climate context is supplemental. It does not change the persisted reservoir snapshot and should not block water-state review if a climate source is pending, partial, or unavailable. CO2 appears as candidate source metadata rather than a live measured score.
 
