@@ -23,8 +23,8 @@ const emptyRegions: Region[] = []
 const emptySnapshots: ReservoirSnapshot[] = []
 
 export function useDashboardData() {
-  const activeLayer = useAppStore((state) => state.activeLayer)
   const comparisonMode = useAppStore((state) => state.comparisonMode)
+  const homeLayer = useAppStore((state) => state.homeLayer)
   const regionalFilter = useAppStore((state) => state.regionalFilter)
   const selectedRegionId = useAppStore((state) => state.selectedRegionId)
   const setRegionalFilter = useAppStore((state) => state.setRegionalFilter)
@@ -126,7 +126,6 @@ export function useDashboardData() {
       ingestionStatusQuery.error,
       forecastOutlookQuery.error,
     ]),
-    activeLayer,
     activeRegion,
     activeSnapshot,
     analyticsQuery,
@@ -138,6 +137,7 @@ export function useDashboardData() {
     forecastOutlookQuery,
     freshnessItems,
     historyQuery,
+    homeLayer,
     ingestionStatusQuery,
     operationalError: firstOperationalError([regionsQuery.error, snapshotsQuery.error]),
     regionReadModelLoading,
