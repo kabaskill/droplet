@@ -27,14 +27,14 @@ export function RegionDetailPanel({
   const sources = snapshotSourceTags(snapshot)
 
   return (
-    <aside className="grid min-w-0 gap-4 overflow-hidden xl:grid-cols-1">
+    <aside className="grid min-w-0 gap-4 xl:grid-cols-1">
       <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
         <div className="mb-4 space-y-3">
           <div className="min-w-0">
             <div className="text-xs font-medium uppercase text-muted-foreground">
               {region.federalState}
             </div>
-            <div className="mt-1 flex items-start justify-between gap-3">
+            <div className="mt-1 flex flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
               <h2 className="min-w-0 break-words text-lg font-semibold">
                 {region.name}
               </h2>
@@ -52,17 +52,17 @@ export function RegionDetailPanel({
                 {freshnessStatus} · {freshnessLabel(snapshot)}
               </span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 break-words text-sm text-muted-foreground">
               {region.basin} water system ·{" "}
               {new Date(snapshot.timestamp).toLocaleString("en-DE")}
             </p>
           </div>
 
-          <div className="grid grid-cols-3 min-w-0 gap-1.5">
+          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-1.5">
             {sources.map((source) => (
               <span
                 className={cn(
-                  "max-w-full truncate rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
+                  "max-w-full break-words rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
                   source.kind === "water" && "border-sky-200 text-sky-800 dark:text-sky-200",
                   source.kind === "weather" &&
                     "border-emerald-200 text-emerald-800 dark:text-emerald-200",
@@ -124,10 +124,14 @@ export function RegionDetailPanel({
               style={{ width: `${snapshot.waterLevel}%` }}
             />
           </div>
-          <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-            <span>Rain {snapshot.rainfallIndex}%</span>
-            <span>Evap. {snapshot.evaporationPressure}%</span>
-            <span>Visibility {snapshot.visibilityScore}%</span>
+          <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2 text-xs text-muted-foreground">
+            <span className="min-w-0 break-words">Rain {snapshot.rainfallIndex}%</span>
+            <span className="min-w-0 break-words">
+              Evap. {snapshot.evaporationPressure}%
+            </span>
+            <span className="min-w-0 break-words">
+              Visibility {snapshot.visibilityScore}%
+            </span>
           </div>
         </div>
       </section>

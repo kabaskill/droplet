@@ -26,8 +26,8 @@ flowchart TD
 |---|---|---|
 | `frontend` | `frontend/` | React workspace, routing, panels, query cache, auth client. |
 | `backend` | `backend/` | Flask API, auth enforcement, repositories, read models, AI proxy. |
-| `worker` | `backend/tasks/ingestion.py` | Snapshot refresh and cache invalidation. |
-| `scheduler` | `backend/workers/celery_app.py` | Periodic ingestion every `SNAPSHOT_REFRESH_INTERVAL_MINUTES`. |
+| `worker` | `backend/tasks/` | Snapshot refresh, climate context refresh, and cache invalidation. |
+| `scheduler` | `backend/workers/celery_app.py` | Periodic ingestion and climate context refresh schedules. |
 | `postgres` | Docker image | Regions, snapshots, and AI analysis records. |
 | `redis` | Docker image | API read-model cache, Celery broker, Celery result backend. |
 | `keycloak` | `infrastructure/keycloak/` | Local OIDC realm, users, client, and roles. |
@@ -51,12 +51,12 @@ Backend responsibilities are intentionally separated:
 
 - `api/` exposes HTTP routes and status codes.
 - `auth/` supports demo auth and Keycloak token validation.
-- `cache/` wraps Redis read-through cache behavior and cache keys.
+- `cache/` wraps Redis read-through and stale-while-revalidate cache behavior plus cache keys.
 - `domain/` contains pure region and snapshot computation rules.
 - `models/` defines SQLAlchemy database entities and sessions.
 - `repositories/` maps database rows into API-friendly objects.
-- `services/` builds read models, forecasts, source health, ingestion status, and AI analysis.
-- `tasks/` runs ingestion in Celery and invalidates affected cache keys.
+- `services/` builds read models, forecasts, source health, selected-region climate context, ingestion status, and AI analysis.
+- `tasks/` runs ingestion and climate refresh work in Celery and invalidates affected cache keys.
 - `workers/` configures Celery broker, result backend, and beat schedule.
 
 ## Frontend Layers
@@ -97,8 +97,11 @@ Frontend responsibilities:
 | `GET` | `/api/analytics/summary` | Analyst or municipality | Aggregate dashboard metrics. |
 | `GET` | `/api/sources/health` | Analyst or municipality | Source coverage and confidence. |
 | `GET` | `/api/forecasts/outlook` | Analyst or municipality | 48-hour forecast pressure outlook. |
+| `GET` | `/api/climate/regions/<region_id>` | Yes | Selected-region sunlight, air-quality, CO2 source context, and climate refresh metadata. |
 | `POST` | `/api/ai/analyze` | Yes | Run AI analysis for one or more snapshots. |
 | `GET` | `/api/ai/analyses` | Yes | List current user's saved analyses. |
+
+Climate context is authenticated but not role-gated beyond sign-in. It is cached per validated region with a configurable fresh window and stale retention, returns compact cache and refresh metadata, queues Celery refreshes on missing or stale reads, and remains separate from persisted reservoir snapshot state. The API route does not fetch upstream climate sources directly.
 
 ## Deployment Shape
 
@@ -143,8 +146,20 @@ Production-like concerns already represented in the architecture:
 | `AUTH_MODE` | backend | `demo` | Backend auth validation mode. |
 | `VITE_AUTH_MODE` | frontend | `demo` | Frontend auth fallback mode. |
 | `VITE_API_BASE_URL` | frontend | `/api` | API base path for browser requests. |
+| `VITE_CLIMATE_CONTEXT_FRESH_TTL_SECONDS` | frontend | `300` | Lower bound used when deriving selected-region climate query retention. Backend cache metadata remains the freshness authority. |
+| `VITE_CLIMATE_CONTEXT_STALE_TTL_SECONDS` | frontend | `3600` | Browser retention window for selected-region climate context queries. Values below the configured fresh window are raised to the fresh window. |
 | `VITE_DEMO_FALLBACK` | frontend | enabled | Allows demo data fallback for non-auth API failures. |
 | `GEMINI_API_KEY` | backend | empty | Enables AI analysis. |
 | `GEMINI_MODEL` | backend | `gemini-2.5-flash` | Gemini model name. |
+| `CLIMATE_CONTEXT_FRESH_TTL_SECONDS` | backend, worker | `300` | Fresh window for selected-region climate context cache entries. |
+| `CLIMATE_CONTEXT_STALE_TTL_SECONDS` | backend, worker | `3600` | Stale retention window for selected-region climate context cache entries. Values below the fresh window are raised to the fresh window. |
+| `CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS` | backend, worker | `1800` | Fresh window for stable-flow solar, UBA pollutant, and Open-Meteo air-quality source payload caches. |
+| `CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS` | backend, worker | `10800` | Stale retention window for stable-flow observation source payload caches. Values below the fresh window are raised to the fresh window. |
+| `CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS` | backend, worker | `43200` | Fresh window for UBA air-quality station-index source cache. |
+| `CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS` | backend, worker | `604800` | Stale retention window for UBA air-quality station-index source cache. Values below the fresh window are raised to the fresh window. |
+| `CLIMATE_SOURCE_TIMEOUT_SECONDS` | backend, worker | `8` | Stable climate source request timeout. |
+| `CLIMATE_REFRESH_LOCK_TTL_SECONDS` | backend, worker | `600` | Redis lock lifetime for deduplicating selected-region climate refresh jobs. |
+| `CLIMATE_REFRESH_ERROR_TTL_SECONDS` | backend, worker | `3600` | Retention window for last selected-region climate refresh error metadata. |
 | `SNAPSHOT_RETENTION_DAYS` | worker | `395` | Snapshot retention window. |
 | `SNAPSHOT_REFRESH_INTERVAL_MINUTES` | scheduler | `30` | Scheduled ingestion interval. |
+| `CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES` | scheduler | `30` | Scheduled climate context cache refresh interval. |

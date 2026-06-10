@@ -1,0 +1,1456 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from typing import Any, Mapping
+
+import requests
+
+from backend.cache.keys import cache_key
+from backend.cache.redis_client import read_stale_while_revalidate_json_with_metadata
+from backend.domain.snapshots import clamp
+from backend.services.climate_sources.config import (
+    CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS,
+    CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS,
+    CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS,
+    CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS,
+)
+from backend.services.climate_sources.contracts import (
+    DebugStage,
+    NormalizedAirQualityReading,
+    SourceMetadata,
+    dataclass_to_debug_dict,
+    source_cache_warnings,
+)
+from backend.services.environmental_sources import REGION_SOURCE_TARGETS
+
+UBA_STATIONS_URL = "https://www.umweltbundesamt.de/api/air_data/v4/stations/json"
+UBA_MEASURES_URL = "https://www.umweltbundesamt.de/api/air_data/v4/measures/json"
+OPEN_METEO_AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+UBA_STATION_PARAMS = {"use": "airquality", "lang": "en", "recent": "true"}
+UBA_STATION_CANDIDATE_LIMIT = 6
+UBA_STATIONS_CACHE_TTL_SECONDS = CLIMATE_STATION_INDEX_CACHE_FRESH_TTL_SECONDS
+UBA_STATIONS_CACHE_STALE_TTL_SECONDS = CLIMATE_STATION_INDEX_CACHE_STALE_TTL_SECONDS
+UBA_MEASUREMENTS_CACHE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS
+UBA_MEASUREMENTS_CACHE_STALE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS
+OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS = CLIMATE_OBSERVATION_CACHE_FRESH_TTL_SECONDS
+OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS = (
+    CLIMATE_OBSERVATION_CACHE_STALE_TTL_SECONDS
+)
+UBA_SOURCE = SourceMetadata(
+    name="Umweltbundesamt Luftdaten API",
+    url="https://www.umweltbundesamt.de/dokument/schnittstellenbeschreibung-luftdaten-api",
+    attribution="Umweltbundesamt",
+)
+OPEN_METEO_AIR_SOURCE = SourceMetadata(
+    name="Open-Meteo Air Quality API",
+    url="https://open-meteo.com/en/docs/air-quality-api",
+    attribution="Open-Meteo",
+)
+OPEN_METEO_CURRENT_FIELDS = (
+    "pm10",
+    "pm2_5",
+    "nitrogen_dioxide",
+    "ozone",
+    "sulphur_dioxide",
+    "carbon_monoxide",
+)
+POLLUTANTS = ("pm25", "pm10", "no2", "o3", "so2", "co")
+POLLUTANT_LABELS = {
+    "co": "CO",
+    "no2": "NO2",
+    "o3": "O3",
+    "pm10": "PM10",
+    "pm25": "PM2.5",
+    "so2": "SO2",
+}
+UBA_COMPONENT_IDS = {
+    "pm10": "1",
+    "co": "2",
+    "o3": "3",
+    "so2": "4",
+    "no2": "5",
+    "pm25": "9",
+}
+UBA_COMPONENT_TO_POLLUTANT = {
+    component_id: pollutant
+    for pollutant, component_id in UBA_COMPONENT_IDS.items()
+}
+POLLUTANT_LIMITS = {
+    "pm25": 25,
+    "pm10": 50,
+    "no2": 200,
+    "o3": 180,
+    "so2": 350,
+    "co": 10000,
+}
+AIR_QUALITY_UNITS = {
+    "ageMinutes": "minutes",
+    "airRiskScore": "0-100",
+    "co": "ug/m3",
+    "no2": "ug/m3",
+    "o3": "ug/m3",
+    "pm10": "ug/m3",
+    "pm25": "ug/m3",
+    "so2": "ug/m3",
+}
+POLLUTANT_ALIASES = {
+    "pm25": {"pm25", "pm2", "pm2_5", "pm2.5", "PM2", "PM2.5"},
+    "pm10": {"pm10", "PM10"},
+    "no2": {"nitrogen_dioxide", "no2", "NO2"},
+    "o3": {"ozone", "o3", "O3"},
+    "so2": {"sulphur_dioxide", "so2", "SO2"},
+    "co": {"carbon_monoxide", "co", "CO"},
+}
+
+
+def build_air_quality_debug_stage(
+    region_id: str,
+    http: requests.Session | None = None,
+    timeout: float = 8,
+    include_open_meteo_comparison: bool = True,
+    cache_enabled: bool = False,
+    stations_error: str | None = None,
+    stations_payload: Any | None = None,
+) -> DebugStage:
+    data_params = _measurement_window_params()
+    request = {
+        "cacheEnabled": cache_enabled,
+        "method": "GET",
+        "primary": {"params": UBA_STATION_PARAMS, "url": UBA_STATIONS_URL},
+        "readings": {"params": data_params, "url": UBA_MEASURES_URL},
+    }
+    warnings: list[str] = []
+    errors: list[str] = []
+    session = http or requests.Session()
+    station_cache_warnings: list[str] = []
+
+    try:
+        if stations_error is not None:
+            raise ValueError(stations_error)
+
+        if stations_payload is None:
+            if cache_enabled:
+                stations_payload, station_cache = (
+                    fetch_cached_uba_stations_with_metadata(session, timeout)
+                )
+                request["stationIndexCache"] = station_cache
+                station_cache_warnings.extend(
+                    source_cache_warnings("UBA station index", station_cache)
+                )
+            else:
+                stations_payload = fetch_uba_stations(session, timeout)
+
+        station_candidates = nearest_uba_stations(
+            region_id,
+            stations_payload,
+            limit=UBA_STATION_CANDIDATE_LIMIT,
+        )
+        request["stationCandidates"] = [
+            _station_request_summary(candidate)
+            for candidate in station_candidates
+        ]
+        station = None
+        readings_payload = {}
+        measurement_requests = {}
+        normalized = None
+        candidate_results: list[dict[str, Any]] = []
+        skipped_candidate_count = 0
+
+        for index, candidate in enumerate(station_candidates):
+            (
+                candidate_payload,
+                candidate_requests,
+                candidate_warnings,
+            ) = _fetch_uba_measurements(
+                session,
+                candidate,
+                data_params,
+                timeout,
+                cache_enabled=cache_enabled,
+            )
+            request["measurementAttempts"] = {
+                **request.get("measurementAttempts", {}),
+                candidate["id"]: candidate_requests,
+            }
+            candidate_normalization_warnings = list(candidate_warnings)
+
+            try:
+                candidate_normalized = normalize_uba_air_quality_payload(
+                    region_id,
+                    candidate,
+                    candidate_payload,
+                    candidate_normalization_warnings,
+                )
+            except ValueError as exc:
+                request["measurementAttempts"][candidate["id"]]["skipped"] = str(exc)
+                skipped_candidate_count += 1
+                continue
+
+            candidate_results.append(
+                {
+                    "candidateIndex": index,
+                    "normalized": candidate_normalized,
+                    "payload": candidate_payload,
+                    "requests": candidate_requests,
+                    "station": candidate,
+                    "warnings": candidate_normalization_warnings,
+                }
+            )
+
+            if _pollutant_coverage(candidate_normalized) == len(POLLUTANTS):
+                break
+
+        if not candidate_results:
+            raise ValueError("no usable UBA readings from nearby station candidates")
+
+        selected_result = max(candidate_results, key=_air_candidate_score)
+        normalized = selected_result["normalized"]
+        selected_warnings = selected_result["warnings"]
+        station = selected_result["station"]
+        readings_payload = selected_result["payload"]
+        measurement_requests = selected_result["requests"]
+        request["measurements"] = measurement_requests
+        request["selectedStation"] = _station_request_summary(station)
+        request["selectedStationCandidateIndex"] = selected_result["candidateIndex"]
+        selected = _selected_air_fields(station, readings_payload)
+        raw_summary = {
+            "readings": _payload_summary(readings_payload),
+            "stationCount": _station_count(stations_payload),
+            "stationCandidatesTried": len(request.get("measurementAttempts", {})),
+        }
+        if selected_result["candidateIndex"] > 0:
+            warnings.append(
+                "UBA selected a nearby station with better pollutant coverage"
+            )
+        if skipped_candidate_count:
+            warnings.append(
+                "UBA station candidate skipped because it had no usable readings"
+            )
+        warnings.extend(station_cache_warnings)
+    except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
+        errors.append(str(exc))
+        station = None
+        readings_payload = None
+        normalized = None
+        selected = {}
+        raw_summary = None
+        selected_warnings = []
+
+    if include_open_meteo_comparison and _needs_open_meteo_air_quality(normalized):
+        comparison = _open_meteo_comparison(
+            region_id,
+            session,
+            timeout,
+            warnings,
+            cache_enabled=cache_enabled,
+        )
+        selected["openMeteoFallback"] = comparison
+        fallback_warnings = (
+            list(comparison.get("warnings", [])) if comparison else []
+        )
+        fallback = _normalized_air_quality_from_debug_dict(
+            comparison.get("normalizedOutput") if comparison else None
+        )
+
+        if (
+            normalized is None
+            and fallback is not None
+            and _pollutant_coverage(fallback) > 0
+        ):
+            if errors:
+                warnings.append("Using Open-Meteo air-quality fallback")
+                errors = []
+
+            normalized = fallback
+            selected_warnings.extend(fallback_warnings)
+            selected.update(_air_reading_selected_fields(normalized))
+        elif (
+            normalized is not None
+            and fallback is not None
+            and _pollutant_coverage(fallback) > 0
+        ):
+            filled_pollutants = _missing_pollutants_filled_by_fallback(
+                normalized,
+                fallback,
+            )
+            selected_warnings = _without_missing_pollutant_warnings(selected_warnings)
+            selected_warnings = _without_filled_measurement_warnings(
+                selected_warnings,
+                filled_pollutants,
+            )
+            if filled_pollutants:
+                selected_warnings.extend(
+                    _without_missing_pollutant_warnings(fallback_warnings)
+                )
+            normalized = _merge_air_quality_readings(
+                normalized,
+                fallback,
+                warnings,
+                filled_pollutants,
+            )
+            selected_warnings.extend(_missing_pollutant_warnings(normalized))
+            selected.update(_air_reading_selected_fields(normalized))
+
+    warnings.extend(selected_warnings)
+
+    if http is None:
+        session.close()
+
+    return DebugStage(
+        request=request,
+        raw_summary=raw_summary,
+        selected_fields=selected,
+        normalized_output=dataclass_to_debug_dict(normalized),
+        warnings=warnings,
+        errors=errors,
+        source=UBA_SOURCE,
+    )
+
+
+def fetch_uba_stations(
+    http: requests.Session,
+    timeout: float = 8,
+) -> Any:
+    response = http.get(
+        UBA_STATIONS_URL,
+        params=UBA_STATION_PARAMS,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+
+def fetch_cached_uba_stations(
+    _http: requests.Session,
+    timeout: float = 8,
+) -> Any:
+    return fetch_cached_uba_stations_with_metadata(_http, timeout)[0]
+
+
+def fetch_cached_uba_stations_with_metadata(
+    _http: requests.Session,
+    timeout: float = 8,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
+        cache_key("climate:uba:stations"),
+        UBA_STATIONS_CACHE_TTL_SECONDS,
+        UBA_STATIONS_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_uba_stations_for_cache(timeout),
+    )
+
+
+def _fetch_uba_stations_for_cache(timeout: float) -> Any:
+    with requests.Session() as http:
+        return fetch_uba_stations(http, timeout)
+
+
+def nearest_uba_station(
+    region_id: str,
+    payload: Any,
+) -> dict[str, Any]:
+    return nearest_uba_stations(region_id, payload, limit=1)[0]
+
+
+def nearest_uba_stations(
+    region_id: str,
+    payload: Any,
+    limit: int = UBA_STATION_CANDIDATE_LIMIT,
+) -> list[dict[str, Any]]:
+    target = REGION_SOURCE_TARGETS[region_id]
+    stations = _station_items(payload)
+    candidates = []
+
+    for station in stations:
+        latitude = _optional_float(
+            station.get("latitude")
+            or station.get("lat")
+            or station.get("station_latitude")
+        )
+        longitude = _optional_float(
+            station.get("longitude")
+            or station.get("lon")
+            or station.get("lng")
+            or station.get("station_longitude")
+        )
+        station_id = station.get("id") or station.get("station_id") or station.get("code")
+
+        if latitude is None or longitude is None or station_id is None:
+            continue
+
+        candidates.append(
+            (
+                _distance_score(target.latitude, target.longitude, latitude, longitude),
+                {
+                    "code": station.get("code"),
+                    "id": str(station_id),
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "name": station.get("name") or station.get("station_name"),
+                    "network": station.get("network"),
+                    "setting": station.get("setting"),
+                    "stationType": station.get("station_type"),
+                },
+            )
+        )
+
+    if not candidates:
+        raise ValueError("no usable UBA station coordinates")
+
+    candidates.sort(key=lambda item: item[0])
+    return [candidate for _, candidate in candidates[:limit]]
+
+
+def _fetch_uba_measurements(
+    http: requests.Session,
+    station: Mapping[str, Any],
+    data_params: Mapping[str, Any],
+    timeout: float,
+    cache_enabled: bool = False,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]], list[str]]:
+    readings_payload = {}
+    measurement_requests = {}
+    warnings_by_pollutant: dict[str, list[str]] = {}
+    futures = {}
+
+    for pollutant, component_id in UBA_COMPONENT_IDS.items():
+        pollutant_params = {
+            **data_params,
+            "component": component_id,
+            "station": station["id"],
+        }
+        measurement_requests[pollutant] = {
+            "params": pollutant_params,
+            "url": UBA_MEASURES_URL,
+        }
+
+        warnings_by_pollutant[pollutant] = []
+        futures[pollutant] = (
+            pollutant,
+            component_id,
+            pollutant_params,
+        )
+
+    with ThreadPoolExecutor(max_workers=len(futures)) as executor:
+        submitted = {
+            executor.submit(
+                _fetch_uba_measurement_for_pollutant,
+                station["id"],
+                pollutant,
+                component_id,
+                pollutant_params,
+                timeout,
+                cache_enabled,
+            ): pollutant
+            for pollutant, component_id, pollutant_params in futures.values()
+        }
+
+        for future in as_completed(submitted):
+            pollutant = submitted[future]
+
+            try:
+                payload, measurement_cache = future.result()
+            except (requests.RequestException, ValueError) as exc:
+                measurement_requests[pollutant]["error"] = str(exc)
+                warnings_by_pollutant[pollutant].append(
+                    "UBA "
+                    f"{pollutant} measurement unavailable for station "
+                    f"{station['id']}: {exc}"
+                )
+                continue
+
+            readings_payload[pollutant] = payload
+
+            if measurement_cache is not None:
+                measurement_requests[pollutant]["cache"] = measurement_cache
+                warnings_by_pollutant[pollutant].extend(
+                    source_cache_warnings(
+                        f"UBA {pollutant} measurement",
+                        measurement_cache,
+                    )
+                )
+
+    warnings = []
+    for pollutant in UBA_COMPONENT_IDS:
+        warnings.extend(warnings_by_pollutant[pollutant])
+
+    return readings_payload, measurement_requests, warnings
+
+
+def _fetch_uba_measurement_for_pollutant(
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    pollutant_params: Mapping[str, Any],
+    timeout: float,
+    cache_enabled: bool,
+) -> tuple[Any, dict[str, Any] | None]:
+    if cache_enabled:
+        payload, measurement_cache = _fetch_cached_uba_measurement_with_metadata(
+            None,
+            station_id,
+            pollutant,
+            component_id,
+            pollutant_params,
+            timeout,
+        )
+
+        return payload, measurement_cache
+
+    with requests.Session() as http:
+        return _fetch_uba_measurement(http, pollutant_params, timeout), None
+
+
+def _fetch_uba_measurement(
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    response = http.get(
+        UBA_MEASURES_URL,
+        params=params,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+
+def _fetch_cached_uba_measurement(
+    _http: requests.Session | None,
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    return _fetch_cached_uba_measurement_with_metadata(
+        _http,
+        station_id,
+        pollutant,
+        component_id,
+        params,
+        timeout,
+    )[0]
+
+
+def _fetch_cached_uba_measurement_with_metadata(
+    _http: requests.Session | None,
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
+        cache_key(
+            _uba_measurement_cache_name(
+                station_id,
+                pollutant,
+                component_id,
+                params,
+            )
+        ),
+        UBA_MEASUREMENTS_CACHE_TTL_SECONDS,
+        UBA_MEASUREMENTS_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_uba_measurement_for_cache(params, timeout),
+    )
+
+
+def _fetch_uba_measurement_for_cache(
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    with requests.Session() as http:
+        return _fetch_uba_measurement(http, params, timeout)
+
+
+def _uba_measurement_cache_name(
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    params: Mapping[str, Any],
+) -> str:
+    return (
+        f"climate:uba:measurements:station:{station_id}:"
+        f"pollutant:{pollutant}:component:{component_id}:"
+        f"from:{params.get('date_from')}:to:{params.get('date_to')}:"
+        f"time:{params.get('time_from')}-{params.get('time_to')}"
+    )
+
+
+def _station_request_summary(station: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "code": station.get("code"),
+        "id": station.get("id"),
+        "name": station.get("name"),
+        "network": station.get("network"),
+        "setting": station.get("setting"),
+        "stationType": station.get("stationType")
+        or station.get("station_type"),
+    }
+
+
+def normalize_uba_air_quality_payload(
+    region_id: str,
+    station: Mapping[str, Any] | None,
+    payload: Any,
+    warnings: list[str] | None = None,
+) -> NormalizedAirQualityReading:
+    warnings = warnings if warnings is not None else []
+    readings = _extract_pollutant_readings(payload)
+
+    if not readings:
+        raise ValueError("UBA payload has no usable pollutant readings")
+
+    observed_at = _latest_timestamp(readings)
+    values = {
+        pollutant: _latest_value(readings, pollutant)
+        for pollutant in POLLUTANTS
+    }
+    pollutant_timestamps = _latest_pollutant_timestamps(readings, values)
+
+    _append_air_quality_warnings(
+        warnings,
+        observed_at,
+        values,
+        "UBA",
+        pollutant_timestamps=pollutant_timestamps,
+    )
+
+    air_risk_score = _air_risk_score(values)
+
+    return NormalizedAirQualityReading(
+        age_minutes=_age_minutes(observed_at),
+        air_risk_label=_air_risk_label(air_risk_score),
+        air_risk_score=air_risk_score,
+        co_ug_m3=values["co"],
+        no2_ug_m3=values["no2"],
+        o3_ug_m3=values["o3"],
+        observed_at=observed_at,
+        pm10_ug_m3=values["pm10"],
+        pm25_ug_m3=values["pm25"],
+        region_id=region_id,
+        so2_ug_m3=values["so2"],
+        source=UBA_SOURCE.name,
+        station=dict(station) if station is not None else None,
+        status=_air_quality_status(values, observed_at),
+        units=AIR_QUALITY_UNITS,
+    )
+
+
+def normalize_open_meteo_air_quality_payload(
+    region_id: str,
+    payload: Any,
+    warnings: list[str] | None = None,
+) -> NormalizedAirQualityReading:
+    warnings = warnings if warnings is not None else []
+    current = payload.get("current") if isinstance(payload, Mapping) else None
+
+    if not isinstance(current, Mapping):
+        raise ValueError("missing Open-Meteo current air-quality block")
+
+    observed_at = _parse_timestamp(current.get("time"))
+    values = {
+        "co": _optional_float(current.get("carbon_monoxide")),
+        "no2": _optional_float(current.get("nitrogen_dioxide")),
+        "o3": _optional_float(current.get("ozone")),
+        "pm10": _optional_float(current.get("pm10")),
+        "pm25": _optional_float(current.get("pm2_5")),
+        "so2": _optional_float(current.get("sulphur_dioxide")),
+    }
+
+    _append_air_quality_warnings(warnings, observed_at, values, "Open-Meteo")
+
+    air_risk_score = _air_risk_score(values)
+
+    return NormalizedAirQualityReading(
+        age_minutes=_age_minutes(observed_at),
+        air_risk_label=_air_risk_label(air_risk_score),
+        air_risk_score=air_risk_score,
+        co_ug_m3=values["co"],
+        no2_ug_m3=values["no2"],
+        o3_ug_m3=values["o3"],
+        observed_at=observed_at,
+        pm10_ug_m3=values["pm10"],
+        pm25_ug_m3=values["pm25"],
+        region_id=region_id,
+        so2_ug_m3=values["so2"],
+        source=OPEN_METEO_AIR_SOURCE.name,
+        station=None,
+        status=_air_quality_status(values, observed_at),
+        units=AIR_QUALITY_UNITS,
+    )
+
+
+def _air_candidate_score(result: Mapping[str, Any]) -> tuple[int, float, int]:
+    normalized = result["normalized"]
+    observed_at = normalized.observed_at
+    observed_score = observed_at.timestamp() if observed_at is not None else 0
+
+    return (
+        _pollutant_coverage(normalized),
+        observed_score,
+        -int(result["candidateIndex"]),
+    )
+
+
+def _pollutant_coverage(reading: NormalizedAirQualityReading) -> int:
+    return len(
+        [
+            value
+            for value in _air_quality_values(reading).values()
+            if value is not None
+        ]
+    )
+
+
+def _needs_open_meteo_air_quality(
+    reading: NormalizedAirQualityReading | None,
+) -> bool:
+    if reading is None:
+        return True
+
+    return _pollutant_coverage(reading) < len(POLLUTANTS)
+
+
+def _normalized_air_quality_from_debug_dict(
+    value: Any,
+) -> NormalizedAirQualityReading | None:
+    if not isinstance(value, Mapping):
+        return None
+
+    return NormalizedAirQualityReading(
+        age_minutes=_optional_int(value.get("age_minutes")),
+        air_risk_label=str(value.get("air_risk_label") or "low"),
+        air_risk_score=_optional_int(value.get("air_risk_score")) or 0,
+        co_ug_m3=_optional_float(value.get("co_ug_m3")),
+        no2_ug_m3=_optional_float(value.get("no2_ug_m3")),
+        o3_ug_m3=_optional_float(value.get("o3_ug_m3")),
+        observed_at=_parse_timestamp(value.get("observed_at")),
+        pm10_ug_m3=_optional_float(value.get("pm10_ug_m3")),
+        pm25_ug_m3=_optional_float(value.get("pm25_ug_m3")),
+        region_id=str(value.get("region_id") or ""),
+        so2_ug_m3=_optional_float(value.get("so2_ug_m3")),
+        source=str(value.get("source") or OPEN_METEO_AIR_SOURCE.name),
+        station=value.get("station")
+        if isinstance(value.get("station"), dict)
+        else None,
+        status=str(value.get("status") or "unavailable"),
+        units=value.get("units")
+        if isinstance(value.get("units"), dict)
+        else AIR_QUALITY_UNITS,
+    )
+
+
+def _merge_air_quality_readings(
+    primary: NormalizedAirQualityReading,
+    fallback: NormalizedAirQualityReading,
+    warnings: list[str],
+    filled_pollutants: list[str] | None = None,
+) -> NormalizedAirQualityReading:
+    values = _air_quality_values(primary)
+    fallback_values = _air_quality_values(fallback)
+    filled_pollutants = (
+        filled_pollutants
+        if filled_pollutants is not None
+        else _missing_pollutants_filled_by_fallback(primary, fallback)
+    )
+
+    for pollutant in filled_pollutants:
+        values[pollutant] = fallback_values[pollutant]
+
+    if not filled_pollutants:
+        return primary
+
+    observed_at = _latest_observed_at(primary.observed_at, fallback.observed_at)
+    risk_score = _air_risk_score(values)
+    warnings.append(
+        "Open-Meteo filled missing UBA pollutant readings: "
+        f"{_pollutant_display_list(filled_pollutants)}"
+    )
+
+    return replace(
+        primary,
+        age_minutes=_age_minutes(observed_at),
+        air_risk_label=_air_risk_label(risk_score),
+        air_risk_score=risk_score,
+        co_ug_m3=values["co"],
+        no2_ug_m3=values["no2"],
+        o3_ug_m3=values["o3"],
+        observed_at=observed_at,
+        pm10_ug_m3=values["pm10"],
+        pm25_ug_m3=values["pm25"],
+        so2_ug_m3=values["so2"],
+        source=f"{UBA_SOURCE.name}, {OPEN_METEO_AIR_SOURCE.name}",
+        status=_air_quality_status(values, observed_at),
+    )
+
+
+def _without_missing_pollutant_warnings(warnings: list[str]) -> list[str]:
+    return [
+        warning
+        for warning in warnings
+        if "missing pollutant readings:" not in warning.lower()
+    ]
+
+
+def _without_filled_measurement_warnings(
+    warnings: list[str],
+    filled_pollutants: list[str],
+) -> list[str]:
+    filled = set(filled_pollutants)
+
+    return [
+        warning
+        for warning in warnings
+        if not any(
+            f"uba {pollutant} measurement unavailable" in warning.lower()
+            for pollutant in filled
+        )
+    ]
+
+
+def _missing_pollutants_filled_by_fallback(
+    primary: NormalizedAirQualityReading,
+    fallback: NormalizedAirQualityReading,
+) -> list[str]:
+    values = _air_quality_values(primary)
+    fallback_values = _air_quality_values(fallback)
+
+    return [
+        pollutant
+        for pollutant in POLLUTANTS
+        if values[pollutant] is None and fallback_values[pollutant] is not None
+    ]
+
+
+def _missing_pollutant_warnings(
+    reading: NormalizedAirQualityReading,
+) -> list[str]:
+    missing = [
+        pollutant
+        for pollutant, value in _air_quality_values(reading).items()
+        if value is None
+    ]
+
+    if not missing:
+        return []
+
+    return [f"Air quality missing pollutant readings: {', '.join(missing)}"]
+
+
+def _air_quality_values(
+    reading: NormalizedAirQualityReading,
+) -> dict[str, float | None]:
+    return {
+        "co": reading.co_ug_m3,
+        "no2": reading.no2_ug_m3,
+        "o3": reading.o3_ug_m3,
+        "pm10": reading.pm10_ug_m3,
+        "pm25": reading.pm25_ug_m3,
+        "so2": reading.so2_ug_m3,
+    }
+
+
+def _air_reading_selected_fields(
+    reading: NormalizedAirQualityReading,
+) -> dict[str, Any]:
+    return {
+        "pollutants": _air_quality_values(reading),
+        "station": reading.station,
+        "timestamp": reading.observed_at.isoformat() if reading.observed_at else None,
+    }
+
+
+def _latest_observed_at(
+    primary: datetime | None,
+    fallback: datetime | None,
+) -> datetime | None:
+    values = [value for value in (primary, fallback) if value is not None]
+
+    return max(values) if values else None
+
+
+def _pollutant_display_list(pollutants: list[str]) -> str:
+    return ", ".join(
+        POLLUTANT_LABELS.get(pollutant, pollutant.upper())
+        for pollutant in pollutants
+    )
+
+
+def _open_meteo_comparison(
+    region_id: str,
+    http: requests.Session,
+    timeout: float,
+    warnings: list[str],
+    cache_enabled: bool = False,
+) -> dict[str, Any] | None:
+    target = REGION_SOURCE_TARGETS[region_id]
+    params = {
+        "current": ",".join(OPEN_METEO_CURRENT_FIELDS),
+        "latitude": target.latitude,
+        "longitude": target.longitude,
+        "timezone": "UTC",
+    }
+    fallback_warnings: list[str] = []
+    fallback_errors: list[str] = []
+    fallback_cache: dict[str, Any] | None = None
+
+    try:
+        if cache_enabled:
+            payload, fallback_cache = (
+                _fetch_cached_open_meteo_air_quality_with_metadata(
+                    region_id,
+                    http,
+                    params,
+                    timeout,
+                )
+            )
+            fallback_warnings.extend(
+                source_cache_warnings(
+                    "Open-Meteo air-quality fallback",
+                    fallback_cache,
+                )
+            )
+        else:
+            payload = _fetch_open_meteo_air_quality(http, params, timeout)
+    except (requests.RequestException, ValueError) as exc:
+        warnings.append(f"Open-Meteo air-quality fallback unavailable: {exc}")
+        return None
+
+    request = {
+        "cacheEnabled": cache_enabled,
+        "params": params,
+        "url": OPEN_METEO_AIR_QUALITY_URL,
+    }
+    if fallback_cache is not None:
+        request["cache"] = fallback_cache
+
+    try:
+        normalized = normalize_open_meteo_air_quality_payload(
+            region_id,
+            payload,
+            fallback_warnings,
+        )
+    except (TypeError, ValueError) as exc:
+        fallback_errors.append(str(exc))
+        normalized = None
+
+    return {
+        "errors": fallback_errors,
+        "normalizedOutput": dataclass_to_debug_dict(normalized),
+        "request": request,
+        "rawSummary": _payload_summary(payload),
+        "selectedFields": _selected_open_meteo_air_fields(payload),
+        "source": dataclass_to_debug_dict(OPEN_METEO_AIR_SOURCE),
+        "warnings": fallback_warnings,
+    }
+
+
+def _fetch_open_meteo_air_quality(
+    http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    response = http.get(OPEN_METEO_AIR_QUALITY_URL, params=params, timeout=timeout)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def _fetch_cached_open_meteo_air_quality(
+    region_id: str,
+    _http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    return _fetch_cached_open_meteo_air_quality_with_metadata(
+        region_id,
+        _http,
+        params,
+        timeout,
+    )[0]
+
+
+def _fetch_cached_open_meteo_air_quality_with_metadata(
+    region_id: str,
+    _http: requests.Session,
+    params: Mapping[str, Any],
+    timeout: float,
+) -> tuple[Any, dict[str, Any]]:
+    return read_stale_while_revalidate_json_with_metadata(
+        cache_key(_open_meteo_air_quality_cache_name(region_id, params)),
+        OPEN_METEO_AIR_QUALITY_CACHE_TTL_SECONDS,
+        OPEN_METEO_AIR_QUALITY_CACHE_STALE_TTL_SECONDS,
+        lambda: _fetch_open_meteo_air_quality_for_cache(params, timeout),
+    )
+
+
+def _fetch_open_meteo_air_quality_for_cache(
+    params: Mapping[str, Any],
+    timeout: float,
+) -> Any:
+    with requests.Session() as http:
+        return _fetch_open_meteo_air_quality(http, params, timeout)
+
+
+def _open_meteo_air_quality_cache_name(
+    region_id: str,
+    params: Mapping[str, Any],
+) -> str:
+    return (
+        f"climate:open-meteo:air-quality:region:{region_id}:"
+        f"current:{params.get('current')}"
+    )
+
+
+def _extract_pollutant_readings(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, Mapping) and any(key in POLLUTANTS for key in payload):
+        readings = []
+
+        for pollutant, nested_payload in payload.items():
+            if pollutant in POLLUTANTS:
+                readings.extend(
+                    _extract_pollutant_readings_for_payload(nested_payload, pollutant)
+                )
+
+        return readings
+
+    return _extract_pollutant_readings_for_payload(payload, None)
+
+
+def _extract_pollutant_readings_for_payload(
+    payload: Any,
+    forced_pollutant: str | None = None,
+) -> list[dict[str, Any]]:
+    if isinstance(payload, Mapping):
+        data = payload.get("data")
+
+        if isinstance(data, Mapping):
+            return _normalize_uba_measure_data(data, forced_pollutant)
+
+        for key in ("data", "readings", "values", "airquality"):
+            nested = payload.get(key)
+
+            if isinstance(nested, list):
+                return [
+                    _normalize_reading_item(item, forced_pollutant)
+                    for item in nested
+                    if isinstance(item, Mapping)
+                ]
+
+        if any(alias in payload for aliases in POLLUTANT_ALIASES.values() for alias in aliases):
+            return [_normalize_reading_item(payload, forced_pollutant)]
+
+    if isinstance(payload, list):
+        readings = []
+
+        for item in payload:
+            if isinstance(item, Mapping):
+                readings.append(_normalize_reading_item(item, forced_pollutant))
+            elif isinstance(item, list):
+                readings.append(_normalize_uba_measure_row(item, forced_pollutant))
+
+        return [reading for reading in readings if reading]
+
+    return []
+
+
+def _normalize_reading_item(
+    item: Mapping[str, Any],
+    forced_pollutant: str | None = None,
+) -> dict[str, Any]:
+    normalized = {
+        "timestamp": item.get("timestamp")
+        or item.get("time")
+        or item.get("date")
+        or item.get("datetime")
+        or item.get("observed_at")
+    }
+
+    if forced_pollutant is not None and "value" in item:
+        normalized[forced_pollutant] = _convert_pollutant_value(
+            forced_pollutant,
+            item.get("value"),
+        )
+
+    for pollutant, aliases in POLLUTANT_ALIASES.items():
+        for alias in aliases:
+            if alias in item:
+                normalized[pollutant] = _convert_pollutant_value(pollutant, item.get(alias))
+                break
+
+    component = item.get("component") or item.get("pollutant")
+    if component is not None and "value" in item:
+        key = _pollutant_key(component)
+
+        if key is not None:
+            normalized[key] = _convert_pollutant_value(key, item.get("value"))
+
+    return normalized
+
+
+def _normalize_uba_measure_data(
+    data: Mapping[str, Any],
+    forced_pollutant: str | None,
+) -> list[dict[str, Any]]:
+    readings = []
+
+    for station_measurements in data.values():
+        if isinstance(station_measurements, Mapping):
+            for started_at, row in station_measurements.items():
+                reading = _normalize_uba_measure_row(
+                    row,
+                    forced_pollutant,
+                    fallback_timestamp=started_at,
+                )
+
+                if reading:
+                    readings.append(reading)
+        elif isinstance(station_measurements, list):
+            reading = _normalize_uba_measure_row(
+                station_measurements,
+                forced_pollutant,
+            )
+
+            if reading:
+                readings.append(reading)
+
+    return readings
+
+
+def _normalize_uba_measure_row(
+    row: list[Any],
+    forced_pollutant: str | None,
+    fallback_timestamp: Any = None,
+) -> dict[str, Any]:
+    if len(row) < 3:
+        return {}
+
+    pollutant = forced_pollutant or _pollutant_key(row[0])
+
+    if pollutant is None:
+        return {}
+
+    observed_at = row[3] if len(row) > 3 else fallback_timestamp
+
+    return {
+        "timestamp": observed_at or fallback_timestamp,
+        pollutant: _convert_pollutant_value(pollutant, row[2]),
+    }
+
+
+def _latest_value(readings: list[Mapping[str, Any]], pollutant: str) -> float | None:
+    dated = sorted(
+        readings,
+        key=lambda item: _parse_timestamp(item.get("timestamp")) or datetime.min.replace(tzinfo=UTC),
+    )
+
+    for item in reversed(dated):
+        parsed = _optional_float(item.get(pollutant))
+
+        if parsed is not None:
+            return parsed
+
+    return None
+
+
+def _latest_timestamp(readings: list[Mapping[str, Any]]) -> datetime | None:
+    timestamps = [
+        parsed
+        for parsed in (_parse_timestamp(item.get("timestamp")) for item in readings)
+        if parsed is not None
+    ]
+
+    return max(timestamps) if timestamps else None
+
+
+def _latest_pollutant_timestamps(
+    readings: list[Mapping[str, Any]],
+    values: Mapping[str, float | None],
+) -> dict[str, datetime | None]:
+    timestamps: dict[str, datetime | None] = {}
+
+    for pollutant, value in values.items():
+        if value is None:
+            timestamps[pollutant] = None
+            continue
+
+        pollutant_timestamps = [
+            parsed
+            for parsed in (
+                _parse_timestamp(item.get("timestamp"))
+                for item in readings
+                if _optional_float(item.get(pollutant)) is not None
+            )
+            if parsed is not None
+        ]
+        timestamps[pollutant] = (
+            max(pollutant_timestamps) if pollutant_timestamps else None
+        )
+
+    return timestamps
+
+
+def _air_risk_score(values: Mapping[str, float | None]) -> int:
+    scores = []
+
+    for pollutant, value in values.items():
+        limit = POLLUTANT_LIMITS[pollutant]
+
+        if value is not None:
+            scores.append(clamp((value / limit) * 100))
+
+    return round(max(scores) if scores else 0)
+
+
+def _air_risk_label(score: int) -> str:
+    if score >= 75:
+        return "high"
+
+    if score >= 45:
+        return "elevated"
+
+    if score >= 20:
+        return "moderate"
+
+    return "low"
+
+
+def _air_quality_status(
+    values: Mapping[str, float | None],
+    observed_at: datetime | None,
+) -> str:
+    present_count = len([value for value in values.values() if value is not None])
+
+    if present_count == 0 or observed_at is None:
+        return "unavailable"
+
+    if present_count < len(POLLUTANTS):
+        return "partial"
+
+    return "ok"
+
+
+def _age_minutes(observed_at: datetime | None) -> int | None:
+    if observed_at is None:
+        return None
+
+    return round(max(0, (datetime.now(UTC) - observed_at).total_seconds()) / 60)
+
+
+def _station_items(payload: Any) -> list[Mapping[str, Any]]:
+    if isinstance(payload, Mapping):
+        for key in ("data", "stations", "items"):
+            nested = payload.get(key)
+
+            if isinstance(nested, list):
+                return [item for item in nested if isinstance(item, Mapping)]
+
+            if isinstance(nested, Mapping):
+                stations = []
+
+                for station_id, item in nested.items():
+                    station = _normalize_station_item(station_id, item)
+
+                    if station:
+                        stations.append(station)
+
+                return stations
+
+        if all(key in payload for key in ("id", "latitude", "longitude")):
+            return [payload]
+
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, Mapping)]
+
+    return []
+
+
+def _normalize_station_item(station_id: Any, item: Any) -> dict[str, Any]:
+    if isinstance(item, Mapping):
+        normalized = dict(item)
+        normalized.setdefault("id", station_id)
+        return normalized
+
+    if not isinstance(item, list):
+        return {}
+
+    return {
+        "active_from": _list_get(item, 5),
+        "active_to": _list_get(item, 6),
+        "city": _list_get(item, 3),
+        "code": _list_get(item, 1),
+        "id": _list_get(item, 0) or station_id,
+        "latitude": _list_get(item, 8),
+        "longitude": _list_get(item, 7),
+        "name": _list_get(item, 2),
+        "network": _list_get(item, 13),
+        "setting": _list_get(item, 14),
+        "station_type": _list_get(item, 16),
+    }
+
+
+def _selected_air_fields(station: Mapping[str, Any] | None, payload: Any) -> dict[str, Any]:
+    readings = _extract_pollutant_readings(payload)
+    values = {pollutant: _latest_value(readings, pollutant) for pollutant in POLLUTANTS}
+    observed_at = _latest_timestamp(readings)
+
+    return {
+        "pollutants": values,
+        "station": dict(station) if station is not None else None,
+        "timestamp": observed_at.isoformat() if observed_at else None,
+    }
+
+
+def _station_count(payload: Any) -> int:
+    return len(_station_items(payload))
+
+
+def _payload_summary(payload: Any) -> dict[str, Any]:
+    if isinstance(payload, Mapping):
+        return {"keys": sorted(str(key) for key in payload.keys()), "type": "object"}
+
+    if isinstance(payload, list):
+        return {"items": len(payload), "type": "list"}
+
+    return {"type": type(payload).__name__}
+
+
+def _selected_open_meteo_air_fields(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, Mapping):
+        return {}
+
+    current = payload.get("current")
+
+    if not isinstance(current, Mapping):
+        return {}
+
+    return {
+        key: current.get(key)
+        for key in ("time", *OPEN_METEO_CURRENT_FIELDS)
+        if key in current
+    }
+
+
+def _append_air_quality_warnings(
+    warnings: list[str],
+    observed_at: datetime | None,
+    values: Mapping[str, float | None],
+    source_name: str,
+    pollutant_timestamps: Mapping[str, datetime | None] | None = None,
+) -> None:
+    if observed_at is None:
+        warnings.append(
+            f"{source_name} air-quality observation has no parseable timestamp"
+        )
+    elif datetime.now(UTC) - observed_at > timedelta(hours=12):
+        warnings.append(f"{source_name} air-quality reading is older than twelve hours")
+
+    missing = [pollutant for pollutant, value in values.items() if value is None]
+    if missing:
+        warnings.append(
+            f"{source_name} missing pollutant readings: {', '.join(missing)}"
+        )
+
+    if pollutant_timestamps:
+        present = [
+            pollutant
+            for pollutant, value in values.items()
+            if value is not None
+        ]
+        stale = [
+            pollutant
+            for pollutant in present
+            if pollutant_timestamps.get(pollutant) is not None
+            and datetime.now(UTC) - pollutant_timestamps[pollutant]
+            > timedelta(hours=12)
+        ]
+
+        if stale and len(stale) < len(present):
+            warnings.append(
+                f"{source_name} stale pollutant readings: {', '.join(stale)}"
+            )
+
+
+def _pollutant_key(value: Any) -> str | None:
+    normalized = str(value).lower().replace(".", "").replace("_", "")
+
+    if normalized in UBA_COMPONENT_TO_POLLUTANT:
+        return UBA_COMPONENT_TO_POLLUTANT[normalized]
+
+    for pollutant, aliases in POLLUTANT_ALIASES.items():
+        if normalized in {alias.lower().replace(".", "").replace("_", "") for alias in aliases}:
+            return pollutant
+
+    return None
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+
+    return parsed.astimezone(UTC)
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_int(value: Any) -> int | None:
+    parsed = _optional_float(value)
+
+    return round(parsed) if parsed is not None else None
+
+
+def _convert_pollutant_value(pollutant: str, value: Any) -> float | None:
+    parsed = _optional_float(value)
+
+    if parsed is None:
+        return None
+
+    if pollutant == "co":
+        return round(parsed * 1000, 3)
+
+    return parsed
+
+
+def _measurement_window_params() -> dict[str, Any]:
+    end = datetime.now(UTC).date()
+    start = end - timedelta(days=1)
+
+    return {
+        "date_from": start.isoformat(),
+        "date_to": end.isoformat(),
+        "lang": "en",
+        "time_from": 1,
+        "time_to": 24,
+    }
+
+
+def _list_get(items: list[Any], index: int) -> Any:
+    return items[index] if index < len(items) else None
+
+
+def _distance_score(
+    latitude_a: float,
+    longitude_a: float,
+    latitude_b: float,
+    longitude_b: float,
+) -> float:
+    return ((latitude_a - latitude_b) ** 2) + ((longitude_a - longitude_b) ** 2)

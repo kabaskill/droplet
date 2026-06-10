@@ -9,12 +9,30 @@ import {
   RefreshIcon,
   UserShieldIcon,
 } from "@hugeicons/core-free-icons"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarInput,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
 import { useAuthStore } from "@/features/auth/auth-store"
 import { cn } from "@/lib/utils"
 import type { RegionWithSnapshot } from "@/services/regional-filters"
@@ -49,7 +67,14 @@ export function AppShell({
 }: AppShellProps) {
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
+  const sidebarOpen = useAppStore((state) => state.sidebarOpen)
+  const setSidebarOpen = useAppStore((state) => state.setSidebarOpen)
+  const searchQuery = useAppStore((state) => state.searchQuery)
+  const setSearchQuery = useAppStore((state) => state.setSearchQuery)
   const [searchOpen, setSearchOpen] = useState(false)
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const refreshStateLabel = refreshing
     ? "Refreshing"
     : syncing
@@ -59,123 +84,173 @@ export function AppShell({
         : "Current"
 
   return (
-    <div className="min-h-svh bg-muted/40 text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-16 border-r bg-background lg:flex lg:flex-col lg:items-center lg:py-4">
-        <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <ProductIcon icon={DropletIcon} size={21} />
-        </div>
-        <nav className="mt-8 flex flex-1 flex-col gap-2">
-          {navigationItems.map((item) => (
-            <Link
-              activeOptions={item.to === "/" ? { exact: true } : undefined}
-              activeProps={{
-                className: "bg-accent text-foreground",
-              }}
-              aria-label={item.label}
-              className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              key={item.to}
-              to={item.to}
-            >
-              <ProductIcon icon={item.icon} />
-            </Link>
-          ))}
-        </nav>
-        <Button
-          aria-label="Sign out"
-          size="icon"
-          variant="ghost"
-          onClick={() => void logout()}
-        >
-          <ProductIcon icon={Logout01Icon} />
-        </Button>
-      </aside>
-
-      <div className="lg:pl-16">
-        <header className="sticky top-0 z-40 border-b bg-background/95 px-4 py-3 backdrop-blur md:px-6">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground lg:hidden">
-                <ProductIcon icon={DropletIcon} size={20} />
-              </div>
-              <div className="min-w-0">
-                <h1 className="truncate text-base font-semibold">Droplet</h1>
-                <p className="truncate text-sm text-muted-foreground">
-                  Germany&apos;s Water State Platform
-                </p>
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+      <Sidebar collapsible="icon" className="border-r">
+        <SidebarHeader className="gap-3">
+          <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden">
+              <ProductIcon icon={DropletIcon} size={19} />
+            </span>
+            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+              <div className="truncate text-sm font-semibold">Droplet</div>
+              <div className="truncate text-xs text-sidebar-foreground/70">
+                Germany&apos;s Water State Platform
               </div>
             </div>
+            <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0" />
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-              <Button
+          <div className="group-data-[collapsible=icon]:hidden">
+            <label className="relative block">
+              <ProductIcon
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sidebar-foreground/60"
+                icon={GlobalSearchIcon}
+                size={14}
+              />
+              <SidebarInput
                 aria-label="Search states"
-                className="shrink-0"
-                size="lg"
-                variant="outline"
-                onClick={() => setSearchOpen(true)}
-              >
-                <ProductIcon icon={GlobalSearchIcon} />
-                <span className="hidden sm:inline">Search</span>
-              </Button>
+                className="pl-8"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    setSearchOpen(true)
+                  }
+                }}
+                placeholder="Search states"
+                type="search"
+                value={searchQuery}
+              />
+            </label>
+          </div>
+        </SidebarHeader>
 
-              <Button
-                aria-label={`Refresh data, current state ${refreshStateLabel}`}
-                className={cn(
-                  "shrink-0",
-                  stale &&
-                    "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-200",
-                  syncing &&
-                    !refreshing &&
-                    "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-200"
-                )}
-                disabled={refreshing}
-                size="lg"
-                variant="outline"
-                onClick={onRefresh}
-              >
-                <ProductIcon icon={RefreshIcon} />
-                <span>{refreshStateLabel}</span>
-              </Button>
+        <SidebarSeparator />
 
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navigationItems.map((item) => (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isNavActive(pathname, item.to)}
+                      tooltip={item.label}
+                    >
+                      <Link to={item.to}>
+                        <ProductIcon icon={item.icon} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>Data</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className={cn(
+                      stale &&
+                        "text-amber-800 hover:text-amber-900 dark:text-amber-200",
+                      syncing &&
+                        !refreshing &&
+                        "text-sky-800 hover:text-sky-900 dark:text-sky-200"
+                    )}
+                    disabled={refreshing}
+                    tooltip={`Refresh data: ${refreshStateLabel}`}
+                    onClick={onRefresh}
+                  >
+                    <ProductIcon icon={RefreshIcon} />
+                    <span>{refreshStateLabel}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Search states"
+                    onClick={() => setSearchOpen(true)}
+                  >
+                    <ProductIcon icon={GlobalSearchIcon} />
+                    <span>Search states</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
               {refreshMessage ? (
-                <div className="hidden h-8 max-w-72 shrink-0 items-center rounded-md border bg-card px-2 text-xs text-muted-foreground md:flex">
-                  <span className="truncate">{refreshMessage}</span>
+                <div className="mt-2 rounded-md border bg-sidebar-accent/60 px-2 py-1.5 text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
+                  <span className="line-clamp-2">{refreshMessage}</span>
                 </div>
               ) : null}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
 
-              <div className="hidden h-8 shrink-0 items-center gap-2 rounded-md border bg-card px-2 text-xs text-muted-foreground sm:flex">
-                <ProductIcon icon={UserShieldIcon} size={14} />
-                <span className="max-w-36 truncate">{user?.name ?? "Operator"}</span>
+        <SidebarFooter>
+          <SidebarSeparator className="mx-0" />
+          <div className="flex min-w-0 items-center gap-2 px-2 py-1">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-sidebar-accent-foreground">
+              <ProductIcon icon={UserShieldIcon} size={16} />
+            </span>
+            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+              <div className="truncate text-xs font-medium">
+                {user?.name ?? "Operator"}
+              </div>
+              <div className="truncate text-xs text-sidebar-foreground/60">
+                {user?.email ?? "Authenticated session"}
               </div>
             </div>
+            <Button
+              aria-label="Sign out"
+              className="group-data-[collapsible=icon]:hidden"
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => void logout()}
+            >
+              <ProductIcon icon={Logout01Icon} />
+            </Button>
           </div>
-        </header>
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
 
-        {children}
-      </div>
-
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background/95 p-1 backdrop-blur lg:hidden">
-        {navigationItems.map((item) => (
-          <Link
-            activeOptions={item.to === "/" ? { exact: true } : undefined}
-            activeProps={{ className: "bg-accent text-foreground" }}
-            aria-label={item.label}
-            className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md text-[0.65rem] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            key={item.to}
-            to={item.to}
+      <SidebarInset className="min-h-svh bg-muted/35">
+        <div className="sticky top-0 z-30 flex h-12 items-center justify-between border-b bg-background/95 px-3 backdrop-blur md:hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarTrigger />
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <ProductIcon icon={DropletIcon} size={16} />
+            </span>
+            <span className="truncate text-sm font-semibold">Droplet</span>
+          </div>
+          <Button
+            aria-label={`Refresh data, current state ${refreshStateLabel}`}
+            disabled={refreshing}
+            size="icon-sm"
+            variant="ghost"
+            onClick={onRefresh}
           >
-            <ProductIcon icon={item.icon} size={17} />
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
+            <ProductIcon icon={RefreshIcon} />
+          </Button>
+        </div>
+        {children}
+      </SidebarInset>
 
       <StateSearchDialog
         open={searchOpen}
         regions={searchRegions}
         onClose={() => setSearchOpen(false)}
       />
-    </div>
+    </SidebarProvider>
   )
+}
+
+function isNavActive(pathname: string, itemPath: string) {
+  return itemPath === "/" ? pathname === "/" : pathname.startsWith(itemPath)
 }
 
 type StateSearchDialogProps = {
@@ -188,7 +263,8 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   const navigate = useNavigate()
   const setSelectedRegionId = useAppStore((state) => state.setSelectedRegionId)
   const selectedRegionId = useAppStore((state) => state.selectedRegionId)
-  const [query, setQuery] = useState("")
+  const query = useAppStore((state) => state.searchQuery)
+  const setQuery = useAppStore((state) => state.setSearchQuery)
   const titleId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const normalizedQuery = query.trim().toLowerCase()
@@ -202,7 +278,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
         )
       : regions
 
-    return source.slice(0, 8)
+    return source.slice(0, 10)
   }, [normalizedQuery, regions])
 
   useEffect(() => {
@@ -234,7 +310,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-background/70 p-3 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 bg-background/70 p-3 backdrop-blur-sm">
       <button
         aria-label="Close state search"
         className="absolute inset-0 cursor-default"
@@ -244,7 +320,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
       <section
         aria-labelledby={titleId}
         aria-modal="true"
-        className="relative mx-auto mt-16 max-h-[78svh] max-w-2xl overflow-hidden rounded-md border bg-background shadow-xl"
+        className="relative mx-auto mt-14 max-h-[78svh] max-w-2xl overflow-hidden rounded-md border bg-background shadow-xl"
         role="dialog"
       >
         <div className="border-b p-3">

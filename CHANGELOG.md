@@ -1,5 +1,110 @@
 # Changelog
 
+## 2026-06-10
+
+- Continued selected-region climate refresh and source hardening:
+  - Made selected-region climate reads non-blocking by returning cached or pending context immediately and queueing Celery refreshes.
+  - Added Redis refresh locks and last-error metadata for selected-region climate refreshes.
+  - Changed scheduled all-region climate refresh to enqueue per-region refresh tasks instead of running one long sequential refresh.
+  - Skipped future Open-Meteo solar archive rows so current daylight readings are not replaced by end-of-day zero rows.
+  - Fetched UBA pollutant measurements concurrently per station to reduce cold climate refresh latency.
+  - Displayed climate refresh queued, pending, failed, legacy, and unavailable cache states from backend metadata.
+  - Made selected-region climate queries refetch on mount/selection and versioned persisted frontend cache entries with the climate read model.
+- Rebuilt Home as a selected-state operations workspace:
+  - Replaced the fixed header and icon rail with a collapsible shadcn sidebar for navigation, search, refresh state, and session controls.
+  - Added shadcn sidebar, sheet, tooltip, input, separator, skeleton, and mobile detection primitives.
+  - Expanded shared UI state for Home layer, selected region, sidebar state, mobile selected-state sheet state, map viewport, and search query.
+  - Added a D3-powered Germany state canvas using the checked-in local geometry for pan, zoom, reset, fit, selected-state focus, pointer selection, and keyboard selection.
+  - Added Home layers for Overview, Water, Climate, Forecast, and Data quality, with derived state metrics shared by the map and selected-state rail.
+  - Replaced legacy Home summary cards and water-system map controls with selected-state filters and layer controls.
+  - Reworked the right rail so selected-state metadata, water snapshot, climate context, forecast outlook, warnings, and read-model freshness are peer signals.
+  - Replaced the custom mobile selected-state dialog with a responsive shadcn sheet.
+  - Removed the legacy Home map wrapper and Panzoom dependency.
+  - Updated Home usage documentation for the new workspace workflow.
+
+## 2026-06-09
+
+- Continued selected-region climate read-model hardening:
+  - Preserved legacy cache status in stale-while-revalidate metadata instead of collapsing it into stale.
+  - Coerced malformed, boolean, or non-finite normalized climate numeric fields to `null` in the stable read model.
+  - Surfaced stale, legacy, or bypassed climate source-cache states through sanitized stable warnings.
+  - Added stable sunlight warnings for missing shortwave or direct radiation fields.
+  - Reduced redundant stable air-quality partial-coverage warnings when specific pollutant gaps are already reported.
+  - Kept stable CO2 warnings focused on candidate workflow setup instead of debug-phase notes.
+
+## 2026-06-08
+
+- Added the Phase 3 selected-region climate context read model:
+  - Exposed authenticated `GET /api/climate/regions/<region_id>` for all signed-in users.
+  - Added per-region Redis stale-while-revalidate caching with a 300 second fresh window and one-hour stale retention.
+  - Added scheduled Celery refresh tasks for selected-region climate context caches.
+  - Added local configuration examples for the scheduled climate context refresh interval.
+  - Made selected-region climate context fresh and stale cache windows configurable.
+  - Made the stable climate source timeout configurable through `CLIMATE_SOURCE_TIMEOUT_SECONDS`.
+  - Hardened climate timeout config parsing so invalid values fall back to the default.
+  - Validated climate region ids before reading or writing selected-region climate cache keys.
+  - Versioned selected-region climate context cache keys so read-model shape changes do not reuse older cached payloads.
+  - Added stable endpoint cache metadata so callers can distinguish fresh, stale, miss, and bypass responses.
+  - Added backend unit coverage for climate cache metadata and air-quality fallback normalization.
+  - Returned compact sunlight, air-quality, and CO2 source-status fields for frontend use.
+  - Kept raw response summaries, request config, selected debug fields, and debug-stage envelopes out of the stable endpoint.
+  - Added compact stable source labels for normalized sunlight and air-quality readings.
+  - Preserved `/api/debug/source-normalization` as backend inspection tooling.
+- Hardened climate-source normalization and cache behavior:
+  - Cached UBA station metadata and per-station pollutant measurements separately to reduce repeated upstream calls.
+  - Cached Open-Meteo solar and air-quality fallback payloads for the stable climate flow.
+  - Made stable-flow observation and UBA station-index source cache windows configurable.
+  - Added stale fallback windows to stable-flow climate source caches so recently expired payloads can remain usable during source refresh.
+  - Treated missing clear-sky solar radiation as optional when core irradiance fields are present.
+  - Treated zero-radiation solar rows as valid low-sunlight observations instead of partial source failures.
+  - Sanitized stable climate warnings so raw upstream timeout strings stay in debug tooling only.
+  - Selected UBA air-quality stations by pollutant coverage and observation freshness instead of first usable candidate.
+  - Detected stale pollutant-level UBA readings when selected pollutants have mixed observation times.
+  - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.
+  - Preserved Open-Meteo fallback freshness and parseability warnings when fallback air-quality data contributes to the selected reading.
+  - Kept stable air-quality warnings focused on selected unresolved gaps instead of warnings from skipped station candidates.
+  - Normalized stable air-quality station summary fields to predictable strings and preserved UBA station type metadata.
+  - Kept skipped UBA station candidate details out of stable air-quality warnings.
+- Added frontend climate context support:
+  - Added typed climate API models, `fetchRegionClimate`, `useRegionClimate`, and demo fallback data.
+  - Rendered selected-state climate context in the Home right rail between region detail and forecast.
+  - Added the same climate context to the mobile state detail sheet.
+  - Surfaced climate read-model cache freshness in the climate panel header.
+  - Displayed fresh-until and stale-until climate cache windows when backend cache metadata provides them.
+  - Hardened climate panel timestamp formatting so malformed source timestamps fall back to unavailable labels.
+  - Displayed normalized sunlight and air-quality source labels in the climate panel.
+  - Included air-quality station type and network in the selected-station summary when available.
+  - Aligned the frontend climate query freshness and retention windows with configurable climate cache settings.
+  - Showed all normalized air pollutant values in the climate panel.
+  - Kept exploratory CO2 source status out of the panel-wide climate availability badge.
+  - Added compact overflow counts when climate source sections have more warnings than the panel displays inline.
+  - Kept climate loading and error states local to the climate panel so map, snapshots, detail, and forecast remain usable.
+  - Presented CO2 as candidate source metadata instead of a live operational score.
+- Updated docs for the stable climate endpoint, selected-region frontend behavior, and non-persistent climate data flow.
+
+## 2026-05-30
+
+- Added the Phase 2 climate source normalization plan for backend-only solar, air-quality, and exploratory CO2 source work.
+- Added backend climate source contracts and dedicated normalization modules for Open-Meteo solar radiation, UBA air-quality station observations, Open-Meteo air-quality fallback comparison, and CAMS/Copernicus CO2 source candidacy.
+- Aligned solar and air-quality fetchers with Open-Meteo satellite archive responses and UBA v4 station/measurement payloads.
+- Reused debug-route HTTP state and UBA station metadata across requested regions to avoid repeated source-index downloads.
+- Normalized Open-Meteo air-quality fallback data into the same backend air-quality contract used by UBA.
+- Tried nearby UBA station candidates when the nearest station has no usable measurements.
+- Added debug response metadata and explicit validation for requested source-normalization sections.
+- Added normalized climate-source status fields for complete, partial, and unavailable readings.
+- Added normalized observation age fields for climate-source debug output.
+- Exposed solar direct, diffuse, and direct-normal radiation components in normalized debug output.
+- Added units metadata to normalized climate-source debug output.
+- Added an optional debug-route region limit for sampling all-region normalization output.
+- Marked limited all-region debug responses with selected region ids and sample-only metadata.
+- Normalized debug section inputs with case-insensitive parsing, aliases, and duplicate removal.
+- Added compact per-section debug summaries with state, status, warning counts, and error counts.
+- Added aggregate debug response summaries across selected sections and regions.
+- Expanded CO2 debug output with CAMS dataset candidates, region targets, required configuration, and known blockers.
+- Added readable solar feasibility labels alongside normalized solar scores.
+- Added readable air-risk labels alongside normalized air-quality scores.
+- Documented the climate normalization data flow while keeping existing water/weather reservoir snapshot persistence unchanged.
+
 ## 2026-05-29
 
 - Expanded the app documentation set and moved the docs index to the root `README.md` so GitHub shows it by default:

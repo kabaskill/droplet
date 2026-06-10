@@ -7,6 +7,7 @@ import {
   useIngestionStatus,
   useLatestSnapshots,
   useRegions,
+  useRegionClimate,
   useSnapshotHistory,
   useSourceHealth,
 } from "@/hooks/use-droplet-data"
@@ -21,9 +22,15 @@ import type { Region, ReservoirSnapshot } from "@/services/types"
 const emptyRegions: Region[] = []
 const emptySnapshots: ReservoirSnapshot[] = []
 
-export function useDashboardData() {
-  const activeLayer = useAppStore((state) => state.activeLayer)
+type DashboardDataOptions = {
+  selectionScope?: "all" | "filtered"
+}
+
+export function useDashboardData({
+  selectionScope = "filtered",
+}: DashboardDataOptions = {}) {
   const comparisonMode = useAppStore((state) => state.comparisonMode)
+  const homeLayer = useAppStore((state) => state.homeLayer)
   const regionalFilter = useAppStore((state) => state.regionalFilter)
   const selectedRegionId = useAppStore((state) => state.selectedRegionId)
   const setRegionalFilter = useAppStore((state) => state.setRegionalFilter)
@@ -49,6 +56,7 @@ export function useDashboardData() {
     () => regionalFilterCounts(regions, snapshots),
     [regions, snapshots]
   )
+  const selectionRegions = selectionScope === "all" ? allRegions : filteredRegions
 
   useEffect(() => {
     if (!regions[0]) {
@@ -56,17 +64,17 @@ export function useDashboardData() {
     }
 
     if (!selectedRegionId) {
-      setSelectedRegionId(regions[0].id)
+      setSelectedRegionId(selectionRegions[0]?.region.id ?? regions[0].id)
       return
     }
 
     if (
-      filteredRegions.length > 0 &&
-      !filteredRegions.some(({ region }) => region.id === selectedRegionId)
+      selectionRegions.length > 0 &&
+      !selectionRegions.some(({ region }) => region.id === selectedRegionId)
     ) {
-      setSelectedRegionId(filteredRegions[0].region.id)
+      setSelectedRegionId(selectionRegions[0].region.id)
     }
-  }, [filteredRegions, regions, selectedRegionId, setSelectedRegionId])
+  }, [regions, selectedRegionId, selectionRegions, setSelectedRegionId])
 
   const activeRegion =
     regions.find((region) => region.id === selectedRegionId) ?? regions[0] ?? null
@@ -75,6 +83,7 @@ export function useDashboardData() {
     snapshots[0] ??
     null
   const historyQuery = useSnapshotHistory(activeRegion?.id ?? null)
+  const climateContextQuery = useRegionClimate(activeRegion?.id ?? null)
   const regionReadModelLoading =
     (regionsQuery.isPending && regions.length === 0) ||
     (snapshotsQuery.isPending && snapshots.length === 0)
@@ -109,6 +118,12 @@ export function useDashboardData() {
       label: "Forecast",
       updatedAt: forecastOutlookQuery.dataUpdatedAt,
     },
+    {
+      error: Boolean(climateContextQuery.error),
+      isFetching: climateContextQuery.isFetching,
+      label: "Climate",
+      updatedAt: climateContextQuery.dataUpdatedAt,
+    },
   ]
 
   return {
@@ -118,17 +133,18 @@ export function useDashboardData() {
       ingestionStatusQuery.error,
       forecastOutlookQuery.error,
     ]),
-    activeLayer,
     activeRegion,
     activeSnapshot,
     analyticsQuery,
     allRegions,
+    climateContextQuery,
     comparisonMode,
     filterCounts,
     filteredRegions,
     forecastOutlookQuery,
     freshnessItems,
     historyQuery,
+    homeLayer,
     ingestionStatusQuery,
     operationalError: firstOperationalError([regionsQuery.error, snapshotsQuery.error]),
     regionReadModelLoading,
@@ -206,6 +222,7 @@ export function retryReadModels(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ["snapshots"] })
   void queryClient.invalidateQueries({ queryKey: ["analytics"] })
   void queryClient.invalidateQueries({ queryKey: ["forecasts"] })
+  void queryClient.invalidateQueries({ queryKey: ["climate"] })
   void queryClient.invalidateQueries({ queryKey: ["sources"] })
   void queryClient.invalidateQueries({ queryKey: ["ingestion"] })
 }

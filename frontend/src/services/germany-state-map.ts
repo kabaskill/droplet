@@ -3,19 +3,65 @@ import {
   snapshotSourceTags,
 } from "@/services/snapshot-freshness"
 import type { RegionWithSnapshot } from "@/services/regional-filters"
-import type { ReservoirSnapshot } from "@/services/types"
-import type { MapLayer } from "@/stores/app-store"
+import type {
+  ForecastOutlook,
+  ForecastRegionOutlook,
+  ReservoirSnapshot,
+} from "@/services/types"
+import type { HomeLayer } from "@/stores/app-store"
 
 export type GermanyStateStatus = "critical" | "healthy" | "stale" | "watch"
 
 export type GermanyStateMetric = {
   code: string
+  layerValues: Record<HomeLayer, number>
   metric: number
   primaryRegionId: string
   regions: RegionWithSnapshot[]
   status: GermanyStateStatus
   title: string
+  warnings: string[]
 }
+
+export type HomeLayerConfig = {
+  description: string
+  id: HomeLayer
+  label: string
+  shortLabel: string
+}
+
+export const homeLayerConfigs: HomeLayerConfig[] = [
+  {
+    description: "Blended water, climate, forecast, and data quality score",
+    id: "overview",
+    label: "Overview",
+    shortLabel: "All",
+  },
+  {
+    description: "Latest normalized water availability",
+    id: "water",
+    label: "Water",
+    shortLabel: "Water",
+  },
+  {
+    description: "Rainfall availability balanced against evaporation pressure",
+    id: "climate",
+    label: "Climate",
+    shortLabel: "Climate",
+  },
+  {
+    description: "Short-term outlook converted from pressure into resilience",
+    id: "forecast",
+    label: "Forecast",
+    shortLabel: "Forecast",
+  },
+  {
+    description: "Confidence, visibility, source, and cache freshness",
+    id: "quality",
+    label: "Data quality",
+    shortLabel: "Quality",
+  },
+]
 
 const mapStatesByFederalState: Record<string, string[]> = {
   "Baden-Wurttemberg": ["DE-BW"],
@@ -58,7 +104,8 @@ export const germanyStateTitles: Record<string, string> = {
 
 export function buildGermanyStateMetrics(
   regions: RegionWithSnapshot[],
-  activeLayer: MapLayer
+  activeLayer: HomeLayer,
+  forecastOutlook: ForecastOutlook | null
 ) {
   const states = new Map<string, RegionWithSnapshot[]>()
 
@@ -71,34 +118,127 @@ export function buildGermanyStateMetrics(
   return Array.from(states.entries()).reduce(
     (metrics, [code, stateRegions]) => ({
       ...metrics,
-      [code]: buildStateMetric(code, stateRegions, activeLayer),
+      [code]: buildStateMetric(code, stateRegions, activeLayer, forecastOutlook),
     }),
     {} as Record<string, GermanyStateMetric>
   )
 }
 
+export function homeLayerLabel(layer: HomeLayer) {
+  return homeLayerConfigs.find((config) => config.id === layer)?.label ?? "Overview"
+}
+
 function buildStateMetric(
   code: string,
   regions: RegionWithSnapshot[],
-  activeLayer: MapLayer
+  activeLayer: HomeLayer,
+  forecastOutlook: ForecastOutlook | null
 ): GermanyStateMetric {
-  const snapshots = regions
-    .map(({ snapshot }) => snapshot)
-    .filter((snapshot): snapshot is ReservoirSnapshot => Boolean(snapshot))
-  const metric = snapshots.length
-    ? Math.round(
-        snapshots.reduce((total, snapshot) => total + layerMetric(snapshot, activeLayer), 0) /
-          snapshots.length
+  const regionScores = regions.map((regionWithSnapshot) =>
+    regionLayerValues(regionWithSnapshot.snapshot, forecastForRegion(forecastOutlook, regionWithSnapshot.region.id))
+  )
+  const layerValues = averageLayerValues(regionScores)
+  const metric = layerValues[activeLayer]
+  const primaryRegion =
+    [...regions].sort((first, second) => {
+      const firstForecast = forecastForRegion(forecastOutlook, first.region.id)
+      const secondForecast = forecastForRegion(forecastOutlook, second.region.id)
+
+      return (
+        regionLayerValues(first.snapshot, firstForecast)[activeLayer] -
+        regionLayerValues(second.snapshot, secondForecast)[activeLayer]
       )
-    : 0
+    })[0] ?? regions[0]
 
   return {
     code,
+    layerValues,
     metric,
-    primaryRegionId: primaryRegion(regions, activeLayer)?.region.id ?? regions[0].region.id,
+    primaryRegionId: primaryRegion.region.id,
     regions,
-    status: stateStatus(snapshots, activeLayer),
+    status: stateStatus(regions, metric, activeLayer),
     title: germanyStateTitles[code] ?? code,
+    warnings: stateWarnings(regions, forecastOutlook),
+  }
+}
+
+function averageLayerValues(values: Array<Record<HomeLayer, number>>) {
+  if (!values.length) {
+    return {
+      climate: 0,
+      forecast: 0,
+      overview: 0,
+      quality: 0,
+      water: 0,
+    }
+  }
+
+  const totals = values.reduce(
+    (currentTotals, value) => ({
+      climate: currentTotals.climate + value.climate,
+      forecast: currentTotals.forecast + value.forecast,
+      overview: currentTotals.overview + value.overview,
+      quality: currentTotals.quality + value.quality,
+      water: currentTotals.water + value.water,
+    }),
+    {
+      climate: 0,
+      forecast: 0,
+      overview: 0,
+      quality: 0,
+      water: 0,
+    }
+  )
+
+  return {
+    climate: Math.round(totals.climate / values.length),
+    forecast: Math.round(totals.forecast / values.length),
+    overview: Math.round(totals.overview / values.length),
+    quality: Math.round(totals.quality / values.length),
+    water: Math.round(totals.water / values.length),
+  }
+}
+
+function regionLayerValues(
+  snapshot: ReservoirSnapshot | undefined,
+  forecast: ForecastRegionOutlook | null
+): Record<HomeLayer, number> {
+  if (!snapshot) {
+    return {
+      climate: 0,
+      forecast: forecast ? clampScore(100 - forecast.pressureScore) : 0,
+      overview: 0,
+      quality: 0,
+      water: 0,
+    }
+  }
+
+  const water = clampScore(snapshot.waterLevel)
+  const climate = clampScore(
+    Math.round((snapshot.rainfallIndex + (100 - snapshot.evaporationPressure)) / 2)
+  )
+  const forecastScore = forecast
+    ? clampScore(100 - forecast.pressureScore)
+    : clampScore(Math.round((snapshot.rainfallIndex + water) / 2))
+  const quality = clampScore(
+    Math.round(
+      (snapshot.confidenceScore +
+        snapshot.visibilityScore +
+        freshnessScore(snapshot) +
+        sourceScore(snapshot)) /
+        4
+    )
+  )
+  const overview = clampScore(
+    Math.round(water * 0.32 + climate * 0.24 + forecastScore * 0.24 + quality * 0.2)
+  )
+
+  return {
+    climate,
+    forecast: forecastScore,
+    overview,
+    quality,
+    water,
   }
 }
 
@@ -109,74 +249,109 @@ function stateCodesForRegion(federalState: string) {
     .flatMap((state) => mapStatesByFederalState[state] ?? [])
 }
 
-function primaryRegion(regions: RegionWithSnapshot[], activeLayer: MapLayer) {
-  return [...regions].sort(
-    (first, second) =>
-      layerMetric(second.snapshot, activeLayer) - layerMetric(first.snapshot, activeLayer)
-  )[0]
-}
-
-function layerMetric(
-  snapshot: ReservoirSnapshot | undefined,
-  activeLayer: MapLayer
+function forecastForRegion(
+  forecastOutlook: ForecastOutlook | null,
+  regionId: string
 ) {
-  if (!snapshot) {
-    return 0
-  }
-
-  if (activeLayer === "confidence") {
-    return snapshot.confidenceScore
-  }
-
-  if (activeLayer === "rainfall") {
-    return snapshot.rainfallIndex
-  }
-
-  return snapshot.waterLevel
+  return (
+    forecastOutlook?.regions.find((region) => region.regionId === regionId) ?? null
+  )
 }
 
-function stateStatus(snapshots: ReservoirSnapshot[], activeLayer: MapLayer) {
-  if (snapshots.some((snapshot) => snapshotFreshnessStatus(snapshot) !== "current")) {
-    return "stale"
+function freshnessScore(snapshot: ReservoirSnapshot) {
+  const status = snapshotFreshnessStatus(snapshot)
+
+  if (status === "current") {
+    return 100
+  }
+
+  if (status === "stale") {
+    return 58
+  }
+
+  return 25
+}
+
+function sourceScore(snapshot: ReservoirSnapshot) {
+  const sources = snapshotSourceTags(snapshot)
+
+  if (sources.some((source) => source.kind === "fallback")) {
+    return 45
   }
 
   if (
-    snapshots.some((snapshot) => snapshotSourceTags(snapshot).some((source) => source.kind === "fallback"))
+    sources.some((source) => source.kind === "water") &&
+    sources.some((source) => source.kind === "weather")
   ) {
-    return "watch"
+    return 100
   }
 
-  if (activeLayer === "confidence") {
-    if (snapshots.some((snapshot) => snapshot.confidenceScore < 70 || snapshot.visibilityScore < 58)) {
-      return "critical"
-    }
+  return 72
+}
 
-    if (snapshots.some((snapshot) => snapshot.confidenceScore < 82 || snapshot.visibilityScore < 68)) {
-      return "watch"
-    }
-
-    return "healthy"
+function stateStatus(
+  regions: RegionWithSnapshot[],
+  metric: number,
+  activeLayer: HomeLayer
+): GermanyStateStatus {
+  if (
+    activeLayer === "quality" &&
+    regions.some(
+      ({ snapshot }) => snapshot && snapshotFreshnessStatus(snapshot) !== "current"
+    )
+  ) {
+    return "stale"
   }
 
-  if (activeLayer === "rainfall") {
-    if (snapshots.some((snapshot) => snapshot.rainfallIndex <= 35)) {
-      return "critical"
-    }
-
-    if (snapshots.some((snapshot) => snapshot.rainfallIndex <= 50)) {
-      return "watch"
-    }
-
-    return "healthy"
-  }
-
-  if (snapshots.some((snapshot) => snapshot.waterLevel <= 35)) {
+  if (metric <= 35) {
     return "critical"
   }
 
-  if (snapshots.some((snapshot) => snapshot.waterLevel <= 50 || snapshot.evaporationPressure >= 62)) {
+  if (metric <= 55) {
     return "watch"
   }
 
   return "healthy"
+}
+
+function stateWarnings(
+  regions: RegionWithSnapshot[],
+  forecastOutlook: ForecastOutlook | null
+) {
+  const warnings = new Set<string>()
+
+  for (const { region, snapshot } of regions) {
+    if (!snapshot) {
+      warnings.add(`${region.name}: waiting for snapshot`)
+      continue
+    }
+
+    if (snapshot.waterLevel <= 35) {
+      warnings.add(`${region.name}: low water level`)
+    }
+
+    if (snapshot.evaporationPressure >= 70) {
+      warnings.add(`${region.name}: high evaporation pressure`)
+    }
+
+    if (snapshotFreshnessStatus(snapshot) !== "current") {
+      warnings.add(`${region.name}: stale snapshot`)
+    }
+
+    if (snapshotSourceTags(snapshot).some((source) => source.kind === "fallback")) {
+      warnings.add(`${region.name}: fallback source active`)
+    }
+
+    const forecast = forecastForRegion(forecastOutlook, region.id)
+
+    if (forecast?.riskLevel === "high") {
+      warnings.add(`${region.name}: high forecast pressure`)
+    }
+  }
+
+  return Array.from(warnings).slice(0, 4)
+}
+
+function clampScore(value: number) {
+  return Math.min(100, Math.max(0, value))
 }

@@ -3,7 +3,10 @@ from flask import Blueprint, g, jsonify, request
 from backend.auth.decorators import require_auth
 from backend.auth.keycloak import auth_config as build_auth_config
 from backend.cache.keys import cache_key
-from backend.cache.redis_client import read_through_json
+from backend.cache.redis_client import (
+    read_stale_json_cache,
+    read_through_json,
+)
 from backend.repositories.ai_analyses import list_ai_analyses, save_ai_analysis
 from backend.repositories.regions import list_regions
 from backend.repositories.snapshots import latest_snapshots, snapshot_history
@@ -13,12 +16,23 @@ from backend.services.ai_analysis import (
     analyze_snapshot_payload,
 )
 from backend.services.analytics import build_analytics_summary
+from backend.services.climate_context import (
+    UnknownClimateRegionError,
+    build_pending_region_climate_context,
+    climate_context_cache_key,
+)
+from backend.services.climate_refresh import (
+    enqueue_region_climate_refresh,
+    idle_region_climate_refresh,
+)
 from backend.services.forecast import build_forecast_outlook
 from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
 from backend.services.ingestion_status import last_ingestion_status
+from backend.services.climate_sources.debug import build_source_normalization_debug
 from backend.services.source_health import build_source_health
 
 api_bp = Blueprint("api", __name__)
+DEFAULT_DEBUG_REGION_LIMIT = 1
 
 
 @api_bp.get("/auth/config")
@@ -105,6 +119,93 @@ def source_health():
             build_source_health,
         )
     )
+
+
+@api_bp.get("/climate/regions/<region_id>")
+@require_auth()
+def region_climate(region_id: str):
+    try:
+        payload, cache_metadata = read_stale_json_cache(
+            climate_context_cache_key(region_id)
+        )
+        refresh_metadata = (
+            idle_region_climate_refresh(region_id)
+            if cache_metadata["status"] == "fresh"
+            else enqueue_region_climate_refresh(region_id)
+        )
+
+        if payload is None:
+            payload = build_pending_region_climate_context(
+                region_id,
+                _pending_climate_warning(refresh_metadata),
+            )
+    except UnknownClimateRegionError as exc:
+        return jsonify({"code": "unknown_region", "error": str(exc)}), 404
+
+    return jsonify({**payload, "cache": {**cache_metadata, **refresh_metadata}})
+
+
+@api_bp.get("/debug/source-normalization")
+@api_bp.get("/debug/source-normalization/")
+def source_normalization_debug():
+    sections = request.args.get("sections")
+    parsed_sections = _debug_sections(sections)
+    region_id = request.args.get("regionId")
+
+    try:
+        payload = build_source_normalization_debug(
+            region_limit=_debug_region_limit(request.args.get("limit"), region_id),
+            region_id=region_id,
+            sections=parsed_sections,
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(payload)
+
+
+def _debug_sections(requested_sections: str | None) -> list[str] | None:
+    if requested_sections is None:
+        return None
+
+    return [
+        section.strip().lower()
+        for section in requested_sections.split(",")
+        if section.strip()
+    ]
+
+
+def _pending_climate_warning(refresh_metadata: dict[str, object]) -> str:
+    refresh_state = refresh_metadata.get("refreshState")
+
+    if refresh_state == "queued":
+        return "Climate refresh queued"
+
+    if refresh_state == "locked":
+        return "Climate refresh already queued"
+
+    if refresh_state == "failed":
+        return "Climate refresh unavailable"
+
+    return "Climate context pending"
+
+
+def _debug_region_limit(
+    requested_limit: str | None,
+    region_id: str | None,
+) -> int | None:
+    if requested_limit is None:
+        return None if region_id is not None else DEFAULT_DEBUG_REGION_LIMIT
+
+    try:
+        parsed_limit = int(requested_limit)
+    except ValueError:
+        raise ValueError("limit must be an integer") from None
+
+    if parsed_limit < 1:
+        raise ValueError("limit must be at least 1")
+
+    return min(parsed_limit, 16)
 
 
 @api_bp.get("/forecasts/outlook")

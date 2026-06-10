@@ -63,10 +63,10 @@ export function ForecastOutlookPanel({
     >
       {activeOutlook && outlook ? (
         <div className="grid gap-4">
-          <div className="rounded-md border bg-background p-3">
-            <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 rounded-md border bg-background p-3">
+            <div className="flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-center min-[460px]:justify-between">
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium">
+                <div className="break-words text-sm font-medium">
                   {regionName(regions, activeOutlook.regionId)}
                 </div>
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -89,13 +89,13 @@ export function ForecastOutlookPanel({
               <PressureBar value={activeOutlook.pressureScore} />
             </div>
 
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 break-words text-sm leading-6 text-muted-foreground">
               {activeOutlook.summary}
             </p>
           </div>
 
           <div className="grid gap-3">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
               <ForecastMetric
                 icon={CloudMidRainIcon}
                 label="Rainfall"
@@ -129,7 +129,7 @@ export function ForecastOutlookPanel({
               )}
             </div>
 
-            <div className="truncate text-xs text-muted-foreground">
+            <div className="break-words text-xs text-muted-foreground">
               Source: {activeOutlook.source}
             </div>
           </div>
@@ -156,11 +156,11 @@ function ForecastOutlookShell({
   statusTone = "default",
 }: ForecastOutlookShellProps) {
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
         <div className="min-w-0">
           <h2 className="font-medium">Forecast outlook</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 break-words text-sm text-muted-foreground">
             Open-Meteo pressure estimate for the next operating window
           </p>
         </div>
@@ -187,7 +187,7 @@ function ForecastOutlookSkeleton() {
       <div className="grid gap-4">
         <SkeletonBlock className="h-56" />
         <div className="grid gap-3">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
             {Array.from({ length: 3 }, (_, index) => (
               <SkeletonBlock className="h-24" key={index} />
             ))}
@@ -212,9 +212,9 @@ function ForecastMetric({ icon, label, value }: ForecastMetricProps) {
     <div className="min-w-0 rounded-md border bg-background p-3">
       <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
         <ProductIcon className="shrink-0" icon={icon} size={14} />
-        <span className="truncate">{label}</span>
+        <span className="break-words">{label}</span>
       </div>
-      <div className="mt-2 whitespace-nowrap text-base font-semibold">{value}</div>
+      <div className="mt-2 break-words text-base font-semibold">{value}</div>
     </div>
   )
 }
@@ -226,10 +226,10 @@ type ForecastRowProps = {
 
 function ForecastRow({ outlook, regionName }: ForecastRowProps) {
   return (
-    <div className="grid gap-2 rounded-md border bg-background px-3 py-2 text-sm min-[380px]:grid-cols-[minmax(0,1fr)_72px_80px] min-[380px]:items-center">
+    <div className="grid min-w-0 gap-2 rounded-md border bg-background px-3 py-2 text-sm min-[460px]:grid-cols-[minmax(0,1fr)_72px_80px] min-[460px]:items-center">
       <div className="min-w-0">
-        <div className="truncate font-medium">{regionName}</div>
-        <div className="truncate text-xs text-muted-foreground">
+        <div className="break-words font-medium">{regionName}</div>
+        <div className="break-words text-xs text-muted-foreground">
           {outlook.trend} · {outlook.forecastRainfallMm.toFixed(1)} mm forecast
         </div>
       </div>

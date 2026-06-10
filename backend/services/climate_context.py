@@ -1,0 +1,432 @@
+import math
+import os
+from datetime import UTC, datetime
+from typing import Any
+
+import requests
+
+from backend.cache.keys import cache_key
+from backend.cache.redis_client import refresh_stale_while_revalidate_json
+from backend.domain.regions import STATE_REGIONS
+from backend.services.climate_sources.air_quality import build_air_quality_debug_stage
+from backend.services.climate_sources.config import (
+    positive_int_env,
+    stale_ttl_env,
+)
+from backend.services.climate_sources.co2 import (
+    CAMS_SOURCE,
+    CO2_DATASET_CANDIDATES,
+    CO2_REQUIRED_CONFIG,
+    build_co2_debug_stage,
+)
+from backend.services.climate_sources.contracts import DebugStage
+from backend.services.climate_sources.solar import build_solar_debug_stage
+
+
+def _positive_float_env(name: str, fallback: float) -> float:
+    try:
+        value = float(os.getenv(name, str(fallback)))
+    except (TypeError, ValueError):
+        return fallback
+
+    return value if value > 0 else fallback
+
+
+CLIMATE_SOURCE_TIMEOUT_SECONDS = 8.0
+CLIMATE_SOURCE_TIMEOUT_SECONDS = _positive_float_env(
+    "CLIMATE_SOURCE_TIMEOUT_SECONDS",
+    CLIMATE_SOURCE_TIMEOUT_SECONDS,
+)
+CLIMATE_CONTEXT_READ_MODEL_VERSION = "read-model-v2"
+CLIMATE_CONTEXT_FRESH_TTL_SECONDS = positive_int_env(
+    "CLIMATE_CONTEXT_FRESH_TTL_SECONDS",
+    300,
+)
+CLIMATE_CONTEXT_STALE_TTL_SECONDS = stale_ttl_env(
+    "CLIMATE_CONTEXT_STALE_TTL_SECONDS",
+    60 * 60,
+    CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
+)
+SUPPORTED_CLIMATE_REGION_IDS = frozenset(region["id"] for region in STATE_REGIONS)
+
+
+class UnknownClimateRegionError(ValueError):
+    pass
+
+
+def build_region_climate_context(
+    region_id: str,
+    timeout: float = CLIMATE_SOURCE_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    validate_climate_region_id(region_id)
+
+    with requests.Session() as http:
+        solar = build_solar_debug_stage(
+            region_id,
+            cache_enabled=True,
+            http=http,
+            timeout=timeout,
+        )
+        air = build_air_quality_debug_stage(
+            region_id,
+            cache_enabled=True,
+            http=http,
+            timeout=timeout,
+        )
+
+    co2 = build_co2_debug_stage(region_id)
+
+    return {
+        "air": _air_context(air),
+        "co2": _co2_context(co2),
+        "generatedAt": datetime.now(UTC).isoformat(),
+        "regionId": region_id,
+        "sunlight": _sunlight_context(solar),
+    }
+
+
+def build_pending_region_climate_context(
+    region_id: str,
+    warning: str = "Climate refresh queued",
+) -> dict[str, Any]:
+    validate_climate_region_id(region_id)
+
+    co2 = build_co2_debug_stage(region_id)
+
+    return {
+        "air": {
+            "ageMinutes": None,
+            "observedAt": None,
+            "pollutants": {
+                "co": None,
+                "no2": None,
+                "o3": None,
+                "pm10": None,
+                "pm25": None,
+                "so2": None,
+            },
+            "riskLabel": "unavailable",
+            "riskScore": None,
+            "source": "pending climate refresh",
+            "station": None,
+            "status": "unavailable",
+            "warnings": [warning],
+        },
+        "co2": _co2_context(co2),
+        "generatedAt": datetime.now(UTC).isoformat(),
+        "regionId": region_id,
+        "sunlight": {
+            "ageMinutes": None,
+            "clearSkyRatio": None,
+            "directLightShare": None,
+            "irradiance": {
+                "diffuseRadiation": None,
+                "directNormalIrradiance": None,
+                "directRadiation": None,
+                "shortwaveRadiation": None,
+            },
+            "label": "unavailable",
+            "observedAt": None,
+            "score": None,
+            "source": "pending climate refresh",
+            "status": "unavailable",
+            "warnings": [warning],
+        },
+    }
+
+
+def climate_context_cache_key(region_id: str) -> str:
+    validate_climate_region_id(region_id)
+
+    return cache_key(
+        f"climate:region:{CLIMATE_CONTEXT_READ_MODEL_VERSION}:{region_id}"
+    )
+
+
+def refresh_region_climate_context_cache(region_id: str) -> dict[str, Any]:
+    return refresh_stale_while_revalidate_json(
+        climate_context_cache_key(region_id),
+        CLIMATE_CONTEXT_FRESH_TTL_SECONDS,
+        CLIMATE_CONTEXT_STALE_TTL_SECONDS,
+        lambda: build_region_climate_context(region_id),
+    )
+
+
+def validate_climate_region_id(region_id: str) -> None:
+    if region_id not in SUPPORTED_CLIMATE_REGION_IDS:
+        raise UnknownClimateRegionError(f"unknown regionId: {region_id}")
+
+
+def _sunlight_context(stage: DebugStage) -> dict[str, Any]:
+    normalized = stage.normalized_output or {}
+    status = _normalized_status(normalized)
+
+    return {
+        "ageMinutes": _number_or_none(normalized.get("age_minutes")),
+        "clearSkyRatio": _number_or_none(normalized.get("clear_sky_ratio")),
+        "directLightShare": _number_or_none(normalized.get("direct_light_share")),
+        "irradiance": {
+            "diffuseRadiation": _number_or_none(
+                normalized.get("diffuse_radiation_w_m2")
+            ),
+            "directNormalIrradiance": _number_or_none(
+                normalized.get("direct_normal_irradiance_w_m2")
+            ),
+            "directRadiation": _number_or_none(
+                normalized.get("direct_radiation_w_m2")
+            ),
+            "shortwaveRadiation": _number_or_none(
+                normalized.get("shortwave_radiation_w_m2")
+            ),
+        },
+        "label": _text_or_none(normalized.get("feasibility_label")) or "unavailable",
+        "observedAt": _text_or_none(normalized.get("observed_at")),
+        "score": _number_or_none(normalized.get("score")),
+        "source": _text_or_none(normalized.get("source")) or stage.source.name,
+        "status": status,
+        "warnings": _sunlight_warnings(stage),
+    }
+
+
+def _air_context(stage: DebugStage) -> dict[str, Any]:
+    normalized = stage.normalized_output or {}
+    status = _normalized_status(normalized)
+
+    return {
+        "ageMinutes": _number_or_none(normalized.get("age_minutes")),
+        "observedAt": _text_or_none(normalized.get("observed_at")),
+        "pollutants": {
+            "co": _number_or_none(normalized.get("co_ug_m3")),
+            "no2": _number_or_none(normalized.get("no2_ug_m3")),
+            "o3": _number_or_none(normalized.get("o3_ug_m3")),
+            "pm10": _number_or_none(normalized.get("pm10_ug_m3")),
+            "pm25": _number_or_none(normalized.get("pm25_ug_m3")),
+            "so2": _number_or_none(normalized.get("so2_ug_m3")),
+        },
+        "riskLabel": _text_or_none(normalized.get("air_risk_label")) or "unavailable",
+        "riskScore": _number_or_none(normalized.get("air_risk_score")),
+        "source": _text_or_none(normalized.get("source")) or stage.source.name,
+        "station": _station_summary(normalized.get("station")),
+        "status": status,
+        "warnings": _air_warnings(stage, status),
+    }
+
+
+def _co2_context(stage: DebugStage) -> dict[str, Any]:
+    normalized = stage.normalized_output or {}
+
+    return {
+        "blockers": [
+            "credentials",
+            "dataset choice",
+            "variable/unit verification",
+        ],
+        "datasetCandidates": list(CO2_DATASET_CANDIDATES),
+        "requiredConfig": [
+            *CO2_REQUIRED_CONFIG,
+            "regional grid extraction settings",
+            "unit conversion rules for selected variable",
+        ],
+        "source": normalized.get("source") or CAMS_SOURCE.name,
+        "status": normalized.get("status") or "candidate_requires_dataset_workflow",
+        "warnings": _co2_warnings(stage),
+    }
+
+
+def _normalized_status(normalized: dict[str, Any]) -> str:
+    status = normalized.get("status")
+
+    return status if isinstance(status, str) and status else "unavailable"
+
+
+def _sunlight_warnings(stage: DebugStage) -> list[str]:
+    warnings: list[str] = []
+
+    if stage.errors:
+        warnings.append("Sunlight source unavailable")
+
+    for warning in stage.warnings:
+        normalized = warning.lower()
+
+        if "clear-sky radiation field is unavailable" in normalized:
+            continue
+
+        if "no parseable timestamp" in normalized:
+            warnings.append("Sunlight observation timestamp unavailable")
+        elif "older than six hours" in normalized:
+            warnings.append("Sunlight observation is older than six hours")
+        elif "source cache served stale data" in normalized:
+            warnings.append("Using stale cached sunlight source data")
+        elif "source cache served cached data with unknown freshness" in normalized:
+            warnings.append("Using cached sunlight source data with unknown freshness")
+        elif "source cache bypassed" in normalized:
+            warnings.append("Sunlight source cache unavailable")
+        elif "shortwave radiation field is unavailable" in normalized:
+            warnings.append("Sunlight shortwave radiation unavailable")
+        elif "direct radiation field is unavailable" in normalized:
+            warnings.append("Sunlight direct radiation unavailable")
+        else:
+            warnings.append("Sunlight source returned partial data")
+
+    return _unique_warnings(warnings)
+
+
+def _air_warnings(stage: DebugStage, status: str) -> list[str]:
+    warnings: list[str] = []
+
+    if stage.errors:
+        warnings.append("Air quality source unavailable")
+
+    for warning in stage.warnings:
+        normalized = warning.lower()
+
+        if "missing pollutant readings:" in normalized:
+            missing = warning.split(":", 1)[1]
+            warnings.append(
+                "Missing pollutant readings: "
+                f"{_format_pollutant_list(missing.split(','))}"
+            )
+        elif "stale pollutant readings:" in normalized:
+            stale = warning.split(":", 1)[1]
+            warnings.append(
+                "Stale pollutant readings: "
+                f"{_format_pollutant_list(stale.split(','))}"
+            )
+        elif "air-quality reading is older than twelve hours" in normalized:
+            warnings.append("Air quality reading is older than twelve hours")
+        elif "no parseable timestamp" in normalized:
+            warnings.append("Air quality observation timestamp unavailable")
+        elif "open-meteo air-quality fallback unavailable" in normalized:
+            warnings.append("Open-Meteo air-quality fallback unavailable")
+        elif "open-meteo filled missing uba pollutant readings:" in normalized:
+            filled = warning.split(":", 1)[1]
+            warnings.append(
+                "Open-Meteo filled missing pollutant readings: "
+                f"{_format_pollutant_list(filled.split(','))}"
+            )
+        elif "using open-meteo air-quality fallback" in normalized:
+            warnings.append("Using Open-Meteo air-quality fallback")
+        elif "uba station index source cache served stale data" in normalized:
+            warnings.append("Using stale cached UBA station metadata")
+        elif (
+            "uba" in normalized
+            and "measurement source cache served stale data" in normalized
+        ):
+            warnings.append("Using stale cached UBA pollutant measurements")
+        elif (
+            "open-meteo air-quality fallback source cache served stale data"
+            in normalized
+        ):
+            warnings.append("Using stale cached Open-Meteo air-quality fallback")
+        elif "source cache served cached data with unknown freshness" in normalized:
+            warnings.append(
+                "Using cached air-quality source data with unknown freshness"
+            )
+        elif "source cache bypassed" in normalized:
+            warnings.append("Air quality source cache unavailable")
+        elif "measurement unavailable" in normalized:
+            warnings.append("Some UBA pollutant measurements were unavailable")
+        elif "better pollutant coverage" in normalized:
+            warnings.append("Using nearby UBA station with better pollutant coverage")
+
+    if status == "partial" and not _has_air_coverage_warning(warnings):
+        warnings.append("Air quality source returned partial pollutant coverage")
+
+    return _unique_warnings(warnings)
+
+
+def _co2_warnings(stage: DebugStage) -> list[str]:
+    warnings: list[str] = []
+
+    if stage.errors:
+        warnings.append("CO2 source candidate unavailable")
+
+    for warning in stage.warnings:
+        normalized = warning.lower()
+
+        if "credentials" in normalized or "dataset workflow" in normalized:
+            warnings.append("CO2 source candidate requires dataset workflow setup")
+        else:
+            warnings.append("CO2 source is candidate metadata")
+
+    return _unique_warnings(warnings)
+
+
+def _has_air_coverage_warning(warnings: list[str]) -> bool:
+    coverage_phrases = (
+        "filled missing pollutant readings",
+        "missing pollutant readings",
+        "pollutant measurements were unavailable",
+        "stale pollutant readings",
+    )
+
+    return any(
+        any(phrase in warning.lower() for phrase in coverage_phrases)
+        for warning in warnings
+    )
+
+
+def _format_pollutant_list(values: list[str]) -> str:
+    labels = [
+        _pollutant_label(value.strip())
+        for value in values
+        if value.strip()
+    ]
+
+    return ", ".join(labels) if labels else "unknown"
+
+
+def _pollutant_label(value: str) -> str:
+    labels = {
+        "co": "CO",
+        "no2": "NO2",
+        "o3": "O3",
+        "pm10": "PM10",
+        "pm25": "PM2.5",
+        "so2": "SO2",
+    }
+
+    return labels.get(value.lower(), value.upper())
+
+
+def _unique_warnings(warnings: list[str]) -> list[str]:
+    return list(dict.fromkeys(warnings))
+
+
+def _station_summary(station: Any) -> dict[str, Any] | None:
+    if not isinstance(station, dict):
+        return None
+
+    return {
+        "id": _text_or_none(station.get("id")),
+        "name": _text_or_none(station.get("name")),
+        "network": _text_or_none(station.get("network")),
+        "setting": _text_or_none(station.get("setting")),
+        "stationType": _text_or_none(
+            station.get("stationType") or station.get("station_type")
+        ),
+    }
+
+
+def _text_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+
+    return text or None
+
+
+def _number_or_none(value: Any) -> int | float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if not math.isfinite(parsed):
+        return None
+
+    return int(parsed) if parsed.is_integer() else parsed
