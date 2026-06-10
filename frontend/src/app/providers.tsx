@@ -3,6 +3,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import type { ReactNode } from "react"
 
 import { queryClient } from "@/app/query-client"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { AuthProvider } from "@/features/auth/AuthProvider"
 
 const readModelVersion = "state-model-v2"
@@ -27,7 +28,9 @@ export function AppProviders({ children }: AppProvidersProps) {
         persister,
       }}
     >
-      <AuthProvider>{children}</AuthProvider>
+      <TooltipProvider>
+        <AuthProvider>{children}</AuthProvider>
+      </TooltipProvider>
     </PersistQueryClientProvider>
   )
 }
