@@ -35,6 +35,7 @@
   - Skipped future Open-Meteo solar archive rows so current daylight readings are not replaced by end-of-day zero rows.
   - Sanitized stable climate warnings so raw upstream timeout strings stay in debug tooling only.
   - Selected UBA air-quality stations by pollutant coverage and observation freshness instead of first usable candidate.
+  - Fetched UBA pollutant measurements concurrently per station to reduce cold climate refresh latency.
   - Detected stale pollutant-level UBA readings when selected pollutants have mixed observation times.
   - Used Open-Meteo air-quality data to fill missing UBA pollutant readings or as a fallback when UBA has no usable readings.
   - Preserved Open-Meteo fallback freshness and parseability warnings when fallback air-quality data contributes to the selected reading.

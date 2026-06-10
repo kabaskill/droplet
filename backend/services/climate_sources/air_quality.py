@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Mapping
@@ -409,7 +410,8 @@ def _fetch_uba_measurements(
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]], list[str]]:
     readings_payload = {}
     measurement_requests = {}
-    warnings = []
+    warnings_by_pollutant: dict[str, list[str]] = {}
+    futures = {}
 
     for pollutant, component_id in UBA_COMPONENT_IDS.items():
         pollutant_params = {
@@ -422,39 +424,81 @@ def _fetch_uba_measurements(
             "url": UBA_MEASURES_URL,
         }
 
-        try:
-            if cache_enabled:
-                (
-                    readings_payload[pollutant],
-                    measurement_cache,
-                ) = _fetch_cached_uba_measurement_with_metadata(
-                    http,
-                    station["id"],
-                    pollutant,
-                    component_id,
-                    pollutant_params,
-                    timeout,
+        warnings_by_pollutant[pollutant] = []
+        futures[pollutant] = (
+            pollutant,
+            component_id,
+            pollutant_params,
+        )
+
+    with ThreadPoolExecutor(max_workers=len(futures)) as executor:
+        submitted = {
+            executor.submit(
+                _fetch_uba_measurement_for_pollutant,
+                station["id"],
+                pollutant,
+                component_id,
+                pollutant_params,
+                timeout,
+                cache_enabled,
+            ): pollutant
+            for pollutant, component_id, pollutant_params in futures.values()
+        }
+
+        for future in as_completed(submitted):
+            pollutant = submitted[future]
+
+            try:
+                payload, measurement_cache = future.result()
+            except (requests.RequestException, ValueError) as exc:
+                measurement_requests[pollutant]["error"] = str(exc)
+                warnings_by_pollutant[pollutant].append(
+                    "UBA "
+                    f"{pollutant} measurement unavailable for station "
+                    f"{station['id']}: {exc}"
                 )
+                continue
+
+            readings_payload[pollutant] = payload
+
+            if measurement_cache is not None:
                 measurement_requests[pollutant]["cache"] = measurement_cache
-                warnings.extend(
+                warnings_by_pollutant[pollutant].extend(
                     source_cache_warnings(
                         f"UBA {pollutant} measurement",
                         measurement_cache,
                     )
                 )
-            else:
-                readings_payload[pollutant] = _fetch_uba_measurement(
-                    http,
-                    pollutant_params,
-                    timeout,
-                )
-        except (requests.RequestException, ValueError) as exc:
-            measurement_requests[pollutant]["error"] = str(exc)
-            warnings.append(
-                f"UBA {pollutant} measurement unavailable for station {station['id']}: {exc}"
-            )
+
+    warnings = []
+    for pollutant in UBA_COMPONENT_IDS:
+        warnings.extend(warnings_by_pollutant[pollutant])
 
     return readings_payload, measurement_requests, warnings
+
+
+def _fetch_uba_measurement_for_pollutant(
+    station_id: Any,
+    pollutant: str,
+    component_id: str,
+    pollutant_params: Mapping[str, Any],
+    timeout: float,
+    cache_enabled: bool,
+) -> tuple[Any, dict[str, Any] | None]:
+    if cache_enabled:
+        payload, measurement_cache = _fetch_cached_uba_measurement_with_metadata(
+            None,
+            station_id,
+            pollutant,
+            component_id,
+            pollutant_params,
+            timeout,
+        )
+
+        return payload, measurement_cache
+
+    with requests.Session() as http:
+        return _fetch_uba_measurement(http, pollutant_params, timeout), None
 
 
 def _fetch_uba_measurement(
@@ -473,7 +517,7 @@ def _fetch_uba_measurement(
 
 
 def _fetch_cached_uba_measurement(
-    _http: requests.Session,
+    _http: requests.Session | None,
     station_id: Any,
     pollutant: str,
     component_id: str,
@@ -491,7 +535,7 @@ def _fetch_cached_uba_measurement(
 
 
 def _fetch_cached_uba_measurement_with_metadata(
-    _http: requests.Session,
+    _http: requests.Session | None,
     station_id: Any,
     pollutant: str,
     component_id: str,

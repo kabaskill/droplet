@@ -43,7 +43,7 @@ The stable climate flow caches Open-Meteo solar archive payloads per region and 
 
 ## Air Quality
 
-`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates, compares usable candidates by pollutant coverage and observation freshness, detects stale selected pollutant readings, and selects the best available station for the selected state.
+`backend/services/climate_sources/air_quality.py` uses UBA v4 station metadata and measurement rows as the primary German air-quality source. It tries nearby station candidates, fetches each station's pollutant measurements concurrently, compares usable candidates by pollutant coverage and observation freshness, detects stale selected pollutant readings, and selects the best available station for the selected state.
 
 Normalized output:
 
