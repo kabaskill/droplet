@@ -395,7 +395,11 @@ def _current_solar_fields(payload: Mapping[str, Any]) -> Mapping[str, Any] | Non
     if not isinstance(times, list):
         return None
 
+    now = datetime.now(UTC)
+    fallback: dict[str, Any] | None = None
+
     for index in range(len(times) - 1, -1, -1):
+        timestamp = _parse_timestamp(times[index])
         selected = {"time": times[index]}
         has_observation = False
 
@@ -408,10 +412,16 @@ def _current_solar_fields(payload: Mapping[str, Any]) -> Mapping[str, Any] | Non
             selected[field] = values[index]
             has_observation = has_observation or values[index] is not None
 
-        if has_observation:
+        if not has_observation:
+            continue
+
+        if fallback is None:
+            fallback = selected
+
+        if timestamp is not None and timestamp <= now:
             return selected
 
-    return None
+    return fallback
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
