@@ -3,10 +3,9 @@ import {
   Alert01Icon,
 } from "@hugeicons/core-free-icons"
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type CSSProperties } from "react"
 
 import { ClimateContextPanel } from "@/components/app/ClimateContextPanel"
-import { OperationsMapSkeleton } from "@/components/app/DashboardSkeletons"
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
 import { GermanyStateMap } from "@/components/app/GermanyStateMap"
 import { ProductIcon } from "@/components/app/ProductIcon"
@@ -26,6 +25,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import {
   buildGermanyStateMetrics,
@@ -69,6 +76,8 @@ export function DashboardPage() {
   const setHomeLayer = useAppStore((state) => state.setHomeLayer)
   const mobileRailOpen = useAppStore((state) => state.mobileRailOpen)
   const setMobileRailOpen = useAppStore((state) => state.setMobileRailOpen)
+  const rightRailOpen = useAppStore((state) => state.rightRailOpen)
+  const setRightRailOpen = useAppStore((state) => state.setRightRailOpen)
   const [online, setOnline] = useState(currentOnlineState)
   const [now, setNow] = useState(0)
   const forecastOutlook = forecastOutlookQuery.data ?? null
@@ -113,51 +122,142 @@ export function DashboardPage() {
   const retryLiveData = () => retryReadModels(queryClient)
 
   return (
-    <main className="grid min-h-[calc(100svh-3rem)] gap-3 p-3 pb-24 md:min-h-svh md:p-4 xl:grid-cols-[minmax(0,1fr)_410px] xl:pb-4">
-      <div className="grid min-w-0 content-start gap-3">
-        {!online ? <OfflineCachedDataNotice /> : null}
-
-        {accessError ? (
-          <WorkspaceNotice tone="warning" title="Access limited">
-            {accessError}
-          </WorkspaceNotice>
-        ) : null}
-
-        {operationalError ? (
-          <WorkspaceNotice tone="error" title="Core read model unavailable">
-            {operationalError}
-          </WorkspaceNotice>
-        ) : null}
-
-        <RegionalFilterBar
-          activeFilter={regionalFilter}
-          counts={filterCounts}
-          onChange={setRegionalFilter}
-        />
-
-        {noFilterMatches ? (
-          <WorkspaceNotice tone="warning" title="No filter matches">
-            Showing all observed states for map context.
-          </WorkspaceNotice>
-        ) : null}
-
+    <SidebarProvider
+      className="relative h-[calc(100svh-3rem)] !min-h-0 overflow-hidden bg-background md:h-svh"
+      open={rightRailOpen}
+      style={
+        {
+          "--sidebar-width": "27rem",
+          "--sidebar-width-icon": "3rem",
+        } as CSSProperties
+      }
+      onOpenChange={setRightRailOpen}
+    >
+      <main className="absolute inset-0 overflow-hidden">
         {regionReadModelLoading ? (
-          <OperationsMapSkeleton />
+          <HomeMapLoading />
         ) : (
           <GermanyStateMap
             activeLayer={homeLayer}
+            className="absolute inset-0"
             forecastOutlook={forecastOutlook}
             mapRegions={mapRegions}
             selectedRegionId={activeRegion?.id ?? selectedRegionId}
             onLayerChange={setHomeLayer}
-            onOpenDetails={() => setMobileRailOpen(true)}
             onSelectRegion={setSelectedRegionId}
           />
         )}
-      </div>
 
-      <aside className="hidden min-w-0 xl:block">
-        <div className="sticky top-4 max-h-[calc(100svh-2rem)] overflow-y-auto">
+        <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 grid max-w-2xl gap-2 md:left-4 md:right-auto md:top-4">
+          {!online ? (
+            <div className="pointer-events-auto">
+              <OfflineCachedDataNotice />
+            </div>
+          ) : null}
+
+          {accessError ? (
+            <div className="pointer-events-auto">
+              <WorkspaceNotice tone="warning" title="Access limited">
+                {accessError}
+              </WorkspaceNotice>
+            </div>
+          ) : null}
+
+          {operationalError ? (
+            <div className="pointer-events-auto">
+              <WorkspaceNotice tone="error" title="Core read model unavailable">
+                {operationalError}
+              </WorkspaceNotice>
+            </div>
+          ) : null}
+
+          <div className="pointer-events-auto">
+            <RegionalFilterBar
+              activeFilter={regionalFilter}
+              counts={filterCounts}
+              onChange={setRegionalFilter}
+            />
+          </div>
+
+          {noFilterMatches ? (
+            <div className="pointer-events-auto">
+              <WorkspaceNotice tone="warning" title="No filter matches">
+                Showing all observed states for map context.
+              </WorkspaceNotice>
+            </div>
+          ) : null}
+        </div>
+
+        {!rightRailOpen ? (
+          <Button
+            className="absolute right-3 top-3 z-50 hidden shadow-lg xl:inline-flex"
+            size="sm"
+            variant="secondary"
+            onClick={() => setRightRailOpen(true)}
+          >
+            <ProductIcon icon={Activity02Icon} />
+            State details
+          </Button>
+        ) : null}
+
+        <MobileSelectedStateAction
+          region={activeRegion}
+          snapshot={activeSnapshot}
+          onOpen={() => setMobileRailOpen(true)}
+        />
+
+        <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
+          <SheetContent
+            className="max-h-[88svh] overflow-y-auto p-0 xl:hidden"
+            side="bottom"
+          >
+            <SheetHeader className="border-b p-3 text-left">
+              <SheetTitle>{activeRegion?.name ?? "State details"}</SheetTitle>
+              <SheetDescription>
+                Selected-state water, climate, forecast, and freshness
+              </SheetDescription>
+            </SheetHeader>
+            <div className="p-3">
+              <SelectedStateRail
+                climate={climateContextQuery.data ?? null}
+                climateErrorMessage={panelErrorMessage(climateContextQuery.error)}
+                climateLoading={climateContextLoading}
+                forecastErrorMessage={panelErrorMessage(forecastOutlookQuery.error)}
+                forecastOutlook={forecastOutlook}
+                forecastLoading={forecastOutlookLoading}
+                freshnessItems={freshnessItems}
+                now={now}
+                region={activeRegion}
+                regions={regions}
+                selectedStateMetric={selectedStateMetric}
+                snapshot={activeSnapshot}
+                onRetry={retryLiveData}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </main>
+
+      <Sidebar
+        className="z-40 max-xl:hidden"
+        collapsible="offcanvas"
+        side="right"
+        variant="floating"
+      >
+        <SidebarHeader className="border-b p-3">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold">
+                {activeRegion?.name ?? "State details"}
+              </div>
+              <div className="mt-0.5 truncate text-xs text-sidebar-foreground/70">
+                Water, climate, forecast, and source freshness
+              </div>
+            </div>
+            <SidebarTrigger className="shrink-0" />
+          </div>
+        </SidebarHeader>
+        <SidebarContent className="p-2">
           <SelectedStateRail
             climate={climateContextQuery.data ?? null}
             climateErrorMessage={panelErrorMessage(climateContextQuery.error)}
@@ -173,46 +273,28 @@ export function DashboardPage() {
             snapshot={activeSnapshot}
             onRetry={retryLiveData}
           />
-        </div>
-      </aside>
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
+    </SidebarProvider>
+  )
+}
 
-      <MobileSelectedStateAction
-        region={activeRegion}
-        snapshot={activeSnapshot}
-        onOpen={() => setMobileRailOpen(true)}
-      />
-
-      <Sheet open={mobileRailOpen} onOpenChange={setMobileRailOpen}>
-        <SheetContent
-          className="max-h-[88svh] overflow-y-auto p-0 xl:hidden"
-          side="bottom"
-        >
-          <SheetHeader className="border-b p-3 text-left">
-            <SheetTitle>{activeRegion?.name ?? "State details"}</SheetTitle>
-            <SheetDescription>
-              Selected-state water, climate, forecast, and freshness
-            </SheetDescription>
-          </SheetHeader>
-          <div className="p-3">
-            <SelectedStateRail
-              climate={climateContextQuery.data ?? null}
-              climateErrorMessage={panelErrorMessage(climateContextQuery.error)}
-              climateLoading={climateContextLoading}
-              forecastErrorMessage={panelErrorMessage(forecastOutlookQuery.error)}
-              forecastOutlook={forecastOutlook}
-              forecastLoading={forecastOutlookLoading}
-              freshnessItems={freshnessItems}
-              now={now}
-              region={activeRegion}
-              regions={regions}
-              selectedStateMetric={selectedStateMetric}
-              snapshot={activeSnapshot}
-              onRetry={retryLiveData}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-    </main>
+function HomeMapLoading() {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-muted/30">
+      <div className="absolute inset-8 animate-pulse rounded-md bg-muted/50" />
+      <div className="absolute bottom-20 left-4 flex gap-2 rounded-md border bg-background/90 p-1 shadow-sm backdrop-blur xl:bottom-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div className="size-8 rounded-md bg-muted" key={index} />
+        ))}
+      </div>
+      <div className="absolute bottom-20 left-1/2 flex w-[min(34rem,calc(100%-8rem))] -translate-x-1/2 gap-1 rounded-md border bg-background/90 p-1 shadow-sm backdrop-blur xl:bottom-4">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div className="h-8 flex-1 rounded-md bg-muted" key={index} />
+        ))}
+      </div>
+    </div>
   )
 }
 

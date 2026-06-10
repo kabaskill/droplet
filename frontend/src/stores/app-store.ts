@@ -16,6 +16,7 @@ type AppState = {
   mapViewport: MapViewport
   mobileRailOpen: boolean
   regionalFilter: RegionalFilter
+  rightRailOpen: boolean
   searchQuery: string
   selectedRegionId: string | null
   setComparisonMode: (enabled: boolean) => void
@@ -23,6 +24,7 @@ type AppState = {
   setMapViewport: (viewport: MapViewport) => void
   setMobileRailOpen: (open: boolean) => void
   setRegionalFilter: (filter: RegionalFilter) => void
+  setRightRailOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
   setSelectedRegionId: (regionId: string | null) => void
   setSidebarOpen: (open: boolean) => void
@@ -35,6 +37,7 @@ export const useAppStore = create<AppState>((set) => ({
   mapViewport: { scale: 1, x: 0, y: 0 },
   mobileRailOpen: false,
   regionalFilter: "all",
+  rightRailOpen: true,
   searchQuery: "",
   selectedRegionId: null,
   setComparisonMode: (comparisonMode) => set({ comparisonMode }),
@@ -42,6 +45,7 @@ export const useAppStore = create<AppState>((set) => ({
   setMapViewport: (mapViewport) => set({ mapViewport }),
   setMobileRailOpen: (mobileRailOpen) => set({ mobileRailOpen }),
   setRegionalFilter: (regionalFilter) => set({ regionalFilter }),
+  setRightRailOpen: (rightRailOpen) => set({ rightRailOpen }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSelectedRegionId: (selectedRegionId) => set({ selectedRegionId }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),

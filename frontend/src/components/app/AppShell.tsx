@@ -87,8 +87,8 @@ export function AppShell({
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader className="gap-3">
-          <div className="flex items-center gap-2 px-2 py-1">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden">
               <ProductIcon icon={DropletIcon} size={19} />
             </span>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
@@ -97,6 +97,7 @@ export function AppShell({
                 Germany&apos;s Water State Platform
               </div>
             </div>
+            <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0" />
           </div>
 
           <div className="group-data-[collapsible=icon]:hidden">
