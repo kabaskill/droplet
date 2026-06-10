@@ -11,7 +11,6 @@ import { GermanyStateMap } from "@/components/app/GermanyStateMap"
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { ReadModelFreshnessPanel } from "@/components/app/ReadModelFreshnessPanel"
 import { RegionDetailPanel } from "@/components/app/RegionDetailPanel"
-import { RegionalFilterBar } from "@/components/app/RegionalFilterBar"
 import {
   panelErrorMessage,
   retryReadModels,
@@ -59,8 +58,6 @@ export function DashboardPage() {
     activeSnapshot,
     allRegions,
     climateContextQuery,
-    filterCounts,
-    filteredRegions,
     forecastOutlookQuery,
     freshnessItems,
     homeLayer,
@@ -68,11 +65,9 @@ export function DashboardPage() {
     regionReadModelLoading,
     regions,
     selectedRegionId,
-    setRegionalFilter,
     setSelectedRegionId,
-  } = useDashboardData()
+  } = useDashboardData({ selectionScope: "all" })
   const queryClient = useQueryClient()
-  const regionalFilter = useAppStore((state) => state.regionalFilter)
   const setHomeLayer = useAppStore((state) => state.setHomeLayer)
   const mobileRailOpen = useAppStore((state) => state.mobileRailOpen)
   const setMobileRailOpen = useAppStore((state) => state.setMobileRailOpen)
@@ -81,8 +76,7 @@ export function DashboardPage() {
   const [online, setOnline] = useState(currentOnlineState)
   const [now, setNow] = useState(0)
   const forecastOutlook = forecastOutlookQuery.data ?? null
-  const mapRegions = filteredRegions.length ? filteredRegions : allRegions
-  const noFilterMatches = filteredRegions.length === 0 && allRegions.length > 0
+  const mapRegions = allRegions
   const climateContextLoading =
     climateContextQuery.isPending && !climateContextQuery.data
   const forecastOutlookLoading =
@@ -127,7 +121,7 @@ export function DashboardPage() {
       open={rightRailOpen}
       style={
         {
-          "--sidebar-width": "27rem",
+          "--sidebar-width": "31rem",
           "--sidebar-width-icon": "3rem",
         } as CSSProperties
       }
@@ -167,22 +161,6 @@ export function DashboardPage() {
             <div className="pointer-events-auto">
               <WorkspaceNotice tone="error" title="Core read model unavailable">
                 {operationalError}
-              </WorkspaceNotice>
-            </div>
-          ) : null}
-
-          <div className="pointer-events-auto">
-            <RegionalFilterBar
-              activeFilter={regionalFilter}
-              counts={filterCounts}
-              onChange={setRegionalFilter}
-            />
-          </div>
-
-          {noFilterMatches ? (
-            <div className="pointer-events-auto">
-              <WorkspaceNotice tone="warning" title="No filter matches">
-                Showing all observed states for map context.
               </WorkspaceNotice>
             </div>
           ) : null}
@@ -244,20 +222,20 @@ export function DashboardPage() {
         side="right"
         variant="floating"
       >
-        <SidebarHeader className="border-b p-3">
+        <SidebarHeader className="min-w-0 border-b p-3">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold">
+              <div className="break-words text-sm font-semibold leading-5">
                 {activeRegion?.name ?? "State details"}
               </div>
-              <div className="mt-0.5 truncate text-xs text-sidebar-foreground/70">
+              <div className="mt-0.5 text-xs leading-5 text-sidebar-foreground/70">
                 Water, climate, forecast, and source freshness
               </div>
             </div>
             <SidebarTrigger className="shrink-0" />
           </div>
         </SidebarHeader>
-        <SidebarContent className="p-2">
+        <SidebarContent className="min-w-0 p-2">
           <SelectedStateRail
             climate={climateContextQuery.data ?? null}
             climateErrorMessage={panelErrorMessage(climateContextQuery.error)}
@@ -340,14 +318,14 @@ function SelectedStateRail({
 }: SelectedStateRailProps) {
   if (!region || !snapshot) {
     return (
-      <section className="rounded-md border bg-card p-4 text-sm text-muted-foreground shadow-sm">
+      <section className="min-w-0 rounded-md border bg-card p-4 text-sm text-muted-foreground shadow-sm">
         Waiting for selected-state snapshot data
       </section>
     )
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid min-w-0 gap-3">
       <SelectedStateSummary
         region={region}
         selectedStateMetric={selectedStateMetric}
@@ -355,7 +333,7 @@ function SelectedStateRail({
       />
 
       {selectedStateMetric?.warnings.length ? (
-        <section className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
+        <section className="min-w-0 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 shadow-sm dark:bg-amber-950/30 dark:text-amber-200">
           <div className="mb-2 flex items-center gap-2 font-medium">
             <ProductIcon icon={Alert01Icon} size={16} />
             Warnings
@@ -404,14 +382,14 @@ function SelectedStateSummary({
   const sources = snapshotSourceTags(snapshot)
 
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
+      <div className="flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
+        <div className="min-w-0 flex-1">
           <div className="text-xs font-medium uppercase text-muted-foreground">
             {region.federalState}
           </div>
           <h2 className="mt-1 break-words text-lg font-semibold">{region.name}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 break-words text-sm text-muted-foreground">
             {region.basin} system · {region.code} · {region.riskProfile}
           </p>
         </div>
@@ -434,8 +412,11 @@ function SelectedStateSummary({
         {homeLayerConfigs
           .filter((layer) => layer.id !== "overview")
           .map((layer) => (
-            <div className="rounded-md border bg-background p-3" key={layer.id}>
-              <div className="text-xs uppercase text-muted-foreground">
+            <div
+              className="min-w-0 rounded-md border bg-background p-3"
+              key={layer.id}
+            >
+              <div className="break-words text-xs uppercase text-muted-foreground">
                 {layer.label}
               </div>
               <div className="mt-1 text-xl font-semibold">
@@ -449,7 +430,7 @@ function SelectedStateSummary({
         {sources.map((source) => (
           <span
             className={cn(
-              "max-w-full truncate rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
+              "max-w-full break-words rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
               source.kind === "water" &&
                 "border-sky-200 text-sky-800 dark:text-sky-200",
               source.kind === "weather" &&

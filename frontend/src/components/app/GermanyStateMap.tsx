@@ -342,10 +342,6 @@ export function GermanyStateMap({
         ))}
       </div>
 
-      <div className="absolute right-3 top-3 z-20 rounded-md border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
-        {observedStateCount} observed · {homeLayerLabel(activeLayer)}
-      </div>
-
       <svg
         aria-label="Germany state map"
         className="h-full w-full touch-none"

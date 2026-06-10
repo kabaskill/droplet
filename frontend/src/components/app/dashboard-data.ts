@@ -22,7 +22,13 @@ import type { Region, ReservoirSnapshot } from "@/services/types"
 const emptyRegions: Region[] = []
 const emptySnapshots: ReservoirSnapshot[] = []
 
-export function useDashboardData() {
+type DashboardDataOptions = {
+  selectionScope?: "all" | "filtered"
+}
+
+export function useDashboardData({
+  selectionScope = "filtered",
+}: DashboardDataOptions = {}) {
   const comparisonMode = useAppStore((state) => state.comparisonMode)
   const homeLayer = useAppStore((state) => state.homeLayer)
   const regionalFilter = useAppStore((state) => state.regionalFilter)
@@ -50,6 +56,7 @@ export function useDashboardData() {
     () => regionalFilterCounts(regions, snapshots),
     [regions, snapshots]
   )
+  const selectionRegions = selectionScope === "all" ? allRegions : filteredRegions
 
   useEffect(() => {
     if (!regions[0]) {
@@ -57,17 +64,17 @@ export function useDashboardData() {
     }
 
     if (!selectedRegionId) {
-      setSelectedRegionId(regions[0].id)
+      setSelectedRegionId(selectionRegions[0]?.region.id ?? regions[0].id)
       return
     }
 
     if (
-      filteredRegions.length > 0 &&
-      !filteredRegions.some(({ region }) => region.id === selectedRegionId)
+      selectionRegions.length > 0 &&
+      !selectionRegions.some(({ region }) => region.id === selectedRegionId)
     ) {
-      setSelectedRegionId(filteredRegions[0].region.id)
+      setSelectedRegionId(selectionRegions[0].region.id)
     }
-  }, [filteredRegions, regions, selectedRegionId, setSelectedRegionId])
+  }, [regions, selectedRegionId, selectionRegions, setSelectedRegionId])
 
   const activeRegion =
     regions.find((region) => region.id === selectedRegionId) ?? regions[0] ?? null

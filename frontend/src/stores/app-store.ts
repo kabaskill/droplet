@@ -47,7 +47,11 @@ export const useAppStore = create<AppState>((set) => ({
   setRegionalFilter: (regionalFilter) => set({ regionalFilter }),
   setRightRailOpen: (rightRailOpen) => set({ rightRailOpen }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setSelectedRegionId: (selectedRegionId) => set({ selectedRegionId }),
+  setSelectedRegionId: (selectedRegionId) =>
+    set({
+      ...(selectedRegionId ? { rightRailOpen: true } : {}),
+      selectedRegionId,
+    }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   sidebarOpen: true,
 }))

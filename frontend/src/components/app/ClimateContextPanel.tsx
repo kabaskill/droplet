@@ -63,7 +63,7 @@ export function ClimateContextPanel({
           title="Sunlight"
           value={scoreLabel(climate.sunlight.score)}
         >
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
             <ClimateMetric
               label="Shortwave"
               value={wattMetric(climate.sunlight.irradiance.shortwaveRadiation)}
@@ -98,7 +98,7 @@ export function ClimateContextPanel({
           title="Air quality"
           value={scoreLabel(climate.air.riskScore)}
         >
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2">
             <ClimateMetric
               label="PM2.5"
               value={pollutantMetric(climate.air.pollutants.pm25)}
@@ -124,7 +124,7 @@ export function ClimateContextPanel({
               value={pollutantMetric(climate.air.pollutants.co)}
             />
           </div>
-          <div className="mt-2 truncate text-xs text-muted-foreground">
+          <div className="mt-2 break-words text-xs text-muted-foreground">
             Station: {stationLabel(climate.air.station)}
           </div>
           <SourceMeta
@@ -143,11 +143,11 @@ export function ClimateContextPanel({
           value="Candidate"
         >
           <div className="grid gap-2 text-xs text-muted-foreground">
-            <div className="truncate">Source: {climate.co2.source}</div>
-            <div className="truncate">
+            <div className="break-words">Source: {climate.co2.source}</div>
+            <div className="break-words">
               Dataset: {climate.co2.datasetCandidates[0] ?? "unavailable"}
             </div>
-            <div className="truncate">
+            <div className="break-words">
               Blockers: {climate.co2.blockers.join(", ") || "none"}
             </div>
           </div>
@@ -178,11 +178,11 @@ function ClimateContextShell({
   statusTone = "default",
 }: ClimateContextShellProps) {
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
         <div className="min-w-0">
           <h2 className="font-medium">Climate context</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 break-words text-sm text-muted-foreground">
             Selected-state sunlight, air, and CO2 source status
           </p>
           {cacheSummary?.storedAtLabel ? (
@@ -201,7 +201,7 @@ function ClimateContextShell({
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-row flex-wrap gap-1 min-[460px]:flex-col min-[460px]:items-end">
           <StatusBadge label={statusLabel} tone={statusTone} />
           {cacheSummary ? (
             <StatusBadge label={cacheSummary.label} tone={cacheSummary.tone} />
@@ -231,20 +231,20 @@ function ClimateSection({
   value,
 }: ClimateSectionProps) {
   return (
-    <div className="rounded-md border bg-background p-3">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <div className="min-w-0 rounded-md border bg-background p-3">
+      <div className="mb-3 flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <ProductIcon icon={icon} size={16} />
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium">{title}</div>
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            <div className="break-words text-sm font-medium">{title}</div>
+            <div className="mt-0.5 break-words text-xs text-muted-foreground">
               {label}
             </div>
           </div>
         </div>
-        <div className="shrink-0 text-right">
+        <div className="shrink-0 min-[460px]:text-right">
           <div className="text-lg font-semibold">{value}</div>
           <StatusBadge label={statusLabel(status)} tone={statusTone(status)} />
         </div>
@@ -270,7 +270,7 @@ function ClimateContextSkeleton() {
               </div>
               <SkeletonBlock className="h-7 w-16" />
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2">
               <SkeletonBlock className="h-14" />
               <SkeletonBlock className="h-14" />
               <SkeletonBlock className="h-14" />
@@ -290,10 +290,10 @@ type ClimateMetricProps = {
 function ClimateMetric({ label, value }: ClimateMetricProps) {
   return (
     <div className="min-w-0 rounded-md border bg-card px-2 py-2">
-      <div className="truncate text-[11px] uppercase text-muted-foreground">
+      <div className="break-words text-[11px] uppercase text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
+      <div className="mt-1 break-words text-sm font-semibold">{value}</div>
     </div>
   )
 }
@@ -307,7 +307,7 @@ type SourceMetaProps = {
 function SourceMeta({ ageMinutes, observedAt, source }: SourceMetaProps) {
   return (
     <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-      <div className="truncate">Source: {source || "unavailable"}</div>
+      <div className="break-words">Source: {source || "unavailable"}</div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>Age: {ageMinutes === null ? "n/a" : `${ageMinutes} min`}</span>
         <span>{dateTimeLabel(observedAt) ?? "No timestamp"}</span>

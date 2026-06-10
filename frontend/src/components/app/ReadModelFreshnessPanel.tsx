@@ -40,15 +40,15 @@ export function ReadModelFreshnessPanel({
           : "Fresh"
 
   return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
         <div className="min-w-0">
           <h2 className="font-medium">Read-model freshness</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 break-words text-sm text-muted-foreground">
             Last successful dashboard updates from the frontend cache.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             className="rounded-md border bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             onClick={onRetry}
@@ -68,7 +68,7 @@ export function ReadModelFreshnessPanel({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+      <div className="grid gap-2 min-[460px]:grid-cols-2">
         {items.map((item) => (
           <FreshnessRow item={item} key={item.label} now={now} />
         ))}
@@ -101,7 +101,7 @@ function FreshnessRow({
         >
           <ProductIcon icon={item.isFetching ? RefreshIcon : DatabaseSyncIcon} size={14} />
         </span>
-        <span className="truncate font-medium">{item.label}</span>
+        <span className="break-words font-medium">{item.label}</span>
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">
         {freshnessLabel(item, now)}
