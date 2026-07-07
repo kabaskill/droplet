@@ -1,6 +1,6 @@
 import { Outlet, useRouterState } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { AppShell } from "@/components/app/AppShell"
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute"
@@ -29,7 +29,11 @@ export function WorkspaceLayout() {
 
   return (
     <ProtectedRoute>
-      {pathname === "/account" ? <AccountWorkspaceShell /> : <DataWorkspaceShell />}
+      {pathname === "/account" ? (
+        <AccountWorkspaceShell />
+      ) : (
+        <DataWorkspaceShell />
+      )}
     </ProtectedRoute>
   )
 }
@@ -58,14 +62,11 @@ function DataWorkspaceShell() {
   const forecastOutlookQuery = useForecastOutlook()
   const refreshSnapshots = useRefreshSnapshots()
   const queryClient = useQueryClient()
-  const [now, setNow] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
   const [online, setOnline] = useState(currentOnlineState)
 
   useEffect(() => {
-    const updateNow = () => setNow(Date.now())
-    updateNow()
-
-    const intervalId = window.setInterval(updateNow, 60_000)
+    const intervalId = window.setInterval(() => setNow(Date.now()), 60_000)
 
     return () => window.clearInterval(intervalId)
   }, [])
@@ -82,9 +83,10 @@ function DataWorkspaceShell() {
     }
   }, [])
 
-  const searchRegions = useMemo(
-    () => filterRegions(regionsQuery.data ?? [], snapshotsQuery.data ?? [], regionalFilter),
-    [regionalFilter, regionsQuery.data, snapshotsQuery.data]
+  const searchRegions = filterRegions(
+    regionsQuery.data ?? [],
+    snapshotsQuery.data ?? [],
+    regionalFilter
   )
   const stale =
     !online ||

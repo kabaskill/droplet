@@ -6,9 +6,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import * as d3 from "d3"
 import {
-  useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -68,6 +66,41 @@ const stateFills: Record<GermanyStateStatus, string> = {
   watch: "#ca8a04",
 }
 
+function applySvgTransform(
+  svg: SVGSVGElement | null,
+  zoom: ZoomBehavior<SVGSVGElement, unknown> | null,
+  transform: ZoomTransform
+) {
+  if (!svg || !zoom) {
+    return
+  }
+
+  d3.select(svg).call(zoom.transform, transform)
+}
+
+function focusTransformForPath(path: SVGPathElement, viewBox: SvgViewBox) {
+  const box = path.getBBox()
+  const scale = Math.min(
+    4.2,
+    Math.max(
+      1.35,
+      Math.min(
+        viewBox.width / Math.max(box.width, 1),
+        viewBox.height / Math.max(box.height, 1)
+      ) * 0.48
+    )
+  )
+  const centerX = box.x + box.width / 2
+  const centerY = box.y + box.height / 2
+
+  return d3.zoomIdentity
+    .translate(
+      viewBox.width / 2 - centerX * scale,
+      viewBox.height / 2 - centerY * scale
+    )
+    .scale(scale)
+}
+
 export function GermanyStateMap({
   activeLayer,
   className,
@@ -91,17 +124,19 @@ export function GermanyStateMap({
   const pathRefs = useRef<Record<string, SVGPathElement | null>>({})
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const lastFocusedStateRef = useRef<string | null>(null)
-  const stateMetrics = useMemo(
-    () => buildGermanyStateMetrics(mapRegions, activeLayer, forecastOutlook),
-    [activeLayer, forecastOutlook, mapRegions]
+  const stateMetrics = buildGermanyStateMetrics(
+    mapRegions,
+    activeLayer,
+    forecastOutlook
   )
   const selectedStateCode = selectedRegionId
     ? Object.values(stateMetrics).find((state) =>
         state.regions.some(({ region }) => region.id === selectedRegionId)
       )?.code
     : null
-  const hoveredState = hoverTooltip ? stateMetrics[hoverTooltip.stateCode] : null
-  const observedStateCount = Object.keys(stateMetrics).length
+  const hoveredState = hoverTooltip
+    ? stateMetrics[hoverTooltip.stateCode]
+    : null
   const viewBoxValue = `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`
 
   useEffect(() => {
@@ -188,49 +223,19 @@ export function GermanyStateMap({
     )
   }, [mapViewport.scale, mapViewport.x, mapViewport.y])
 
-  const applyTransform = useCallback((transform: ZoomTransform) => {
-    const svg = svgRef.current
-    const zoom = zoomRef.current
+  const applyTransform = (transform: ZoomTransform) => {
+    applySvgTransform(svgRef.current, zoomRef.current, transform)
+  }
 
-    if (!svg || !zoom) {
+  const focusState = (stateCode: string) => {
+    const path = pathRefs.current[stateCode]
+
+    if (!path) {
       return
     }
 
-    d3.select(svg).call(zoom.transform, transform)
-  }, [])
-
-  const focusState = useCallback(
-    (stateCode: string) => {
-      const path = pathRefs.current[stateCode]
-
-      if (!path) {
-        return
-      }
-
-      const box = path.getBBox()
-      const scale = Math.min(
-        4.2,
-        Math.max(
-          1.35,
-          Math.min(
-            viewBox.width / Math.max(box.width, 1),
-            viewBox.height / Math.max(box.height, 1)
-          ) * 0.48
-        )
-      )
-      const centerX = box.x + box.width / 2
-      const centerY = box.y + box.height / 2
-      const nextTransform = d3.zoomIdentity
-        .translate(
-          viewBox.width / 2 - centerX * scale,
-          viewBox.height / 2 - centerY * scale
-        )
-        .scale(scale)
-
-      applyTransform(nextTransform)
-    },
-    [applyTransform, viewBox.height, viewBox.width]
-  )
+    applyTransform(focusTransformForPath(path, viewBox))
+  }
 
   useEffect(() => {
     if (
@@ -242,28 +247,37 @@ export function GermanyStateMap({
     }
 
     lastFocusedStateRef.current = selectedStateCode
-    const frameId = window.requestAnimationFrame(() => focusState(selectedStateCode))
+    const frameId = window.requestAnimationFrame(() => {
+      const path = pathRefs.current[selectedStateCode]
 
-    return () => window.cancelAnimationFrame(frameId)
-  }, [focusState, selectedStateCode, shapes.length])
-
-  const selectState = useCallback(
-    (state: GermanyStateMetric | undefined) => {
-      if (!state) {
+      if (!path) {
         return
       }
 
-      lastFocusedStateRef.current = state.code
-      onSelectRegion(state.primaryRegionId)
-      focusState(state.code)
-    },
-    [focusState, onSelectRegion]
-  )
+      applySvgTransform(
+        svgRef.current,
+        zoomRef.current,
+        focusTransformForPath(path, viewBox)
+      )
+    })
 
-  const resetMap = useCallback(() => {
+    return () => window.cancelAnimationFrame(frameId)
+  }, [selectedStateCode, shapes.length, viewBox])
+
+  const selectState = (state: GermanyStateMetric | undefined) => {
+    if (!state) {
+      return
+    }
+
+    lastFocusedStateRef.current = state.code
+    onSelectRegion(state.primaryRegionId)
+    focusState(state.code)
+  }
+
+  const resetMap = () => {
     lastFocusedStateRef.current = selectedStateCode ?? null
     applyTransform(d3.zoomIdentity)
-  }, [applyTransform, selectedStateCode])
+  }
 
   const zoomBy = (factor: number) => {
     const svg = svgRef.current
@@ -310,7 +324,10 @@ export function GermanyStateMap({
 
   return (
     <div
-      className={cn("absolute inset-0 overflow-hidden bg-background", className)}
+      className={cn(
+        "absolute inset-0 overflow-hidden bg-background",
+        className
+      )}
       ref={containerRef}
     >
       <div className="absolute bottom-20 left-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur xl:bottom-4 xl:left-4">
@@ -323,7 +340,10 @@ export function GermanyStateMap({
         <MapToolButton label="Fit map" onClick={resetMap}>
           <ProductIcon icon={FitToScreenIcon} />
         </MapToolButton>
-        <MapToolButton label="Focus selected state" onClick={focusSelectedState}>
+        <MapToolButton
+          label="Focus selected state"
+          onClick={focusSelectedState}
+        >
           <ProductIcon icon={CenterFocusIcon} />
         </MapToolButton>
       </div>
@@ -370,7 +390,7 @@ export function GermanyStateMap({
                 aria-label={stateAriaLabel(shape, state, activeLayer)}
                 aria-pressed={selected || undefined}
                 className={cn(
-                  "outline-none transition-[fill,opacity,stroke-width] duration-150 focus-visible:stroke-primary focus-visible:stroke-[3px]",
+                  "transition-[fill,opacity,stroke-width] duration-150 outline-none focus-visible:stroke-primary focus-visible:stroke-[3px]",
                   disabled
                     ? "cursor-default opacity-35"
                     : "cursor-pointer opacity-85 hover:opacity-100",
@@ -380,7 +400,9 @@ export function GermanyStateMap({
                 fill={fill}
                 key={shape.code}
                 onClick={() => selectState(state)}
-                onKeyDown={(event) => handleStateKeyDown(event, state, selectState)}
+                onKeyDown={(event) =>
+                  handleStateKeyDown(event, state, selectState)
+                }
                 onMouseEnter={(event) => updateHoverTooltip(event, shape.code)}
                 onMouseLeave={() => setHoverTooltip(null)}
                 onMouseMove={(event) => updateHoverTooltip(event, shape.code)}
@@ -388,7 +410,9 @@ export function GermanyStateMap({
                   pathRefs.current[shape.code] = node
                 }}
                 role={disabled ? "img" : "button"}
-                stroke={selected ? "hsl(var(--primary))" : "hsl(var(--background))"}
+                stroke={
+                  selected ? "hsl(var(--primary))" : "hsl(var(--background))"
+                }
                 strokeLinejoin="round"
                 strokeWidth={selected ? 3.4 : 1.35}
                 tabIndex={disabled ? -1 : 0}
@@ -427,7 +451,13 @@ function MapToolButton({
   onClick: () => void
 }) {
   return (
-    <Button aria-label={label} size="icon-sm" title={label} variant="ghost" onClick={onClick}>
+    <Button
+      aria-label={label}
+      size="icon-sm"
+      title={label}
+      variant="ghost"
+      onClick={onClick}
+    >
       {children}
     </Button>
   )
@@ -446,7 +476,7 @@ function StateHoverTooltip({
 }) {
   return (
     <div
-      className="pointer-events-none absolute z-30 w-64 max-w-[calc(100%-2rem)] -translate-y-[calc(100%+0.75rem)] translate-x-3 rounded-md border bg-background/95 p-3 text-sm shadow-lg backdrop-blur"
+      className="pointer-events-none absolute z-30 w-64 max-w-[calc(100%-2rem)] translate-x-3 -translate-y-[calc(100%+0.75rem)] rounded-md border bg-background/95 p-3 text-sm shadow-lg backdrop-blur"
       style={{ left: x, top: y }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -454,7 +484,8 @@ function StateHoverTooltip({
           <div className="truncate font-semibold">{state.title}</div>
           <div className="mt-0.5 truncate text-xs text-muted-foreground">
             {state.regions.length} observed region
-            {state.regions.length === 1 ? "" : "s"} · {homeLayerLabel(activeLayer)}
+            {state.regions.length === 1 ? "" : "s"} ·{" "}
+            {homeLayerLabel(activeLayer)}
           </div>
         </div>
         <span
@@ -476,13 +507,20 @@ function StateHoverTooltip({
 
       <div className="mt-2 grid grid-cols-2 gap-1.5">
         <div className="rounded-md border bg-card px-2 py-1.5">
-          <div className="text-[10px] uppercase text-muted-foreground">Signal</div>
+          <div className="text-[10px] text-muted-foreground uppercase">
+            Signal
+          </div>
           <div className="mt-0.5 text-sm font-semibold">{state.metric}%</div>
         </div>
         <div className="rounded-md border bg-card px-2 py-1.5">
-          <div className="text-[10px] uppercase text-muted-foreground">Layer</div>
+          <div className="text-[10px] text-muted-foreground uppercase">
+            Layer
+          </div>
           <div className="mt-0.5 truncate text-sm font-semibold">
-            {homeLayerConfigs.find((layer) => layer.id === activeLayer)?.shortLabel}
+            {
+              homeLayerConfigs.find((layer) => layer.id === activeLayer)
+                ?.shortLabel
+            }
           </div>
         </div>
       </div>
@@ -490,7 +528,9 @@ function StateHoverTooltip({
       {state.warnings.length ? (
         <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           {state.warnings[0]}
-          {state.warnings.length > 1 ? ` +${state.warnings.length - 1} more` : ""}
+          {state.warnings.length > 1
+            ? ` +${state.warnings.length - 1} more`
+            : ""}
         </div>
       ) : null}
     </div>
@@ -526,13 +566,21 @@ function parseGermanySvg(markup: string) {
   const document = new DOMParser().parseFromString(markup, "image/svg+xml")
   const svg = document.querySelector("svg")
   const viewBox = parseViewBox(svg)
-  const shapes = Array.from(document.querySelectorAll("path[id]"))
-    .map((path) => ({
+  const shapes: StateShape[] = []
+
+  for (const path of document.querySelectorAll("path[id]")) {
+    const d = path.getAttribute("d") ?? ""
+
+    if (!d) {
+      continue
+    }
+
+    shapes.push({
       code: path.id,
-      d: path.getAttribute("d") ?? "",
+      d,
       title: path.getAttribute("title") ?? path.id,
-    }))
-    .filter((shape) => shape.d)
+    })
+  }
 
   return {
     shapes,
@@ -557,8 +605,12 @@ function parseViewBox(svg: SVGSVGElement | null): SvgViewBox {
     }
   }
 
-  const width = Number.parseFloat(svg.getAttribute("width") ?? `${fallbackViewBox.width}`)
-  const height = Number.parseFloat(svg.getAttribute("height") ?? `${fallbackViewBox.height}`)
+  const width = Number.parseFloat(
+    svg.getAttribute("width") ?? `${fallbackViewBox.width}`
+  )
+  const height = Number.parseFloat(
+    svg.getAttribute("height") ?? `${fallbackViewBox.height}`
+  )
 
   return {
     height: Number.isFinite(height) ? height : fallbackViewBox.height,

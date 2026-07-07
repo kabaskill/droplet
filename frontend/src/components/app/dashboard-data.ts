@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo } from "react"
+import { useEffect } from "react"
 
 import {
   useAnalyticsSummary,
@@ -44,19 +44,11 @@ export function useDashboardData({
 
   const regions = regionsQuery.data ?? emptyRegions
   const snapshots = snapshotsQuery.data ?? emptySnapshots
-  const filteredRegions = useMemo(
-    () => filterRegions(regions, snapshots, regionalFilter),
-    [regions, snapshots, regionalFilter]
-  )
-  const allRegions = useMemo(
-    () => filterRegions(regions, snapshots, "all"),
-    [regions, snapshots]
-  )
-  const filterCounts = useMemo(
-    () => regionalFilterCounts(regions, snapshots),
-    [regions, snapshots]
-  )
-  const selectionRegions = selectionScope === "all" ? allRegions : filteredRegions
+  const filteredRegions = filterRegions(regions, snapshots, regionalFilter)
+  const allRegions = filterRegions(regions, snapshots, "all")
+  const filterCounts = regionalFilterCounts(regions, snapshots)
+  const selectionRegions =
+    selectionScope === "all" ? allRegions : filteredRegions
 
   useEffect(() => {
     if (!regions[0]) {
@@ -77,7 +69,9 @@ export function useDashboardData({
   }, [regions, selectedRegionId, selectionRegions, setSelectedRegionId])
 
   const activeRegion =
-    regions.find((region) => region.id === selectedRegionId) ?? regions[0] ?? null
+    regions.find((region) => region.id === selectedRegionId) ??
+    regions[0] ??
+    null
   const activeSnapshot =
     snapshots.find((snapshot) => snapshot.regionId === activeRegion?.id) ??
     snapshots[0] ??
@@ -146,7 +140,10 @@ export function useDashboardData({
     historyQuery,
     homeLayer,
     ingestionStatusQuery,
-    operationalError: firstOperationalError([regionsQuery.error, snapshotsQuery.error]),
+    operationalError: firstOperationalError([
+      regionsQuery.error,
+      snapshotsQuery.error,
+    ]),
     regionReadModelLoading,
     regions,
     regionsQuery,
@@ -159,7 +156,7 @@ export function useDashboardData({
   }
 }
 
-export function firstAccessError(errors: unknown[]) {
+function firstAccessError(errors: unknown[]) {
   for (const error of errors) {
     if (!(error instanceof Error)) {
       continue

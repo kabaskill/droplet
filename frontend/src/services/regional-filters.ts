@@ -43,7 +43,9 @@ export function regionMatchesFilter(
   }
 
   if (filter === "fallback") {
-    return snapshotSourceTags(snapshot).some((source) => source.kind === "fallback")
+    return snapshotSourceTags(snapshot).some(
+      (source) => source.kind === "fallback"
+    )
   }
 
   if (filter === "low-confidence") {
@@ -58,12 +60,22 @@ export function filterRegions(
   snapshots: ReservoirSnapshot[],
   filter: RegionalFilter
 ): RegionWithSnapshot[] {
-  return regions
-    .map((region) => ({
-      region,
-      snapshot: snapshots.find((snapshot) => snapshot.regionId === region.id),
-    }))
-    .filter(({ snapshot }) => regionMatchesFilter(snapshot, filter))
+  const snapshotsByRegionId = new Map<string, ReservoirSnapshot>()
+  const filteredRegions: RegionWithSnapshot[] = []
+
+  for (const snapshot of snapshots) {
+    snapshotsByRegionId.set(snapshot.regionId, snapshot)
+  }
+
+  for (const region of regions) {
+    const snapshot = snapshotsByRegionId.get(region.id)
+
+    if (regionMatchesFilter(snapshot, filter)) {
+      filteredRegions.push({ region, snapshot })
+    }
+  }
+
+  return filteredRegions
 }
 
 export function regionalFilterCounts(

@@ -11,7 +11,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import type { ReactNode } from "react"
-import { useEffect, useId, useMemo, useRef, useState } from "react"
+import { useId, useRef, useState } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
@@ -56,11 +56,13 @@ const navigationItems = [
   { icon: UserShieldIcon, label: "User", to: "/account" },
 ]
 
+const emptySearchRegions: RegionWithSnapshot[] = []
+
 export function AppShell({
   children,
   onRefresh,
   refreshMessage,
-  searchRegions = [],
+  searchRegions = emptySearchRegions,
   refreshing,
   stale,
   syncing,
@@ -101,14 +103,15 @@ export function AppShell({
           </div>
 
           <div className="group-data-[collapsible=icon]:hidden">
-            <label className="relative block">
+            <label htmlFor="search-states" className="relative block">
               <ProductIcon
-                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sidebar-foreground/60"
+                className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-sidebar-foreground/60"
                 icon={GlobalSearchIcon}
                 size={14}
               />
               <SidebarInput
                 aria-label="Search states"
+                name="search-states"
                 className="pl-8"
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onFocus={() => setSearchOpen(true)}
@@ -268,39 +271,33 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   const titleId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const normalizedQuery = query.trim().toLowerCase()
-  const matches = useMemo(() => {
-    const source = normalizedQuery
-      ? regions.filter(({ region }) =>
-          [region.name, region.basin, region.code, region.federalState]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedQuery)
-        )
-      : regions
+  const matchSource = normalizedQuery
+    ? regions.filter(({ region }) =>
+        [region.name, region.basin, region.code, region.federalState]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery)
+      )
+    : regions
+  const matches = matchSource.slice(0, 10)
 
-    return source.slice(0, 10)
-  }, [normalizedQuery, regions])
-
-  useEffect(() => {
-    if (!open) {
+  const attachDialog = (dialog: HTMLDialogElement | null) => {
+    if (!dialog) {
       return
     }
 
-    window.setTimeout(() => inputRef.current?.focus(), 0)
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose()
+    if (!open) {
+      if (dialog.open) {
+        dialog.close()
       }
+
+      return
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onClose, open])
-
-  if (!open) {
-    return null
+    if (!dialog.open) {
+      dialog.showModal()
+      window.setTimeout(() => inputRef.current?.focus(), 0)
+    }
   }
 
   const selectRegion = (regionId: string) => {
@@ -310,32 +307,30 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/70 p-3 backdrop-blur-sm">
-      <button
-        aria-label="Close state search"
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
-        type="button"
-      />
-      <section
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className="relative mx-auto mt-14 max-h-[78svh] max-w-2xl overflow-hidden rounded-md border bg-background shadow-xl"
-        role="dialog"
-      >
+    <dialog
+      aria-labelledby={titleId}
+      className="fixed inset-x-3 top-14 z-50 mx-auto max-h-[78svh] w-auto max-w-2xl overflow-hidden rounded-md border bg-background p-0 text-foreground shadow-xl backdrop:bg-background/70 backdrop:backdrop-blur-sm"
+      ref={attachDialog}
+      onClose={() => {
+        if (open) {
+          onClose()
+        }
+      }}
+    >
+      <section className="max-h-[78svh] overflow-hidden">
         <div className="border-b p-3">
           <h2 className="sr-only" id={titleId}>
             Search states
           </h2>
           <label className="relative block">
             <ProductIcon
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
               icon={GlobalSearchIcon}
               size={16}
             />
             <input
               aria-label="Search states"
-              className="h-11 w-full rounded-md border bg-card pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/25"
+              className="h-11 w-full rounded-md border bg-card pr-3 pl-9 text-sm transition-colors outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/25"
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && matches[0]) {
@@ -359,14 +354,17 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
                   aria-pressed={selectedRegionId === region.id}
                   className={cn(
                     "grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-md border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
-                    selectedRegionId === region.id && "border-primary/50 bg-accent"
+                    selectedRegionId === region.id &&
+                      "border-primary/50 bg-accent"
                   )}
                   key={region.id}
                   onClick={() => selectRegion(region.id)}
                   type="button"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">{region.name}</span>
+                    <span className="block truncate font-medium">
+                      {region.name}
+                    </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {region.basin} system · {region.code}
                     </span>
@@ -387,6 +385,6 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
           )}
         </div>
       </section>
-    </div>
+    </dialog>
   )
 }

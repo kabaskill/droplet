@@ -1,5 +1,5 @@
 import { AiBrain01Icon, MapsGlobal01Icon } from "@hugeicons/core-free-icons"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
 import { useDashboardData } from "@/components/app/dashboard-data"
@@ -24,24 +24,17 @@ export function AiPage() {
   const user = useAuthStore((state) => state.user)
   const activeRole = activePersonaRole(user) ?? "citizen"
   const effectiveStateId = selectedStateId || regions[0]?.id || ""
-  const selectedWaterSystem =
-    waterSystems.find((system) => system.id === selectedRegionId) ?? waterSystems[0]
-  const selectedRegions = useMemo(() => {
-    if (scopeType === "state") {
-      return regions.filter((region) => region.id === effectiveStateId)
-    }
-
-    return regions.filter((region) => selectedWaterSystem?.stateIds.includes(region.id))
-  }, [effectiveStateId, regions, scopeType, selectedWaterSystem])
-  const selectedSnapshots = useMemo(
-    () =>
+  const selectedWaterSystem = waterSystems.find((system) => system.id === selectedRegionId) ?? waterSystems[0]
+  const selectedRegions = scopeType === "state"
+    ? regions.filter((region) => region.id === effectiveStateId)
+    : regions.filter((region) => selectedWaterSystem?.stateIds.includes(region.id))
+  const selectedSnapshots =
       selectedRegions
         .map((region) => snapshots.find((snapshot) => snapshot.regionId === region.id))
         .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
           Boolean(snapshot)
-        ),
-    [selectedRegions, snapshots]
-  )
+        )
+  
   const analysisRequest = buildAnalysisRequest(
     scopeType,
     selectedRegions,

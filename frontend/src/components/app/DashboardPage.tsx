@@ -1,9 +1,6 @@
-import {
-  Activity02Icon,
-  Alert01Icon,
-} from "@hugeicons/core-free-icons"
+import { Activity02Icon, Alert01Icon } from "@hugeicons/core-free-icons"
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useMemo, useState, type CSSProperties } from "react"
+import { useEffect, useState, type CSSProperties } from "react"
 
 import { ClimateContextPanel } from "@/components/app/ClimateContextPanel"
 import { ForecastOutlookPanel } from "@/components/app/ForecastOutlookPanel"
@@ -74,23 +71,24 @@ export function DashboardPage() {
   const rightRailOpen = useAppStore((state) => state.rightRailOpen)
   const setRightRailOpen = useAppStore((state) => state.setRightRailOpen)
   const [online, setOnline] = useState(currentOnlineState)
-  const [now, setNow] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
   const forecastOutlook = forecastOutlookQuery.data ?? null
   const mapRegions = allRegions
   const climateContextLoading =
     climateContextQuery.isPending && !climateContextQuery.data
   const forecastOutlookLoading =
     forecastOutlookQuery.isPending && !forecastOutlookQuery.data
-  const stateMetrics = useMemo(
-    () => buildGermanyStateMetrics(allRegions, homeLayer, forecastOutlook),
-    [allRegions, forecastOutlook, homeLayer]
+  const stateMetrics = buildGermanyStateMetrics(
+    allRegions,
+    homeLayer,
+    forecastOutlook
   )
   const selectedStateMetric =
     selectedRegionId === null
       ? null
-      : Object.values(stateMetrics).find((state) =>
+      : (Object.values(stateMetrics).find((state) =>
           state.regions.some(({ region }) => region.id === selectedRegionId)
-        ) ?? null
+        ) ?? null)
 
   useEffect(() => {
     const updateOnlineState = () => setOnline(currentOnlineState())
@@ -105,10 +103,7 @@ export function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    const updateNow = () => setNow(Date.now())
-    updateNow()
-
-    const intervalId = window.setInterval(updateNow, 60_000)
+    const intervalId = window.setInterval(() => setNow(Date.now()), 60_000)
 
     return () => window.clearInterval(intervalId)
   }, [])
@@ -142,7 +137,7 @@ export function DashboardPage() {
           />
         )}
 
-        <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 grid max-w-2xl gap-2 md:left-4 md:right-auto md:top-4">
+        <div className="pointer-events-none absolute top-3 right-3 left-3 z-30 grid max-w-2xl gap-2 md:top-4 md:right-auto md:left-4">
           {!online ? (
             <div className="pointer-events-auto">
               <OfflineCachedDataNotice />
@@ -168,7 +163,7 @@ export function DashboardPage() {
 
         {!rightRailOpen ? (
           <Button
-            className="absolute right-3 top-3 z-50 hidden shadow-lg xl:inline-flex"
+            className="absolute top-3 right-3 z-50 hidden shadow-lg xl:inline-flex"
             size="sm"
             variant="secondary"
             onClick={() => setRightRailOpen(true)}
@@ -198,9 +193,13 @@ export function DashboardPage() {
             <div className="p-3">
               <SelectedStateRail
                 climate={climateContextQuery.data ?? null}
-                climateErrorMessage={panelErrorMessage(climateContextQuery.error)}
+                climateErrorMessage={panelErrorMessage(
+                  climateContextQuery.error
+                )}
                 climateLoading={climateContextLoading}
-                forecastErrorMessage={panelErrorMessage(forecastOutlookQuery.error)}
+                forecastErrorMessage={panelErrorMessage(
+                  forecastOutlookQuery.error
+                )}
                 forecastOutlook={forecastOutlook}
                 forecastLoading={forecastOutlookLoading}
                 freshnessItems={freshnessItems}
@@ -225,7 +224,7 @@ export function DashboardPage() {
         <SidebarHeader className="min-w-0 border-b p-3">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <div className="break-words text-sm font-semibold leading-5">
+              <div className="text-sm leading-5 font-semibold break-words">
                 {activeRegion?.name ?? "State details"}
               </div>
               <div className="mt-0.5 text-xs leading-5 text-sidebar-foreground/70">
@@ -364,7 +363,11 @@ function SelectedStateRail({
         selectedRegionId={region.id}
       />
 
-      <ReadModelFreshnessPanel items={freshnessItems} now={now} onRetry={onRetry} />
+      <ReadModelFreshnessPanel
+        items={freshnessItems}
+        now={now}
+        onRetry={onRetry}
+      />
     </div>
   )
 }
@@ -385,11 +388,13 @@ function SelectedStateSummary({
     <section className="min-w-0 rounded-md border bg-card p-4 shadow-sm">
       <div className="flex min-w-0 flex-col gap-3 min-[460px]:flex-row min-[460px]:items-start min-[460px]:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium uppercase text-muted-foreground">
+          <div className="text-xs font-medium text-muted-foreground uppercase">
             {region.federalState}
           </div>
-          <h2 className="mt-1 break-words text-lg font-semibold">{region.name}</h2>
-          <p className="mt-1 break-words text-sm text-muted-foreground">
+          <h2 className="mt-1 text-lg font-semibold break-words">
+            {region.name}
+          </h2>
+          <p className="mt-1 text-sm break-words text-muted-foreground">
             {region.basin} system · {region.code} · {region.riskProfile}
           </p>
         </div>
@@ -409,28 +414,30 @@ function SelectedStateSummary({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {homeLayerConfigs
-          .filter((layer) => layer.id !== "overview")
-          .map((layer) => (
-            <div
-              className="min-w-0 rounded-md border bg-background p-3"
-              key={layer.id}
-            >
-              <div className="break-words text-xs uppercase text-muted-foreground">
-                {layer.label}
-              </div>
-              <div className="mt-1 text-xl font-semibold">
-                {selectedStateMetric?.layerValues[layer.id] ?? 0}%
-              </div>
-            </div>
-          ))}
+        {homeLayerConfigs.flatMap((layer) =>
+          layer.id === "overview"
+            ? []
+            : [
+                <div
+                  className="min-w-0 rounded-md border bg-background p-3"
+                  key={layer.id}
+                >
+                  <div className="text-xs break-words text-muted-foreground uppercase">
+                    {layer.label}
+                  </div>
+                  <div className="mt-1 text-xl font-semibold">
+                    {selectedStateMetric?.layerValues[layer.id] ?? 0}%
+                  </div>
+                </div>,
+              ]
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {sources.map((source) => (
           <span
             className={cn(
-              "max-w-full break-words rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground",
+              "max-w-full rounded-md border bg-background px-2 py-1 text-xs break-words text-muted-foreground",
               source.kind === "water" &&
                 "border-sky-200 text-sky-800 dark:text-sky-200",
               source.kind === "weather" &&
@@ -467,7 +474,8 @@ function MobileSelectedStateAction({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{region.name}</div>
           <div className="truncate text-xs text-muted-foreground">
-            Water {snapshot.waterLevel}% · Confidence {snapshot.confidenceScore}%
+            Water {snapshot.waterLevel}% · Confidence {snapshot.confidenceScore}
+            %
           </div>
         </div>
         <Button size="lg" onClick={onOpen}>

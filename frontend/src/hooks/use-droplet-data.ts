@@ -118,6 +118,9 @@ export function useAiAnalyses() {
 export function useRefreshSnapshots() {
   return useMutation({
     mutationFn: refreshSnapshots,
+      onSuccess: () => queryClient.invalidateQueries({
+          queryKey:["snapshots", readModelVersion]
+      })
   })
 }
 
