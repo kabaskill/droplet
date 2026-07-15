@@ -157,7 +157,7 @@ export function GermanyStateMap({
       return
     }
 
-    const handleZoom = (event: any) => {
+    const handleZoom = (event: { transform: ZoomTransform }) => {
       const transform = event.transform
 
       setMapViewport({
