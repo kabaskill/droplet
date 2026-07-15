@@ -24,9 +24,6 @@ export function LoginPage() {
           </span>
           <div>
             <h1 className="text-xl font-semibold tracking-normal">Droplet</h1>
-            <p className="text-sm text-muted-foreground">
-              Germany&apos;s Water State Platform
-            </p>
           </div>
         </div>
 

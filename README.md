@@ -1,6 +1,6 @@
 # Droplet Docs
 
-Droplet is Germany's Water State Platform: an operational dashboard for monitoring regional water conditions, source freshness, forecast pressure, and AI-assisted observations.
+Droplet is Germany's Platform: an operational dashboard for monitoring regional water conditions, source freshness, forecast pressure, and AI-assisted observations.
 
 ## Documents
 

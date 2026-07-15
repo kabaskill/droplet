@@ -4,7 +4,6 @@ import {
   DatabaseSyncIcon,
   DropletIcon,
   GlobalSearchIcon,
-  Logout01Icon,
   MapsIcon,
   RefreshIcon,
   UserShieldIcon,
@@ -52,8 +51,7 @@ const navigationItems = [
   { icon: MapsIcon, label: "Home", to: "/" },
   { icon: Activity02Icon, label: "Trends", to: "/trends" },
   { icon: DatabaseSyncIcon, label: "Health", to: "/health" },
-  { icon: AiBrain01Icon, label: "AI", to: "/ai" },
-  { icon: UserShieldIcon, label: "User", to: "/account" },
+  { icon: AiBrain01Icon, label: "AI Analysis", to: "/ai" },
 ]
 
 const emptySearchRegions: RegionWithSnapshot[] = []
@@ -67,7 +65,6 @@ export function AppShell({
   stale,
   syncing,
 }: AppShellProps) {
-  const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
   const sidebarOpen = useAppStore((state) => state.sidebarOpen)
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen)
@@ -88,16 +85,13 @@ export function AppShell({
   return (
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <Sidebar collapsible="icon" className="border-r">
-        <SidebarHeader className="gap-3">
+        <SidebarHeader className="gap-4">
           <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden">
-              <ProductIcon icon={DropletIcon} size={19} />
+              <ProductIcon icon={DropletIcon} />
             </span>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <div className="truncate text-sm font-semibold">Droplet</div>
-              <div className="truncate text-xs text-sidebar-foreground/70">
-                Germany&apos;s Water State Platform
-              </div>
             </div>
             <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0" />
           </div>
@@ -107,7 +101,6 @@ export function AppShell({
               <ProductIcon
                 className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-sidebar-foreground/60"
                 icon={GlobalSearchIcon}
-                size={14}
               />
               <SidebarInput
                 aria-label="Search states"
@@ -128,9 +121,8 @@ export function AppShell({
           </div>
         </SidebarHeader>
 
-        <SidebarSeparator />
-
         <SidebarContent>
+          <SidebarSeparator />
           <SidebarGroup>
             <SidebarGroupLabel>Navigation</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -153,18 +145,20 @@ export function AppShell({
             </SidebarGroupContent>
           </SidebarGroup>
 
+          <SidebarSeparator />
+
           <SidebarGroup>
-            <SidebarGroupLabel>Data</SidebarGroupLabel>
+            <SidebarGroupLabel>Data Freshness</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     className={cn(
                       stale &&
-                        "text-amber-800 hover:text-amber-900 dark:text-amber-200",
+                      "text-amber-800 hover:text-amber-900 dark:text-amber-200",
                       syncing &&
-                        !refreshing &&
-                        "text-sky-800 hover:text-sky-900 dark:text-sky-200"
+                      !refreshing &&
+                      "text-sky-800 hover:text-sky-900 dark:text-sky-200"
                     )}
                     disabled={refreshing}
                     tooltip={`Refresh data: ${refreshStateLabel}`}
@@ -172,15 +166,6 @@ export function AppShell({
                   >
                     <ProductIcon icon={RefreshIcon} />
                     <span>{refreshStateLabel}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Search states"
-                    onClick={() => setSearchOpen(true)}
-                  >
-                    <ProductIcon icon={GlobalSearchIcon} />
-                    <span>Search states</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -194,29 +179,21 @@ export function AppShell({
         </SidebarContent>
 
         <SidebarFooter>
-          <SidebarSeparator className="mx-0" />
-          <div className="flex min-w-0 items-center gap-2 px-2 py-1">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-sidebar-accent-foreground">
-              <ProductIcon icon={UserShieldIcon} size={16} />
-            </span>
-            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-              <div className="truncate text-xs font-medium">
-                {user?.name ?? "Operator"}
+          <SidebarSeparator />
+          <SidebarMenuButton
+            asChild
+            isActive={isNavActive(pathname, "/account")}
+            tooltip={"User Profile"}
+            size= {"lg"}
+          >
+            <Link to={"/account"} >
+              <ProductIcon icon={UserShieldIcon} />
+              <div>
+                <p className="truncate text-xs font-medium">{user?.name}</p>
+                <p className="truncate text-xs text-sidebar-foreground/60">{user?.email}</p>
               </div>
-              <div className="truncate text-xs text-sidebar-foreground/60">
-                {user?.email ?? "Authenticated session"}
-              </div>
-            </div>
-            <Button
-              aria-label="Sign out"
-              className="group-data-[collapsible=icon]:hidden"
-              size="icon-sm"
-              variant="ghost"
-              onClick={() => void logout()}
-            >
-              <ProductIcon icon={Logout01Icon} />
-            </Button>
-          </div>
+            </Link>
+          </SidebarMenuButton>
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
@@ -273,11 +250,11 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   const normalizedQuery = query.trim().toLowerCase()
   const matchSource = normalizedQuery
     ? regions.filter(({ region }) =>
-        [region.name, region.basin, region.code, region.federalState]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery)
-      )
+      [region.name, region.basin, region.code, region.federalState]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery)
+    )
     : regions
   const matches = matchSource.slice(0, 10)
 
@@ -355,7 +332,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
                   className={cn(
                     "grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-md border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
                     selectedRegionId === region.id &&
-                      "border-primary/50 bg-accent"
+                    "border-primary/50 bg-accent"
                   )}
                   key={region.id}
                   onClick={() => selectRegion(region.id)}
