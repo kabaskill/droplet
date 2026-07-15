@@ -10,7 +10,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import type { ReactNode } from "react"
-import { useId, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
@@ -71,6 +71,13 @@ export function AppShell({
   const searchQuery = useAppStore((state) => state.searchQuery)
   const setSearchQuery = useAppStore((state) => state.setSearchQuery)
   const [searchOpen, setSearchOpen] = useState(false)
+  const ignoreSearchFocus = useRef(false)
+  useEffect(() => {
+    if (searchOpen) return
+    const input = document.querySelector<HTMLInputElement>('input[name="search-states"]')
+    input?.blur()
+    setSearchQuery("")
+  }, [searchOpen])
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -107,7 +114,13 @@ export function AppShell({
                 name="search-states"
                 className="pl-8"
                 onChange={(event) => setSearchQuery(event.target.value)}
-                onFocus={() => setSearchOpen(true)}
+                onFocus={() => {
+                  if (ignoreSearchFocus.current) {
+                    ignoreSearchFocus.current = false
+                    return
+                  }
+                  setSearchOpen(true)
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     setSearchOpen(true)
@@ -226,7 +239,10 @@ export function AppShell({
       <StateSearchDialog
         open={searchOpen}
         regions={searchRegions}
-        onClose={() => setSearchOpen(false)}
+        onClose={() => {
+          ignoreSearchFocus.current = true
+          setSearchOpen(false)
+        }}
       />
     </SidebarProvider>
   )
@@ -250,6 +266,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   const setQuery = useAppStore((state) => state.setSearchQuery)
   const titleId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const normalizedQuery = query.trim().toLowerCase()
   const matchSource = normalizedQuery
     ? regions.filter(({ region }) =>
@@ -261,24 +278,35 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
     : regions
   const matches = matchSource
 
-  const attachDialog = (dialog: HTMLDialogElement | null) => {
-    if (!dialog) {
-      return
-    }
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
 
-    if (!open) {
+    if (open) {
+      if (!dialog.open) {
+        dialog.showModal()
+        inputRef.current?.focus()
+      }
+    } else {
       if (dialog.open) {
         dialog.close()
       }
+    }
+  }, [open])
 
-      return
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog || !open) return
+
+    const handleDialogClick = (e: MouseEvent) => {
+      if (e.target === dialog) {
+        onClose()
+      }
     }
 
-    if (!dialog.open) {
-      dialog.showModal()
-      window.setTimeout(() => inputRef.current?.focus(), 0)
-    }
-  }
+    dialog.addEventListener("click", handleDialogClick)
+    return () => dialog.removeEventListener("click", handleDialogClick)
+  }, [open, onClose])
 
   const selectRegion = (regionId: string) => {
     setSelectedRegionId(regionId)
@@ -290,7 +318,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
     <dialog
       aria-labelledby={titleId}
       className="fixed inset-x-3 top-14 z-50 mx-auto w-auto max-w-2xl rounded-md border bg-background p-0 text-foreground shadow-xl backdrop:bg-background/70 backdrop:backdrop-blur-sm"
-      ref={attachDialog}
+      ref={dialogRef}
       onClose={() => {
         if (open) {
           onClose()
