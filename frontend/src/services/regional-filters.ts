@@ -10,7 +10,7 @@ export type RegionWithSnapshot = {
   snapshot: ReservoirSnapshot | undefined
 }
 
-export const regionalFilterLabels: Record<RegionalFilter, string> = {
+const regionalFilterLabels: Record<RegionalFilter, string> = {
   all: "All",
   elevated: "Elevated",
   fallback: "Fallback",

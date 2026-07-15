@@ -5,6 +5,7 @@ import {
   MinusSignIcon,
 } from "@hugeicons/core-free-icons"
 import * as d3 from "d3"
+import { useQuery } from "@tanstack/react-query"
 import {
   useEffect,
   useRef,
@@ -112,8 +113,18 @@ export function GermanyStateMap({
 }: GermanyStateMapProps) {
   const mapViewport = useAppStore((state) => state.mapViewport)
   const setMapViewport = useAppStore((state) => state.setMapViewport)
-  const [shapes, setShapes] = useState<StateShape[]>([])
-  const [viewBox, setViewBox] = useState<SvgViewBox>(fallbackViewBox)
+  const germanySvgQuery = useQuery({
+    queryKey: ["germany-svg"],
+    queryFn: async () => {
+      const response = await fetch(germanySvgUrl)
+      const markup = await response.text()
+      return parseGermanySvg(markup)
+    },
+    staleTime: Infinity,
+  })
+
+  const shapes = germanySvgQuery.data?.shapes ?? []
+  const viewBox = germanySvgQuery.data?.viewBox ?? fallbackViewBox
   const [hoverTooltip, setHoverTooltip] = useState<{
     stateCode: string
     x: number
@@ -140,59 +151,35 @@ export function GermanyStateMap({
   const viewBoxValue = `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`
 
   useEffect(() => {
-    let active = true
-
-    fetch(germanySvgUrl)
-      .then((response) => response.text())
-      .then((markup) => {
-        if (!active) {
-          return
-        }
-
-        const parsed = parseGermanySvg(markup)
-        setShapes(parsed.shapes)
-        setViewBox(parsed.viewBox)
-      })
-      .catch(() => {
-        if (active) {
-          setShapes([])
-        }
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
     const svg = svgRef.current
 
     if (!svg) {
       return
     }
 
-    const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.85, 5])
-      .translateExtent([
-        [-viewBox.width * 0.65, -viewBox.height * 0.65],
-        [viewBox.width * 1.65, viewBox.height * 1.65],
-      ])
-      .on("zoom", (event) => {
-        const transform = event.transform
+    const handleZoom = (event: any) => {
+      const transform = event.transform
 
-        setMapViewport({
-          scale: transform.k,
-          x: transform.x,
-          y: transform.y,
-        })
+      setMapViewport({
+        scale: transform.k,
+        x: transform.x,
+        y: transform.y,
       })
+    }
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+    zoom.scaleExtent([0.85, 5])
+    zoom.translateExtent([
+      [-viewBox.width * 0.65, -viewBox.height * 0.65],
+      [viewBox.width * 1.65, viewBox.height * 1.65],
+    ])
+    zoom.on("zoom", handleZoom)
 
     zoomRef.current = zoom
     d3.select(svg).call(zoom)
 
     return () => {
-      d3.select(svg).on(".zoom", null)
+      zoom.on("zoom", null)
       zoomRef.current = null
     }
   }, [setMapViewport, viewBox.height, viewBox.width])
@@ -330,37 +317,15 @@ export function GermanyStateMap({
       )}
       ref={containerRef}
     >
-      <div className="absolute bottom-20 left-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur xl:bottom-4 xl:left-4">
-        <MapToolButton label="Zoom in" onClick={() => zoomBy(1.2)}>
-          <ProductIcon icon={Add01Icon} />
-        </MapToolButton>
-        <MapToolButton label="Zoom out" onClick={() => zoomBy(0.84)}>
-          <ProductIcon icon={MinusSignIcon} />
-        </MapToolButton>
-        <MapToolButton label="Fit map" onClick={resetMap}>
-          <ProductIcon icon={FitToScreenIcon} />
-        </MapToolButton>
-        <MapToolButton
-          label="Focus selected state"
-          onClick={focusSelectedState}
-        >
-          <ProductIcon icon={CenterFocusIcon} />
-        </MapToolButton>
-      </div>
-
-      <div className="absolute bottom-20 left-1/2 z-20 flex max-w-[calc(100%-8rem)] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur xl:bottom-4">
-        {homeLayerConfigs.map((layer) => (
-          <Button
-            aria-pressed={activeLayer === layer.id}
-            key={layer.id}
-            size="sm"
-            variant={activeLayer === layer.id ? "default" : "ghost"}
-            onClick={() => onLayerChange(layer.id)}
-          >
-            {layer.shortLabel}
-          </Button>
-        ))}
-      </div>
+      <MapZoomControls
+        focusSelectedState={focusSelectedState}
+        resetMap={resetMap}
+        zoomBy={zoomBy}
+      />
+      <MapLayerSelector
+        activeLayer={activeLayer}
+        onLayerChange={onLayerChange}
+      />
 
       <svg
         aria-label="Germany state map"
@@ -423,11 +388,7 @@ export function GermanyStateMap({
         </g>
       </svg>
 
-      {!shapes.length ? (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-          Loading map
-        </div>
-      ) : null}
+      <MapLoadingOverlay visible={!shapes.length} />
 
       {hoveredState && hoverTooltip ? (
         <StateHoverTooltip
@@ -437,6 +398,60 @@ export function GermanyStateMap({
           y={hoverTooltip.y}
         />
       ) : null}
+    </div>
+  )
+}
+
+function MapZoomControls({
+  focusSelectedState,
+  resetMap,
+  zoomBy,
+}: {
+  focusSelectedState: () => void
+  resetMap: () => void
+  zoomBy: (factor: number) => void
+}) {
+  return (
+    <div className="absolute bottom-20 left-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur xl:bottom-4 xl:left-4">
+      <MapToolButton label="Zoom in" onClick={() => zoomBy(1.2)}>
+        <ProductIcon icon={Add01Icon} />
+      </MapToolButton>
+      <MapToolButton label="Zoom out" onClick={() => zoomBy(0.84)}>
+        <ProductIcon icon={MinusSignIcon} />
+      </MapToolButton>
+      <MapToolButton label="Fit map" onClick={resetMap}>
+        <ProductIcon icon={FitToScreenIcon} />
+      </MapToolButton>
+      <MapToolButton
+        label="Focus selected state"
+        onClick={focusSelectedState}
+      >
+        <ProductIcon icon={CenterFocusIcon} />
+      </MapToolButton>
+    </div>
+  )
+}
+
+function MapLayerSelector({
+  activeLayer,
+  onLayerChange,
+}: {
+  activeLayer: HomeLayer
+  onLayerChange: (layer: HomeLayer) => void
+}) {
+  return (
+    <div className="absolute bottom-20 left-1/2 z-20 flex max-w-[calc(100%-8rem)] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur xl:bottom-4">
+      {homeLayerConfigs.map((layer) => (
+        <Button
+          aria-pressed={activeLayer === layer.id}
+          key={layer.id}
+          size="sm"
+          variant={activeLayer === layer.id ? "default" : "ghost"}
+          onClick={() => onLayerChange(layer.id)}
+        >
+          {layer.shortLabel}
+        </Button>
+      ))}
     </div>
   )
 }
@@ -460,6 +475,16 @@ function MapToolButton({
     >
       {children}
     </Button>
+  )
+}
+
+function MapLoadingOverlay({ visible }: { visible: boolean }) {
+  if (!visible) return null
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+      Loading map
+    </div>
   )
 }
 

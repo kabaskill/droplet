@@ -431,7 +431,7 @@ export function getDemoIngestionStatus(): IngestionStatus {
   }
 }
 
-export function getDemoAiAnalysis(snapshot: ReservoirSnapshot): AiAnalysisResult {
+function getDemoAiAnalysis(snapshot: ReservoirSnapshot): AiAnalysisResult {
   const elevated = snapshot.evaporationPressure > 55 || snapshot.waterLevel > 72
 
   return {

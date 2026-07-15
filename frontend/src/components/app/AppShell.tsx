@@ -10,7 +10,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import type { ReactNode } from "react"
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
@@ -72,15 +72,20 @@ export function AppShell({
   const setSearchQuery = useAppStore((state) => state.setSearchQuery)
   const [searchOpen, setSearchOpen] = useState(false)
   const ignoreSearchFocus = useRef(false)
+
   useEffect(() => {
     if (searchOpen) return
-    const input = document.querySelector<HTMLInputElement>('input[name="search-states"]')
+    const input = document.querySelector<HTMLInputElement>(
+      'input[name="search-states"]'
+    )
     input?.blur()
     setSearchQuery("")
-  }, [searchOpen])
+  }, [searchOpen, setSearchQuery])
+    
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
+
   const refreshStateLabel = refreshing
     ? "Refreshing"
     : syncing
@@ -294,19 +299,21 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
     }
   }, [open])
 
+  const onCloseEvent = useEffectEvent(onClose)
+
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog || !open) return
 
     const handleDialogClick = (e: MouseEvent) => {
       if (e.target === dialog) {
-        onClose()
+        onCloseEvent()
       }
     }
 
     dialog.addEventListener("click", handleDialogClick)
     return () => dialog.removeEventListener("click", handleDialogClick)
-  }, [open, onClose])
+  }, [open])
 
   const selectRegion = (regionId: string) => {
     setSelectedRegionId(regionId)

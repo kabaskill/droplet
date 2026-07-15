@@ -98,6 +98,12 @@ export function ThemeProvider({
     setThemeState(nextTheme)
   }
 
+  const themeRef = React.useRef(theme)
+
+  React.useEffect(() => {
+    themeRef.current = theme
+  }, [theme])
+
   React.useEffect(() => {
     const applyTheme = (nextTheme: Theme) => {
       const root = document.documentElement
@@ -151,19 +157,18 @@ export function ThemeProvider({
         return
       }
 
-      setThemeState((currentTheme) => {
-        const nextTheme =
-          currentTheme === "dark"
-            ? "light"
-            : currentTheme === "light"
-              ? "dark"
-              : getSystemTheme() === "dark"
-                ? "light"
-                : "dark"
+      const currentTheme = themeRef.current
+      const nextTheme =
+        currentTheme === "dark"
+          ? "light"
+          : currentTheme === "light"
+            ? "dark"
+            : getSystemTheme() === "dark"
+              ? "light"
+              : "dark"
 
-        localStorage.setItem(storageKey, nextTheme)
-        return nextTheme
-      })
+      setThemeState(nextTheme)
+      localStorage.setItem(storageKey, nextTheme)
     }
 
     window.addEventListener("keydown", handleKeyDown)
@@ -210,7 +215,7 @@ export function ThemeProvider({
   )
 }
 
-export const useTheme = () => {
+const useTheme = () => {
   const context = React.useContext(ThemeProviderContext)
 
   if (context === undefined) {

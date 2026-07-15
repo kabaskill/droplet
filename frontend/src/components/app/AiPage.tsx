@@ -25,9 +25,10 @@ export function AiPage() {
   const activeRole = activePersonaRole(user) ?? "citizen"
   const effectiveStateId = selectedStateId || regions[0]?.id || ""
   const selectedWaterSystem = waterSystems.find((system) => system.id === selectedRegionId) ?? waterSystems[0]
+  const stateIdsSet = new Set(selectedWaterSystem?.stateIds ?? [])
   const selectedRegions = scopeType === "state"
     ? regions.filter((region) => region.id === effectiveStateId)
-    : regions.filter((region) => selectedWaterSystem?.stateIds.includes(region.id))
+    : regions.filter((region) => stateIdsSet.has(region.id))
   const selectedSnapshots =
       selectedRegions
         .map((region) => snapshots.find((snapshot) => snapshot.regionId === region.id))

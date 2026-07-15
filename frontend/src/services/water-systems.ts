@@ -80,13 +80,13 @@ export const waterSystems: WaterSystem[] = [
   },
 ]
 
-export function waterSystemStateCount(system: WaterSystem, regions: Region[]) {
+function waterSystemStateCount(system: WaterSystem, regions: Region[]) {
   const regionIds = new Set(regions.map((region) => region.id))
 
   return system.stateIds.filter((stateId) => regionIds.has(stateId)).length
 }
 
-export function regionBelongsToWaterSystem(
+function regionBelongsToWaterSystem(
   region: Region,
   system: WaterSystem | null
 ) {

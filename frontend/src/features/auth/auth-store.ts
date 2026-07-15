@@ -39,8 +39,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   hasAnyRole: (roles) => {
     const activeRoles = get().user?.roles ?? []
+    const activeRolesSet = new Set(activeRoles)
 
-    return roles.some((role) => activeRoles.includes(role))
+    return roles.some((role) => activeRolesSet.has(role))
   },
   initialize: async () => {
     set({ error: null, status: "loading" })

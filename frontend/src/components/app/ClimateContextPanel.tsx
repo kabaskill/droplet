@@ -326,10 +326,10 @@ function WarningList({ warnings }: { warnings: string[] }) {
 
   return (
     <div className="mt-2 grid gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-      {visibleWarnings.map((warning, index) => (
+      {visibleWarnings.map((warning ) => (
         <div
           className="flex min-w-0 items-start gap-1.5"
-          key={`${warning}-${index}`}
+          key={warning}
         >
           <ProductIcon
             className="mt-0.5 shrink-0"
