@@ -53,8 +53,8 @@ type SvgViewBox = {
 }
 
 const fallbackViewBox: SvgViewBox = {
-  height: 792.66785,
-  width: 585.5141,
+  height: 800,
+  width: 600,
   x: 0,
   y: 0,
 }

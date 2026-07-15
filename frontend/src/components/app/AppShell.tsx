@@ -155,10 +155,10 @@ export function AppShell({
                   <SidebarMenuButton
                     className={cn(
                       stale &&
-                      "text-amber-800 hover:text-amber-900 dark:text-amber-200",
+                        "text-amber-800 hover:text-amber-900 dark:text-amber-200",
                       syncing &&
-                      !refreshing &&
-                      "text-sky-800 hover:text-sky-900 dark:text-sky-200"
+                        !refreshing &&
+                        "text-sky-800 hover:text-sky-900 dark:text-sky-200"
                     )}
                     disabled={refreshing}
                     tooltip={`Refresh data: ${refreshStateLabel}`}
@@ -180,17 +180,20 @@ export function AppShell({
 
         <SidebarFooter>
           <SidebarSeparator />
+
           <SidebarMenuButton
             asChild
             isActive={isNavActive(pathname, "/account")}
             tooltip={"User Profile"}
-            size= {"lg"}
+            size={"lg"}
           >
-            <Link to={"/account"} >
+            <Link to={"/account"}>
               <ProductIcon icon={UserShieldIcon} />
-              <div>
+              <div className="group-data-[collapsible=icon]:hidden">
                 <p className="truncate text-xs font-medium">{user?.name}</p>
-                <p className="truncate text-xs text-sidebar-foreground/60">{user?.email}</p>
+                <p className="truncate text-xs text-sidebar-foreground/60">
+                  {user?.email}
+                </p>
               </div>
             </Link>
           </SidebarMenuButton>
@@ -250,13 +253,13 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   const normalizedQuery = query.trim().toLowerCase()
   const matchSource = normalizedQuery
     ? regions.filter(({ region }) =>
-      [region.name, region.basin, region.code, region.federalState]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery)
-    )
+        [region.name, region.basin, region.code, region.federalState]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery)
+      )
     : regions
-  const matches = matchSource.slice(0, 10)
+  const matches = matchSource
 
   const attachDialog = (dialog: HTMLDialogElement | null) => {
     if (!dialog) {
@@ -286,7 +289,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
   return (
     <dialog
       aria-labelledby={titleId}
-      className="fixed inset-x-3 top-14 z-50 mx-auto max-h-[78svh] w-auto max-w-2xl overflow-hidden rounded-md border bg-background p-0 text-foreground shadow-xl backdrop:bg-background/70 backdrop:backdrop-blur-sm"
+      className="fixed inset-x-3 top-14 z-50 mx-auto w-auto max-w-2xl rounded-md border bg-background p-0 text-foreground shadow-xl backdrop:bg-background/70 backdrop:backdrop-blur-sm"
       ref={attachDialog}
       onClose={() => {
         if (open) {
@@ -294,7 +297,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
         }
       }}
     >
-      <section className="max-h-[78svh] overflow-hidden">
+      <section className="max-h-[80svh]">
         <div className="border-b p-3">
           <h2 className="sr-only" id={titleId}>
             Search states
@@ -322,7 +325,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
           </label>
         </div>
 
-        <div className="max-h-[58svh] overflow-y-auto p-2">
+        <div className="overflow-y-auto p-2">
           {matches.length ? (
             <div className="grid gap-1.5">
               {matches.map(({ region, snapshot }) => (
@@ -332,10 +335,12 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
                   className={cn(
                     "grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-md border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
                     selectedRegionId === region.id &&
-                    "border-primary/50 bg-accent"
+                      "border-primary/50 bg-accent"
                   )}
                   key={region.id}
-                  onClick={() => selectRegion(region.id)}
+                  onClick={() => {
+                    selectRegion(region.id)
+                  }}
                   type="button"
                 >
                   <span className="min-w-0">
