@@ -12,7 +12,6 @@ import {
   fetchRegions,
   fetchSourceHealth,
   fetchSnapshotHistory,
-  refreshSnapshots,
 } from "@/services/api"
 import { useAuthStore } from "@/features/auth/auth-store"
 import type { AiAnalysisRequest, ReservoirSnapshot } from "@/services/types"
@@ -45,10 +44,7 @@ export function useLatestSnapshots() {
 }
 
 export function useSnapshotHistory(regionId: string | null) {
-  const canViewExtendedHistory = useAuthStore((state) =>
-    state.hasAnyRole(["municipality"])
-  )
-  const limit = canViewExtendedHistory ? 365 : 90
+  const limit = 365
 
   return useQuery({
     enabled: Boolean(regionId),
@@ -99,7 +95,9 @@ export function useRegionClimate(regionId: string | null) {
 export function useAiAnalysis() {
   return useMutation({
     mutationFn: (request: AiAnalysisRequest | ReservoirSnapshot) =>
-      "snapshots" in request ? analyzeWaterState(request) : analyzeSnapshot(request),
+      "snapshots" in request
+        ? analyzeWaterState(request)
+        : analyzeSnapshot(request),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ["ai-analyses", readModelVersion],
@@ -109,18 +107,14 @@ export function useAiAnalysis() {
 }
 
 export function useAiAnalyses() {
+  const isAuthenticated = useAuthStore(
+    (state) => state.status === "authenticated"
+  )
+
   return useQuery({
+    enabled: isAuthenticated,
     queryFn: fetchAiAnalyses,
     queryKey: ["ai-analyses", readModelVersion],
-  })
-}
-
-export function useRefreshSnapshots() {
-  return useMutation({
-    mutationFn: refreshSnapshots,
-      onSuccess: () => queryClient.invalidateQueries({
-          queryKey:["snapshots", readModelVersion]
-      })
   })
 }
 

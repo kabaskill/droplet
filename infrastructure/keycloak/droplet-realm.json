@@ -2,22 +2,9 @@
   "realm": "droplet",
   "enabled": true,
   "displayName": "Droplet",
-  "roles": {
-    "realm": [
-      {
-        "name": "citizen",
-        "description": "Basic regional visibility"
-      },
-      {
-        "name": "analyst",
-        "description": "Advanced environmental analytics"
-      },
-      {
-        "name": "municipality",
-        "description": "Municipal operational access"
-      }
-    ]
-  },
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
   "clients": [
     {
       "clientId": "droplet-frontend",
@@ -27,7 +14,7 @@
       "baseUrl": "http://localhost:5173/",
       "publicClient": true,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "redirectUris": [
         "http://localhost:5173/*"
       ],
@@ -36,82 +23,6 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
-      }
-    }
-  ],
-  "users": [
-    {
-      "username": "citizen",
-      "enabled": true,
-      "email": "citizen@droplet.local",
-      "firstName": "Droplet",
-      "lastName": "Citizen",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "droplet",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "citizen"
-      ],
-      "clientRoles": {
-        "account": [
-          "manage-account",
-          "manage-account-links",
-          "view-profile"
-        ]
-      }
-    },
-    {
-      "username": "analyst",
-      "enabled": true,
-      "email": "analyst@droplet.local",
-      "firstName": "Droplet",
-      "lastName": "Analyst",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "droplet",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "citizen",
-        "analyst"
-      ],
-      "clientRoles": {
-        "account": [
-          "manage-account",
-          "manage-account-links",
-          "view-profile"
-        ]
-      }
-    },
-    {
-      "username": "municipality",
-      "enabled": true,
-      "email": "municipality@droplet.local",
-      "firstName": "Droplet",
-      "lastName": "Municipality",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "droplet",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "citizen",
-        "municipality"
-      ],
-      "clientRoles": {
-        "account": [
-          "manage-account",
-          "manage-account-links",
-          "view-profile"
-        ]
       }
     }
   ]

@@ -1,5 +1,3 @@
-import type { Region } from "@/services/types"
-
 export type WaterSystem = {
   id: string
   name: string
@@ -79,16 +77,3 @@ export const waterSystems: WaterSystem[] = [
     stateIds: ["mecklenburg-vorpommern"],
   },
 ]
-
-function waterSystemStateCount(system: WaterSystem, regions: Region[]) {
-  const regionIds = new Set(regions.map((region) => region.id))
-
-  return system.stateIds.filter((stateId) => regionIds.has(stateId)).length
-}
-
-function regionBelongsToWaterSystem(
-  region: Region,
-  system: WaterSystem | null
-) {
-  return !system || system.stateIds.includes(region.id)
-}

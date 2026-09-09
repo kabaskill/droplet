@@ -26,7 +26,6 @@ from backend.services.climate_refresh import (
     idle_region_climate_refresh,
 )
 from backend.services.forecast import build_forecast_outlook
-from backend.services.ingestion import enqueue_snapshot_refresh, snapshot_refresh_status
 from backend.services.ingestion_status import last_ingestion_status
 from backend.services.climate_sources.debug import build_source_normalization_debug
 from backend.services.source_health import build_source_health
@@ -47,7 +46,6 @@ def auth_me():
 
 
 @api_bp.get("/regions")
-@require_auth()
 def regions():
     return jsonify(
         read_through_json(cache_key("regions"), 3600, list_regions)
@@ -55,7 +53,6 @@ def regions():
 
 
 @api_bp.get("/snapshots")
-@require_auth()
 def snapshots():
     return jsonify(
         read_through_json(cache_key("snapshots:latest"), 120, latest_snapshots)
@@ -63,12 +60,8 @@ def snapshots():
 
 
 @api_bp.get("/snapshots/<region_id>")
-@require_auth()
 def region_snapshots(region_id: str):
-    history_limit = _snapshot_history_limit(
-        g.current_user["roles"],
-        request.args.get("limit"),
-    )
+    history_limit = _snapshot_history_limit(request.args.get("limit"))
 
     return jsonify(
         read_through_json(
@@ -79,26 +72,12 @@ def region_snapshots(region_id: str):
     )
 
 
-@api_bp.post("/snapshots/refresh")
-@require_auth(roles=["analyst", "municipality"])
-def refresh_snapshots():
-    return jsonify(enqueue_snapshot_refresh()), 202
-
-
-@api_bp.get("/snapshots/refresh/<task_id>")
-@require_auth(roles=["analyst", "municipality"])
-def refresh_snapshot_status(task_id: str):
-    return jsonify(snapshot_refresh_status(task_id))
-
-
 @api_bp.get("/ingestion/status")
-@require_auth(roles=["analyst", "municipality"])
 def ingestion_status():
     return jsonify(last_ingestion_status())
 
 
 @api_bp.get("/analytics/summary")
-@require_auth(roles=["analyst", "municipality"])
 def analytics_summary():
     return jsonify(
         read_through_json(
@@ -110,7 +89,6 @@ def analytics_summary():
 
 
 @api_bp.get("/sources/health")
-@require_auth(roles=["analyst", "municipality"])
 def source_health():
     return jsonify(
         read_through_json(
@@ -122,7 +100,6 @@ def source_health():
 
 
 @api_bp.get("/climate/regions/<region_id>")
-@require_auth()
 def region_climate(region_id: str):
     try:
         payload, cache_metadata = read_stale_json_cache(
@@ -209,7 +186,6 @@ def _debug_region_limit(
 
 
 @api_bp.get("/forecasts/outlook")
-@require_auth(roles=["analyst", "municipality"])
 def forecast_outlook():
     return jsonify(
         read_through_json(
@@ -230,7 +206,7 @@ def ai_analyze():
             return jsonify({"error": "at least one snapshot is required"}), 400
 
         try:
-            analysis = analyze_environment_payload(payload, g.current_user["roles"])
+            analysis = analyze_environment_payload(payload)
         except AiAnalysisError as exc:
             return jsonify({"error": str(exc)}), 502
 
@@ -245,7 +221,6 @@ def ai_analyze():
 
     analysis_payload = {
         "generatedAt": payload.get("generatedAt"),
-        "requestedRole": payload.get("requestedRole"),
         "scope": {
             "id": snapshot.get("regionId", "selected-state"),
             "label": snapshot.get("regionId", "Selected state"),
@@ -255,7 +230,7 @@ def ai_analyze():
     }
 
     try:
-        analysis = analyze_snapshot_payload(snapshot, g.current_user["roles"])
+        analysis = analyze_snapshot_payload(snapshot)
     except AiAnalysisError as exc:
         return jsonify({"error": str(exc)}), 502
 
@@ -275,8 +250,8 @@ def ai_analyses():
     )
 
 
-def _snapshot_history_limit(roles: list[str], requested_limit: str | None) -> int:
-    maximum_limit = 365 if "municipality" in roles else 90
+def _snapshot_history_limit(requested_limit: str | None) -> int:
+    maximum_limit = 365
     default_limit = maximum_limit
 
     if requested_limit is None:

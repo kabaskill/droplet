@@ -36,7 +36,7 @@ type GermanyStateMapProps = {
   forecastOutlook: ForecastOutlook | null
   mapRegions: RegionWithSnapshot[]
   onLayerChange: (layer: HomeLayer) => void
-  onSelectRegion: (regionId: string) => void
+  onSelectRegion: (regionId: string | null) => void
   selectedRegionId: string | null
 }
 
@@ -60,6 +60,10 @@ const fallbackViewBox: SvgViewBox = {
   y: 0,
 }
 
+const focusTransitionMs = 650
+const resetTransitionMs = 450
+const zoomTransitionMs = 240
+
 const stateFills: Record<GermanyStateStatus, string> = {
   critical: "#dc2626",
   healthy: "#059669",
@@ -70,13 +74,31 @@ const stateFills: Record<GermanyStateStatus, string> = {
 function applySvgTransform(
   svg: SVGSVGElement | null,
   zoom: ZoomBehavior<SVGSVGElement, unknown> | null,
-  transform: ZoomTransform
+  transform: ZoomTransform,
+  duration = focusTransitionMs
 ) {
   if (!svg || !zoom) {
     return
   }
 
-  d3.select(svg).call(zoom.transform, transform)
+  const selection = d3.select(svg)
+
+  selection.interrupt()
+
+  if (duration <= 0 || reducedMotionPreferred()) {
+    selection.call(zoom.transform, transform)
+    return
+  }
+
+  selection
+    .transition()
+    .duration(duration)
+    .ease(d3.easeCubicInOut)
+    .call(zoom.transform, transform)
+}
+
+function reducedMotionPreferred() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
 function focusTransformForPath(path: SVGPathElement, viewBox: SvgViewBox) {
@@ -135,6 +157,7 @@ export function GermanyStateMap({
   const pathRefs = useRef<Record<string, SVGPathElement | null>>({})
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const lastFocusedStateRef = useRef<string | null>(null)
+  const hoverFrameRef = useRef<number | null>(null)
   const stateMetrics = buildGermanyStateMetrics(
     mapRegions,
     activeLayer,
@@ -168,17 +191,35 @@ export function GermanyStateMap({
     }
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
+    zoom.clickDistance(5)
+    zoom.duration(zoomTransitionMs)
     zoom.scaleExtent([0.85, 5])
     zoom.translateExtent([
       [-viewBox.width * 0.65, -viewBox.height * 0.65],
       [viewBox.width * 1.65, viewBox.height * 1.65],
     ])
+    zoom.on("start", () => {
+      if (hoverFrameRef.current !== null) {
+        window.cancelAnimationFrame(hoverFrameRef.current)
+        hoverFrameRef.current = null
+      }
+      setHoverTooltip(null)
+    })
     zoom.on("zoom", handleZoom)
 
     zoomRef.current = zoom
     d3.select(svg).call(zoom)
 
+    const interruptTransition = () => d3.select(svg).interrupt()
+
+    svg.addEventListener("pointerdown", interruptTransition)
+    svg.addEventListener("wheel", interruptTransition, { passive: true })
+
     return () => {
+      svg.removeEventListener("pointerdown", interruptTransition)
+      svg.removeEventListener("wheel", interruptTransition)
+      d3.select(svg).interrupt()
+      zoom.on("start", null)
       zoom.on("zoom", null)
       zoomRef.current = null
     }
@@ -210,8 +251,11 @@ export function GermanyStateMap({
     )
   }, [mapViewport.scale, mapViewport.x, mapViewport.y])
 
-  const applyTransform = (transform: ZoomTransform) => {
-    applySvgTransform(svgRef.current, zoomRef.current, transform)
+  const applyTransform = (
+    transform: ZoomTransform,
+    duration = focusTransitionMs
+  ) => {
+    applySvgTransform(svgRef.current, zoomRef.current, transform, duration)
   }
 
   const focusState = (stateCode: string) => {
@@ -256,6 +300,13 @@ export function GermanyStateMap({
       return
     }
 
+    if (selectedStateCode === state.code) {
+      lastFocusedStateRef.current = null
+      onSelectRegion(null)
+      applyTransform(d3.zoomIdentity, resetTransitionMs)
+      return
+    }
+
     lastFocusedStateRef.current = state.code
     onSelectRegion(state.primaryRegionId)
     focusState(state.code)
@@ -263,7 +314,14 @@ export function GermanyStateMap({
 
   const resetMap = () => {
     lastFocusedStateRef.current = selectedStateCode ?? null
-    applyTransform(d3.zoomIdentity)
+    applyTransform(d3.zoomIdentity, resetTransitionMs)
+  }
+
+  const clearSelection = () => {
+    lastFocusedStateRef.current = null
+    setHoverTooltip(null)
+    onSelectRegion(null)
+    applyTransform(d3.zoomIdentity, resetTransitionMs)
   }
 
   const zoomBy = (factor: number) => {
@@ -274,12 +332,24 @@ export function GermanyStateMap({
       return
     }
 
-    d3.select(svg).call(zoom.scaleBy, factor)
+    const selection = d3.select(svg)
+
+    selection.interrupt()
+
+    if (reducedMotionPreferred()) {
+      selection.call(zoom.scaleBy, factor)
+      return
+    }
+
+    selection
+      .transition()
+      .duration(zoomTransitionMs)
+      .ease(d3.easeCubicOut)
+      .call(zoom.scaleBy, factor)
   }
 
   const focusSelectedState = () => {
     if (!selectedStateCode) {
-      resetMap()
       return
     }
 
@@ -302,12 +372,39 @@ export function GermanyStateMap({
       return
     }
 
-    setHoverTooltip({
+    const nextTooltip = {
       stateCode,
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
+    }
+
+    if (hoverFrameRef.current !== null) {
+      window.cancelAnimationFrame(hoverFrameRef.current)
+    }
+
+    hoverFrameRef.current = window.requestAnimationFrame(() => {
+      hoverFrameRef.current = null
+      setHoverTooltip(nextTooltip)
     })
   }
+
+  const clearHoverTooltip = () => {
+    if (hoverFrameRef.current !== null) {
+      window.cancelAnimationFrame(hoverFrameRef.current)
+      hoverFrameRef.current = null
+    }
+
+    setHoverTooltip(null)
+  }
+
+  useEffect(
+    () => () => {
+      if (hoverFrameRef.current !== null) {
+        window.cancelAnimationFrame(hoverFrameRef.current)
+      }
+    },
+    []
+  )
 
   return (
     <div
@@ -319,6 +416,7 @@ export function GermanyStateMap({
     >
       <MapZoomControls
         focusSelectedState={focusSelectedState}
+        hasSelection={Boolean(selectedStateCode)}
         resetMap={resetMap}
         zoomBy={zoomBy}
       />
@@ -329,7 +427,7 @@ export function GermanyStateMap({
 
       <svg
         aria-label="Germany state map"
-        className="h-full w-full touch-none"
+        className="h-full w-full cursor-grab touch-none active:cursor-grabbing"
         ref={svgRef}
         role="img"
         viewBox={viewBoxValue}
@@ -337,6 +435,7 @@ export function GermanyStateMap({
         <rect
           className="fill-muted/20"
           height={viewBox.height}
+          onClick={clearSelection}
           width={viewBox.width}
           x={viewBox.x}
           y={viewBox.y}
@@ -355,7 +454,7 @@ export function GermanyStateMap({
                 aria-label={stateAriaLabel(shape, state, activeLayer)}
                 aria-pressed={selected || undefined}
                 className={cn(
-                  "transition-[fill,opacity,stroke-width] duration-150 outline-none focus-visible:stroke-primary focus-visible:stroke-[3px]",
+                  "transition-[fill,opacity,stroke-width] duration-200 ease-out outline-none focus-visible:stroke-primary focus-visible:stroke-[3px]",
                   disabled
                     ? "cursor-default opacity-35"
                     : "cursor-pointer opacity-85 hover:opacity-100",
@@ -366,10 +465,10 @@ export function GermanyStateMap({
                 key={shape.code}
                 onClick={() => selectState(state)}
                 onKeyDown={(event) =>
-                  handleStateKeyDown(event, state, selectState)
+                  handleStateKeyDown(event, state, selectState, clearSelection)
                 }
                 onMouseEnter={(event) => updateHoverTooltip(event, shape.code)}
-                onMouseLeave={() => setHoverTooltip(null)}
+                onMouseLeave={clearHoverTooltip}
                 onMouseMove={(event) => updateHoverTooltip(event, shape.code)}
                 ref={(node) => {
                   pathRefs.current[shape.code] = node
@@ -390,6 +489,12 @@ export function GermanyStateMap({
 
       <MapLoadingOverlay visible={!shapes.length} />
 
+      {!selectedStateCode && shapes.length ? (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full border bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
+          Select a state to explore its details
+        </div>
+      ) : null}
+
       {hoveredState && hoverTooltip ? (
         <StateHoverTooltip
           activeLayer={activeLayer}
@@ -404,10 +509,12 @@ export function GermanyStateMap({
 
 function MapZoomControls({
   focusSelectedState,
+  hasSelection,
   resetMap,
   zoomBy,
 }: {
   focusSelectedState: () => void
+  hasSelection: boolean
   resetMap: () => void
   zoomBy: (factor: number) => void
 }) {
@@ -423,6 +530,7 @@ function MapZoomControls({
         <ProductIcon icon={FitToScreenIcon} />
       </MapToolButton>
       <MapToolButton
+        disabled={!hasSelection}
         label="Focus selected state"
         onClick={focusSelectedState}
       >
@@ -458,16 +566,19 @@ function MapLayerSelector({
 
 function MapToolButton({
   children,
+  disabled = false,
   label,
   onClick,
 }: {
   children: React.ReactNode
+  disabled?: boolean
   label: string
   onClick: () => void
 }) {
   return (
     <Button
       aria-label={label}
+      disabled={disabled}
       size="icon-sm"
       title={label}
       variant="ghost"
@@ -565,8 +676,16 @@ function StateHoverTooltip({
 function handleStateKeyDown(
   event: KeyboardEvent<SVGPathElement>,
   state: GermanyStateMetric | undefined,
-  selectState: (state: GermanyStateMetric | undefined) => void
+  selectState: (state: GermanyStateMetric | undefined) => void,
+  clearSelection: () => void
 ) {
+  if (event.key === "Escape") {
+    event.preventDefault()
+    clearSelection()
+    event.currentTarget.blur()
+    return
+  }
+
   if (event.key !== "Enter" && event.key !== " ") {
     return
   }

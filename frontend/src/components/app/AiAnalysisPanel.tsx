@@ -32,9 +32,7 @@ export function AiAnalysisPanel({
   snapshotLoading = false,
   storedAnalysis = null,
 }: AiAnalysisPanelProps) {
-  const canAnalyze = useAuthStore((state) =>
-    state.hasAnyRole(["citizen", "analyst", "municipality"])
-  )
+  const canAnalyze = useAuthStore((state) => state.status === "authenticated")
   const snapshotRequest = snapshot
     ? {
         generatedAt: new Date().toISOString(),
@@ -87,7 +85,7 @@ export function AiAnalysisPanel({
           </div>
         ) : !canAnalyze ? (
           <p className="text-sm text-muted-foreground">
-            Authenticated Droplet role required.
+            Sign in with a free account to use AI analysis.
           </p>
         ) : analysis?.isPending ? (
           <div className="grid gap-2">
@@ -115,7 +113,7 @@ export function AiAnalysisPanel({
             </div>
             {activeAnalysis.observations?.length ? (
               <div>
-                <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                <div className="mb-2 text-xs font-medium text-muted-foreground uppercase">
                   Observations
                 </div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -131,7 +129,7 @@ export function AiAnalysisPanel({
               </div>
             ) : null}
             <div>
-              <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+              <div className="mb-2 text-xs font-medium text-muted-foreground uppercase">
                 Recommendations
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">

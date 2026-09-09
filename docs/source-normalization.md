@@ -75,7 +75,7 @@ The module returns a structured candidate response with dataset candidates, regi
 
 The endpoint:
 
-- Requires authentication with `@require_auth()` and is readable by all signed-in roles.
+- Is publicly readable and does not require an account.
 - Uses a versioned per-region Redis stale-while-revalidate cache with a 300 second fresh window and one-hour stale retention by default.
 - Returns fresh or stale cached read models immediately without fetching upstream climate sources in the API request path.
 - Returns a pending unavailable read model on cache miss and queues a Celery refresh for the selected region.

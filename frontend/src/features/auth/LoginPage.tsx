@@ -1,5 +1,9 @@
 import { Navigate } from "@tanstack/react-router"
-import { DropletIcon, Login01Icon, Shield01Icon } from "@hugeicons/core-free-icons"
+import {
+  DropletIcon,
+  Login01Icon,
+  SparklesIcon,
+} from "@hugeicons/core-free-icons"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
@@ -30,14 +34,14 @@ export function LoginPage() {
         <div className="rounded-md border bg-card p-5 shadow-sm">
           <div className="mb-5 flex items-start gap-3">
             <span className="mt-0.5 flex size-8 items-center justify-center rounded-md bg-accent text-primary">
-              <ProductIcon icon={Shield01Icon} />
+              <ProductIcon icon={SparklesIcon} />
             </span>
             <div className="min-w-0">
-              <h2 className="font-medium">Operational access</h2>
+              <h2 className="font-medium">Unlock Droplet AI</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {mode === "demo"
-                  ? "Demo mode signs in with analyst and municipality roles."
-                  : "Continue with Keycloak to enter the protected workspace."}
+                  ? "Continue with the local demo account."
+                  : "Sign in or create a free account for AI analysis and saved history. The dashboard remains public."}
               </p>
             </div>
           </div>
@@ -50,7 +54,7 @@ export function LoginPage() {
 
           <Button size="lg" className="w-full" onClick={() => void login()}>
             <ProductIcon icon={Login01Icon} />
-            Sign in
+            Sign in or create account
           </Button>
         </div>
       </section>

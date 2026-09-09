@@ -7,21 +7,16 @@ class AiAnalysisError(RuntimeError):
     pass
 
 
-def analyze_snapshot_payload(snapshot: dict[str, Any], roles: list[str] | None = None) -> dict:
+def analyze_snapshot_payload(snapshot: dict[str, Any]) -> dict:
     return analyze_environment_payload(
         {
             "scope": {"label": snapshot.get("regionId", "Selected state"), "type": "state"},
             "snapshots": [snapshot],
-        },
-        roles,
+        }
     )
 
 
-def analyze_environment_payload(
-    payload: dict[str, Any],
-    roles: list[str] | None = None,
-) -> dict:
-    role = _analysis_role(roles or [], payload.get("requestedRole"))
+def analyze_environment_payload(payload: dict[str, Any]) -> dict:
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
@@ -33,7 +28,7 @@ def analyze_environment_payload(
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-            contents=_gemini_prompt(payload, role),
+            contents=_gemini_prompt(payload),
             config={
                 "response_mime_type": "application/json",
             },
@@ -60,13 +55,12 @@ def analyze_environment_payload(
     }
 
 
-def _gemini_prompt(payload: dict[str, Any], role: str) -> str:
+def _gemini_prompt(payload: dict[str, Any]) -> str:
     return "\n\n".join(
         [
             (
                 "You are Droplet's environmental operations analyst. Analyze the "
-                "provided German water-state read model for the authenticated user's "
-                f"role: {role}."
+                "provided German water-state read model for a general audience."
             ),
             (
                 "Keep the answer short and practical. Focus on water sources, water "
@@ -81,20 +75,6 @@ def _gemini_prompt(payload: dict[str, Any], role: str) -> str:
             f"Water-state payload:\n{json.dumps(payload)}",
         ]
     )
-
-
-def _analysis_role(roles: list[str], requested_role: Any = None) -> str:
-    if requested_role in {"citizen", "analyst", "municipality"}:
-        if requested_role in roles:
-            return str(requested_role)
-
-    if "municipality" in roles:
-        return "municipality"
-
-    if "analyst" in roles:
-        return "analyst"
-
-    return "citizen"
 
 
 def _scope_label(payload: dict[str, Any]) -> str:

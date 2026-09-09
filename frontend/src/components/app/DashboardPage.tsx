@@ -50,7 +50,6 @@ import { useAppStore } from "@/stores/app-store"
 
 export function DashboardPage() {
   const {
-    accessError,
     activeRegion,
     activeSnapshot,
     allRegions,
@@ -144,14 +143,6 @@ export function DashboardPage() {
             </div>
           ) : null}
 
-          {accessError ? (
-            <div className="pointer-events-auto">
-              <WorkspaceNotice tone="warning" title="Access limited">
-                {accessError}
-              </WorkspaceNotice>
-            </div>
-          ) : null}
-
           {operationalError ? (
             <div className="pointer-events-auto">
               <WorkspaceNotice tone="error" title="Core read model unavailable">
@@ -161,7 +152,7 @@ export function DashboardPage() {
           ) : null}
         </div>
 
-        {!rightRailOpen ? (
+        {!rightRailOpen && activeRegion ? (
           <Button
             className="absolute top-3 right-3 z-50 hidden shadow-lg xl:inline-flex"
             size="sm"

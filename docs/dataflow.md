@@ -103,7 +103,7 @@ erDiagram
   AI_ANALYSIS_RECORD {
     int id PK
     string user_subject
-    string requested_role
+    string audience
     string scope_id
     string scope_label
     string scope_type
@@ -155,9 +155,9 @@ flowchart LR
 
 The frontend uses:
 
-- `services/api.ts` for authenticated HTTP requests and demo fallback.
+- `services/api.ts` for public reads, authenticated AI requests, and demo fallback.
 - TanStack Query for server-state caching, loading, error, and retry behavior.
-- `use-droplet-data.ts` hooks for stable query keys and role-aware history limits.
+- `use-droplet-data.ts` hooks for stable query keys and public history limits.
 - A Zustand app store for selected region, active map layer, and regional filters.
 
 The Home dashboard fetches climate context only for the active selected region. Because the stable climate endpoint is non-blocking, the frontend refetches selected-region climate on selection and mount, then treats backend cache metadata as authoritative for freshness. Local React Query persistence is versioned with the climate read model so older cache labels do not survive schema changes. The climate panel displays backend cache freshness, refresh state, fresh/stale window timestamps, and refresh failures when available. Climate loading, error, pending, and partial-source states are isolated inside the climate panel so map, snapshot, region detail, and forecast workflows continue to render when climate context is unavailable.
@@ -172,7 +172,7 @@ sequenceDiagram
   participant DB as PostgreSQL
 
   UI->>API: POST /api/ai/analyze
-  API->>API: Select role context
+  API->>API: Validate the account token
   API->>Gemini: Prompt with water-state payload
   Gemini-->>API: JSON analysis
   API->>DB: Save request and analysis

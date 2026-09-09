@@ -22,7 +22,7 @@ The backend health endpoint is:
 http://localhost:5000/healthz
 ```
 
-By default the app runs in demo auth mode. Demo mode signs in as `Droplet Analyst` and enables citizen, analyst, and municipality features.
+The main workspace is public. Keycloak is the fail-closed default for account-only AI; an explicit demo mode provides a built-in identity for local development.
 
 ## Navigation
 
@@ -56,8 +56,7 @@ Climate data is refreshed through backend workers. On a cold cache, the panel ca
 The Trends page focuses on historical movement for the selected region.
 
 - Snapshot history is loaded from `/api/snapshots/<region_id>`.
-- Analyst and citizen users receive shorter history than municipality users.
-- Municipality users can request up to 365 records.
+- Everyone can request up to 365 records.
 - The page is useful for comparing rising, falling, and stable conditions over time.
 
 ## Health
@@ -67,7 +66,7 @@ The Health page explains operational data reliability.
 - Source health summarizes current source coverage and confidence.
 - Ingestion status reports the latest snapshot refresh state.
 - Freshness panels show when important read models were last loaded by the frontend.
-- Manual refresh starts a new ingestion job when the user has an analyst or municipality role.
+- The refresh control reloads already-computed read models. Scheduled workers update the underlying data.
 
 ## AI
 
@@ -76,15 +75,15 @@ The AI page sends selected water-state payloads to the backend for analysis.
 - The backend calls Gemini only when `GEMINI_API_KEY` is configured.
 - AI output is returned as short JSON-backed observations, recommendations, risk level, scope label, and summary.
 - Completed AI analyses are saved per user and can be listed later.
-- Role context affects the prompt: municipality users receive the most operationally specific analysis.
+- A free account is required for AI calls and saved history.
 
 ## User
 
-The User page shows the active identity and role set.
+The User page shows the active identity.
 
 - Demo auth uses a built-in local user.
 - Keycloak auth uses the imported `droplet` realm.
-- Role-gated actions require `analyst` or `municipality`.
+- Keycloak users all have the same account capabilities.
 
 ## Refreshing Data
 
@@ -94,35 +93,26 @@ The refresh button has three meanings:
 - `Syncing`: the frontend is refetching read models.
 - `Stale`: cached data is available but should be refreshed.
 
-When a manual snapshot refresh is allowed, the frontend posts to `/api/snapshots/refresh`, receives a task id, then polls `/api/snapshots/refresh/<task_id>` until the job completes or fails.
+The browser refresh action invalidates its cached queries and reloads public read models. It does not start an ingestion job.
 
 ```mermaid
 sequenceDiagram
   participant User
   participant Frontend
   participant API
-  participant Worker
-  participant DB as PostgreSQL
-  participant Redis
-
   User->>Frontend: Click refresh
-  Frontend->>API: POST /api/snapshots/refresh
-  API->>Worker: Queue refresh task
-  API-->>Frontend: 202 queued + task id
-  Worker->>DB: Insert/update snapshots
-  Worker->>Redis: Invalidate read-model cache keys
-  Frontend->>API: Poll refresh status
-  API-->>Frontend: completed
-  Frontend->>API: Refetch read models
+  Frontend->>API: Refetch public read models
+  API-->>Frontend: Current cached or persisted data
 ```
 
-## Roles
+## Access
 
-| Role | Can read basic state | Can view operations read models | Can refresh snapshots | History depth |
-|---|---:|---:|---:|---:|
-| `citizen` | Yes | Limited | No | Up to 90 |
-| `analyst` | Yes | Yes | Yes | Up to 365 |
-| `municipality` | Yes | Yes | Yes | Up to 365 |
+| Capability | Guest | Free account |
+|---|---:|---:|
+| Dashboard, trends, health, forecasts, and climate | Yes | Yes |
+| Snapshot history (up to 365 records) | Yes | Yes |
+| AI analysis | No | Yes |
+| Saved AI history | No | Yes |
 
 ## Demo Fallback
 

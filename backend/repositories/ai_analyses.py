@@ -16,7 +16,7 @@ def save_ai_analysis(
         analysis_payload=analysis_payload,
         region_count=len(regions) if isinstance(regions, list) else 0,
         request_payload=request_payload,
-        requested_role=str(request_payload.get("requestedRole") or "citizen"),
+        audience="member",
         scope_id=str(scope.get("id") or "unknown") if isinstance(scope, dict) else "unknown",
         scope_label=str(scope.get("label") or "Selected scope")
         if isinstance(scope, dict)
@@ -57,7 +57,6 @@ def ai_analysis_to_read_model(record: AiAnalysisRecord) -> dict:
         "id": record.id,
         "regionCount": record.region_count,
         "request": record.request_payload,
-        "requestedRole": record.requested_role,
         "scope": {
             "id": record.scope_id,
             "label": record.scope_label,

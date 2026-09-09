@@ -1,5 +1,4 @@
 import type {
-  AiAnalysisResult,
   AnalyticsSummary,
   ForecastOutlook,
   IngestionStatus,
@@ -274,27 +273,31 @@ export const demoRegions: Region[] = demoRegionDefinitions.map((region) => ({
   sortIndex: region.sortIndex,
 }))
 
-export const demoSnapshots: ReservoirSnapshot[] = demoRegionDefinitions.map((region) => ({
-  confidenceScore: region.confidenceScore,
-  evaporationPressure: region.evaporationPressure,
-  rainfallIndex: region.rainfallIndex,
-  regionId: region.id,
-  source: "DWD, Pegelonline, Open-Meteo",
-  sources: [
-    { kind: "water", label: "Pegelonline" },
-    { kind: "weather", label: "DWD CDC" },
-  ],
-  timestamp,
-  trend: region.trend,
-  visibilityScore: region.visibilityScore,
-  waterLevel: region.waterLevel,
-}))
+export const demoSnapshots: ReservoirSnapshot[] = demoRegionDefinitions.map(
+  (region) => ({
+    confidenceScore: region.confidenceScore,
+    evaporationPressure: region.evaporationPressure,
+    rainfallIndex: region.rainfallIndex,
+    regionId: region.id,
+    source: "DWD, Pegelonline, Open-Meteo",
+    sources: [
+      { kind: "water", label: "Pegelonline" },
+      { kind: "weather", label: "DWD CDC" },
+    ],
+    timestamp,
+    trend: region.trend,
+    visibilityScore: region.visibilityScore,
+    waterLevel: region.waterLevel,
+  })
+)
 
 export function getDemoSnapshotHistory(
   regionId: string,
   limit = 365
 ): ReservoirSnapshot[] {
-  const latest = demoSnapshots.find((snapshot) => snapshot.regionId === regionId)
+  const latest = demoSnapshots.find(
+    (snapshot) => snapshot.regionId === regionId
+  )
 
   if (!latest) {
     return []
@@ -310,21 +313,24 @@ export function getDemoSnapshotHistory(
       Math.sin(((index * 5 + phase) / 17) * Math.PI * 2)
     )
     const waterLevel = clampMetric(
-      latest.waterLevel + seasonalWave * 12 + rainfallPulse * 8 + shorterWave * 4,
+      latest.waterLevel +
+        seasonalWave * 12 +
+        rainfallPulse * 8 +
+        shorterWave * 4,
       18,
       94
     )
     const previousWaterLevel =
       index > 0
         ? clampMetric(
-            latest.waterLevel
-              + Math.sin(((index - 1 + phase) / 365) * Math.PI * 2) * 12
-              + Math.max(
+            latest.waterLevel +
+              Math.sin(((index - 1 + phase) / 365) * Math.PI * 2) * 12 +
+              Math.max(
                 0,
                 Math.sin((((index - 1) * 5 + phase) / 17) * Math.PI * 2)
               ) *
-                8
-              + Math.sin((((index - 1) * 3 + phase) / 31) * Math.PI * 2) * 4,
+                8 +
+              Math.sin((((index - 1) * 3 + phase) / 31) * Math.PI * 2) * 4,
             18,
             94
           )
@@ -346,7 +352,9 @@ export function getDemoSnapshotHistory(
       timestamp: new Date(Date.now() - offset * dayMs).toISOString(),
       trend: delta >= 3 ? "rising" : delta <= -3 ? "falling" : "stable",
       visibilityScore: clampMetric(
-        latest.visibilityScore + shorterWave * 5 - Math.max(0, -seasonalWave) * 6,
+        latest.visibilityScore +
+          shorterWave * 5 -
+          Math.max(0, -seasonalWave) * 6,
         35,
         96
       ),
@@ -363,7 +371,8 @@ export function getDemoAnalyticsSummary(): AnalyticsSummary {
     demoSnapshots.map((snapshot) => snapshot.visibilityScore)
   )
   const elevatedRiskRegions = demoSnapshots.filter(
-    (snapshot) => snapshot.waterLevel >= 72 || snapshot.evaporationPressure >= 62
+    (snapshot) =>
+      snapshot.waterLevel >= 72 || snapshot.evaporationPressure >= 62
   ).length
 
   return {
@@ -373,9 +382,12 @@ export function getDemoAnalyticsSummary(): AnalyticsSummary {
     lastUpdated: timestamp,
     regionsObserved: demoRegions.length,
     trendMix: {
-      falling: demoSnapshots.filter((snapshot) => snapshot.trend === "falling").length,
-      rising: demoSnapshots.filter((snapshot) => snapshot.trend === "rising").length,
-      stable: demoSnapshots.filter((snapshot) => snapshot.trend === "stable").length,
+      falling: demoSnapshots.filter((snapshot) => snapshot.trend === "falling")
+        .length,
+      rising: demoSnapshots.filter((snapshot) => snapshot.trend === "rising")
+        .length,
+      stable: demoSnapshots.filter((snapshot) => snapshot.trend === "stable")
+        .length,
     },
   }
 }
@@ -431,27 +443,6 @@ export function getDemoIngestionStatus(): IngestionStatus {
   }
 }
 
-function getDemoAiAnalysis(snapshot: ReservoirSnapshot): AiAnalysisResult {
-  const elevated = snapshot.evaporationPressure > 55 || snapshot.waterLevel > 72
-
-  return {
-    recommendations: elevated
-      ? [
-          "Keep the region on the analyst watch list for the next ingestion cycle.",
-          "Compare Pegelonline changes against DWD rainfall before escalation.",
-          "Flag visibility below 65 percent for municipal review.",
-        ]
-      : [
-          "Maintain normal monitoring cadence.",
-          "Recheck confidence if one source remains stale after the next refresh.",
-        ],
-    riskLevel: elevated ? "medium" : "low",
-    summary: elevated
-      ? "The current snapshot shows elevated pressure and needs analyst review."
-      : "The current snapshot is broadly stable with acceptable confidence.",
-  }
-}
-
 export function getDemoForecastOutlook(): ForecastOutlook {
   return {
     coverage: 100,
@@ -465,12 +456,14 @@ export function getDemoForecastOutlook(): ForecastOutlook {
 
       return {
         evaporationPressure: snapshot.evaporationPressure,
-        forecastRainfallMm: Math.round((snapshot.rainfallIndex / 100) * 180) / 10,
+        forecastRainfallMm:
+          Math.round((snapshot.rainfallIndex / 100) * 180) / 10,
         maxTemperatureC: null,
         minHumidityPercent: null,
         pressureScore,
         regionId: snapshot.regionId,
-        riskLevel: pressureScore >= 70 ? "high" : pressureScore >= 45 ? "medium" : "low",
+        riskLevel:
+          pressureScore >= 70 ? "high" : pressureScore >= 45 ? "medium" : "low",
         source: "Demo forecast estimate",
         sourceKind: "forecast",
         summary:
@@ -498,8 +491,10 @@ export function getDemoRegionClimate(regionId: string): RegionClimate {
   const pm10 = Math.round((14 + (airRiskScore / 100) * 34) * 10) / 10
   const no2 = Math.round((18 + (phase % 28)) * 10) / 10
   const shortwave = Math.round(150 + (solarScore / 100) * 620)
-  const clearSkyRatio = Math.round((0.35 + (solarScore / 100) * 0.55) * 100) / 100
-  const directLightShare = Math.round((0.28 + (solarScore / 100) * 0.5) * 100) / 100
+  const clearSkyRatio =
+    Math.round((0.35 + (solarScore / 100) * 0.55) * 100) / 100
+  const directLightShare =
+    Math.round((0.28 + (solarScore / 100) * 0.5) * 100) / 100
 
   return {
     air: {
@@ -541,9 +536,7 @@ export function getDemoRegionClimate(regionId: string): RegionClimate {
       ],
       source: "Copernicus Atmosphere Monitoring Service",
       status: "candidate_requires_dataset_workflow",
-      warnings: [
-        "CO2 source candidate requires dataset workflow setup",
-      ],
+      warnings: ["CO2 source candidate requires dataset workflow setup"],
     },
     generatedAt: timestamp,
     regionId,
@@ -572,7 +565,9 @@ function average(values: number[]) {
     return 0
   }
 
-  return Math.round(values.reduce((total, value) => total + value, 0) / values.length)
+  return Math.round(
+    values.reduce((total, value) => total + value, 0) / values.length
+  )
 }
 
 function clampMetric(value: number, minimum: number, maximum: number) {
@@ -580,10 +575,12 @@ function clampMetric(value: number, minimum: number, maximum: number) {
 }
 
 function regionPhase(regionId: string) {
-  return Array.from(regionId).reduce(
-    (total, character) => total + character.charCodeAt(0),
-    0
-  ) % 365
+  return (
+    Array.from(regionId).reduce(
+      (total, character) => total + character.charCodeAt(0),
+      0
+    ) % 365
+  )
 }
 
 function sunlightLabel(score: number) {

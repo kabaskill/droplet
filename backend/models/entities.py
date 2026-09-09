@@ -56,7 +56,7 @@ class AiAnalysisRecord(Base):
     )
     region_count: Mapped[int] = mapped_column(Integer, nullable=False)
     request_payload: Mapped[dict] = mapped_column(JSON, nullable=False)
-    requested_role: Mapped[str] = mapped_column(String(32), nullable=False)
+    audience: Mapped[str] = mapped_column("requested_role", String(32), nullable=False)
     scope_id: Mapped[str] = mapped_column(String(120), nullable=False)
     scope_label: Mapped[str] = mapped_column(String(160), nullable=False)
     scope_type: Mapped[str] = mapped_column(String(32), nullable=False)

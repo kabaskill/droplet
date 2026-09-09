@@ -1,8 +1,18 @@
 import { create } from "zustand"
 
 export type MapLayer = "water-level" | "rainfall" | "confidence"
-export type HomeLayer = "overview" | "water" | "climate" | "forecast" | "quality"
-export type RegionalFilter = "all" | "elevated" | "fallback" | "low-confidence" | "stale"
+export type HomeLayer =
+  | "overview"
+  | "water"
+  | "climate"
+  | "forecast"
+  | "quality"
+export type RegionalFilter =
+  | "all"
+  | "elevated"
+  | "fallback"
+  | "low-confidence"
+  | "stale"
 
 export type MapViewport = {
   scale: number
@@ -37,7 +47,7 @@ export const useAppStore = create<AppState>((set) => ({
   mapViewport: { scale: 1, x: 0, y: 0 },
   mobileRailOpen: false,
   regionalFilter: "all",
-  rightRailOpen: true,
+  rightRailOpen: false,
   searchQuery: "",
   selectedRegionId: null,
   setComparisonMode: (comparisonMode) => set({ comparisonMode }),
@@ -49,7 +59,9 @@ export const useAppStore = create<AppState>((set) => ({
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSelectedRegionId: (selectedRegionId) =>
     set({
-      ...(selectedRegionId ? { rightRailOpen: true } : {}),
+      ...(selectedRegionId
+        ? { rightRailOpen: true }
+        : { mobileRailOpen: false, rightRailOpen: false }),
       selectedRegionId,
     }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),

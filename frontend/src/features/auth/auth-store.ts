@@ -11,12 +11,11 @@ import {
   type AuthConfig,
   type AuthMode,
 } from "@/features/auth/auth-config"
-import type { AuthStatus, AuthUser, DropletRole } from "@/features/auth/types"
+import type { AuthStatus, AuthUser } from "@/features/auth/types"
 
 type AuthState = {
   config: AuthConfig
   error: string | null
-  hasAnyRole: (roles: DropletRole[]) => boolean
   initialize: () => Promise<void>
   login: () => Promise<void>
   logout: () => Promise<void>
@@ -28,21 +27,14 @@ type AuthState = {
 }
 
 const demoUser: AuthUser = {
-  email: "analyst@droplet.local",
-  name: "Droplet Analyst",
-  roles: ["citizen", "analyst", "municipality"],
+  email: "demo@droplet.local",
+  name: "Droplet Demo",
   subject: "demo-user",
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   config: fallbackAuthConfig,
   error: null,
-  hasAnyRole: (roles) => {
-    const activeRoles = get().user?.roles ?? []
-    const activeRolesSet = new Set(activeRoles)
-
-    return roles.some((role) => activeRolesSet.has(role))
-  },
   initialize: async () => {
     set({ error: null, status: "loading" })
     const config = await resolveAuthConfig()
@@ -73,7 +65,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const config = get().config
 
     if (config.authMode === "demo") {
-      set({ error: null, status: "authenticated", token: "demo-token", user: demoUser })
+      set({
+        error: null,
+        status: "authenticated",
+        token: "demo-token",
+        user: demoUser,
+      })
       return
     }
 

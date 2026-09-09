@@ -51,31 +51,24 @@ export function useDashboardData({
     selectionScope === "all" ? allRegions : filteredRegions
 
   useEffect(() => {
-    if (!regions[0]) {
-      return
-    }
-
     if (!selectedRegionId) {
-      setSelectedRegionId(selectionRegions[0]?.region.id ?? regions[0].id)
       return
     }
 
     if (
-      selectionRegions.length > 0 &&
       !selectionRegions.some(({ region }) => region.id === selectedRegionId)
     ) {
-      setSelectedRegionId(selectionRegions[0].region.id)
+      setSelectedRegionId(null)
     }
-  }, [regions, selectedRegionId, selectionRegions, setSelectedRegionId])
+  }, [selectedRegionId, selectionRegions, setSelectedRegionId])
 
-  const activeRegion =
-    regions.find((region) => region.id === selectedRegionId) ??
-    regions[0] ??
-    null
-  const activeSnapshot =
-    snapshots.find((snapshot) => snapshot.regionId === activeRegion?.id) ??
-    snapshots[0] ??
-    null
+  const activeRegion = selectedRegionId
+    ? (regions.find((region) => region.id === selectedRegionId) ?? null)
+    : null
+  const activeSnapshot = activeRegion
+    ? (snapshots.find((snapshot) => snapshot.regionId === activeRegion.id) ??
+      null)
+    : null
   const historyQuery = useSnapshotHistory(activeRegion?.id ?? null)
   const climateContextQuery = useRegionClimate(activeRegion?.id ?? null)
   const regionReadModelLoading =
@@ -121,12 +114,6 @@ export function useDashboardData({
   ]
 
   return {
-    accessError: firstAccessError([
-      analyticsQuery.error,
-      sourceHealthQuery.error,
-      ingestionStatusQuery.error,
-      forecastOutlookQuery.error,
-    ]),
     activeRegion,
     activeSnapshot,
     analyticsQuery,
@@ -156,20 +143,6 @@ export function useDashboardData({
   }
 }
 
-function firstAccessError(errors: unknown[]) {
-  for (const error of errors) {
-    if (!(error instanceof Error)) {
-      continue
-    }
-
-    if (error.message === "insufficient role") {
-      return "Your current role can view states, but analyst or municipality access is required for this operation."
-    }
-  }
-
-  return null
-}
-
 export function firstOperationalError(errors: unknown[]) {
   for (const error of errors) {
     if (!(error instanceof Error)) {
@@ -177,10 +150,6 @@ export function firstOperationalError(errors: unknown[]) {
     }
 
     if (isDropletApiError(error) && [401, 403].includes(error.status)) {
-      continue
-    }
-
-    if (error.message === "insufficient role") {
       continue
     }
 
@@ -196,10 +165,6 @@ export function firstOperationalError(errors: unknown[]) {
 
 export function panelErrorMessage(error: unknown) {
   if (!(error instanceof Error)) {
-    return null
-  }
-
-  if (error.message === "insufficient role") {
     return null
   }
 

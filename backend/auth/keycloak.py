@@ -11,10 +11,10 @@ class AuthError(Exception):
 
 
 def auth_mode() -> str:
-    mode = os.getenv("AUTH_MODE", "demo").lower()
+    mode = os.getenv("AUTH_MODE", "keycloak").lower()
 
     if mode not in {"demo", "keycloak"}:
-        return "demo"
+        return "keycloak"
 
     return mode
 
@@ -30,9 +30,8 @@ def auth_config() -> dict[str, str]:
 
 def demo_user() -> dict[str, Any]:
     return {
-        "email": "analyst@droplet.local",
-        "name": "Droplet Analyst",
-        "roles": ["citizen", "analyst", "municipality"],
+        "email": "demo@droplet.local",
+        "name": "Droplet Demo",
         "subject": "demo-user",
     }
 
@@ -80,16 +79,8 @@ def validate_access_token(token: str) -> dict[str, Any]:
     except jwt.PyJWTError as exc:
         raise AuthError(str(exc)) from exc
 
-    roles = set(payload.get("realm_access", {}).get("roles", []))
-    roles.update(
-        payload.get("resource_access", {})
-        .get(client_id, {})
-        .get("roles", [])
-    )
-
     return {
         "email": payload.get("email"),
         "name": payload.get("name") or payload.get("preferred_username") or "Droplet user",
-        "roles": sorted(roles.intersection({"citizen", "analyst", "municipality"})),
         "subject": payload.get("sub"),
     }

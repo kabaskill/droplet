@@ -85,7 +85,6 @@ export type AiAnalysisResult = {
 
 export type AiAnalysisRequest = {
   generatedAt: string
-  requestedRole?: "analyst" | "citizen" | "municipality"
   regions: Array<{
     basin: string
     federalState: string
@@ -107,7 +106,6 @@ export type AiAnalysisRecord = {
   id: number
   regionCount: number
   request: AiAnalysisRequest
-  requestedRole: "analyst" | "citizen" | "municipality"
   scope: {
     id: string
     label: string
@@ -206,22 +204,4 @@ export type RegionClimate = {
     status: string
     warnings: string[]
   }
-}
-
-export type RefreshSnapshotsResult = {
-  error?: string
-  snapshotRefresh?: {
-    created: number
-    deleted: number
-    processed: number
-    skipped: number
-    updated: number
-  }
-  snapshotsCreated?: number
-  snapshotsDeleted?: number
-  snapshotsProcessed?: number
-  snapshotsSkipped?: number
-  snapshotsUpdated?: number
-  status: "completed" | "failed" | "queued" | "running"
-  taskId?: string
 }

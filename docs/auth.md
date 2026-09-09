@@ -1,35 +1,30 @@
-# Auth Modes
+# Authentication
 
-Droplet supports two local auth modes.
+Droplet has one optional account type and no user roles or access levels. The
+dashboard, trends, health, forecasts, climate context, and up to 365 snapshot
+records per state are public. An account unlocks Gemini analysis and private,
+user-scoped analysis history.
 
 ## Demo Mode
 
-Default for prototype development.
-
-Backend:
+Demo mode is intended only for local development. It uses one built-in account
+so developers can exercise the authenticated AI flow without an identity
+provider.
 
 ```bash
 AUTH_MODE=demo
-```
-
-Frontend:
-
-```bash
 VITE_AUTH_MODE=demo
 ```
 
-Demo mode signs in as `Droplet Analyst` with `citizen`, `analyst`, and
-`municipality` roles.
-
 ## Keycloak Mode
 
-Run Keycloak with Docker:
+Run the local identity provider with Docker:
 
 ```bash
 docker compose up --build postgres redis backend worker scheduler keycloak
 ```
 
-Then switch auth mode:
+Then enable token validation:
 
 ```bash
 AUTH_MODE=keycloak
@@ -37,18 +32,14 @@ VITE_AUTH_MODE=keycloak
 ```
 
 The frontend normally reads `/api/auth/config` from the backend during startup,
-so the backend auth mode is the source of truth. `VITE_AUTH_MODE` remains a
-fallback for local startup when that endpoint is not yet reachable.
+so the backend mode is authoritative. `VITE_AUTH_MODE` is only the frontend
+fallback while the API is unavailable.
 
-Local realm users:
+The imported `droplet` realm allows self-registration, email login, and password
+reset. It contains no seeded users or Droplet-specific roles. The backend
+validates access tokens only for `/api/auth/me`, `/api/ai/analyze`, and
+`/api/ai/analyses`.
 
-| Username | Password | Roles |
-|---|---|---|
-| `citizen` | `droplet` | `citizen` |
-| `analyst` | `droplet` | `citizen`, `analyst`, `municipality` |
-| `municipality` | `droplet` | `citizen`, `municipality` |
-
-The backend validates Keycloak access tokens. Role-gated endpoints require
-`analyst` or `municipality`; `citizen` can read basic region and snapshot data.
-Snapshot history depth is role-aware: citizen and analyst users can request up
-to 90 observations, while municipality users can request up to 365 observations.
+Production deployment must replace the local Keycloak URLs and redirect origins,
+enable an email provider and email verification, rotate admin credentials, and
+disable demo mode.

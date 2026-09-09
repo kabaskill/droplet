@@ -5,12 +5,12 @@ Droplet is a strong prototype architecture, but production use would require add
 ## Current Strengths
 
 - Dockerized frontend, backend, worker, scheduler, PostgreSQL, Redis, and Keycloak services.
-- React and TypeScript frontend with route-level protection, server-state caching, responsive layouts, and mobile workflows.
-- Flask API with role-protected endpoints and a clear route, service, repository, model split.
+- React and TypeScript frontend with optional account flows, server-state caching, responsive layouts, and mobile workflows.
+- Flask API with public read models, account-protected AI, and a clear route, service, repository, model split.
 - PostgreSQL persistence for regions, reservoir snapshots, and AI analysis history.
 - Redis read-model caching and Celery broker/result backend.
 - Celery worker and scheduler for slow ingestion jobs outside the request cycle.
-- Keycloak/OIDC support with backend JWT validation and role-based authorization.
+- Keycloak/OIDC support with backend JWT validation and self-registration.
 - AI integration behind the backend, with persisted analysis history and structured responses.
 - Resilient read models with frontend fallback states for optional panels.
 
@@ -24,7 +24,7 @@ Droplet is a strong prototype architecture, but production use would require add
 | Scaling | Single local Compose services. | Run multiple backend and worker replicas behind managed infrastructure. |
 | Database | Local PostgreSQL container. | Use managed PostgreSQL or hardened HA PostgreSQL with backups and restore testing. |
 | Redis | Local Redis container. | Use managed Redis or persistent HA Redis with memory policies and monitoring. |
-| Auth | Demo and local Keycloak realm. | Use production Keycloak realm/client config, token lifetimes, role governance, and audit logging. |
+| Auth | Demo and local self-registration through Keycloak. | Use production realm/client URLs, email verification, token lifetimes, and audit logging. |
 | Observability | Basic service health. | Add structured logs, metrics, tracing, dashboards, and alerts. |
 | Rate limiting | Not yet implemented. | Rate-limit expensive endpoints such as refresh and AI analysis. |
 | CI/CD | Not documented here. | Add automated build, lint, test, image scan, and deployment pipelines. |
@@ -62,12 +62,11 @@ Key production rule: scale stateless services horizontally, keep durable state i
 - Add database connection pooling and explicit pool limits.
 - Add request timeouts around outbound environmental and AI calls.
 - Add rate limits for:
-  - `POST /api/snapshots/refresh`
   - `POST /api/ai/analyze`
   - high-cardinality history endpoints
 - Add request IDs and structured JSON logs.
 - Add health checks that distinguish process health from dependency health.
-- Add audit logs for role-sensitive actions such as refresh and AI analysis.
+- Add audit logs for AI analysis and account events.
 
 ## Frontend Hardening
 
@@ -96,7 +95,7 @@ Redis currently handles both read-model caching and Celery coordination. That is
 - Consider separate Redis databases or separate Redis instances for cache and queue workloads.
 - Add queue-depth alerts.
 - Add retry and dead-letter handling for ingestion jobs.
-- Add refresh deduplication so many users cannot enqueue the same ingestion work repeatedly.
+- Keep ingestion scheduler-only or protect any future manual ingestion endpoint with an operator credential.
 - Track cache hit rate, cache memory, eviction rate, and stale read-model behavior.
 
 ## AI Hardening

@@ -46,7 +46,7 @@ function normalizeAuthConfig(payload: unknown): AuthConfig {
 }
 
 function normalizeAuthMode(mode: unknown): AuthMode {
-  return mode === "keycloak" ? "keycloak" : "demo"
+  return mode === "demo" ? "demo" : "keycloak"
 }
 
 function stringValue(value: unknown, fallback: string) {

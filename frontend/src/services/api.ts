@@ -17,7 +17,6 @@ import type {
   AnalyticsSummary,
   ForecastOutlook,
   IngestionStatus,
-  RefreshSnapshotsResult,
   Region,
   RegionClimate,
   ReservoirSnapshot,
@@ -26,8 +25,6 @@ import type {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api"
 const demoFallback = import.meta.env.VITE_DEMO_FALLBACK !== "false"
-const refreshPollIntervalMs = 1_500
-const refreshPollMaxAttempts = 40
 
 export class DropletApiError extends Error {
   readonly status: number
@@ -204,59 +201,4 @@ export function fetchAiAnalyses() {
   const params = new URLSearchParams({ limit: "30" })
 
   return requestJson<AiAnalysisRecord[]>(`/ai/analyses?${params}`)
-}
-
-export function refreshSnapshots() {
-  return withFallback(
-    async () => {
-      const refresh = await requestJson<RefreshSnapshotsResult>("/snapshots/refresh", {
-        method: "POST",
-      })
-
-      if (refresh.status !== "queued" || !refresh.taskId) {
-        return refresh
-      }
-
-      return pollSnapshotRefresh(refresh.taskId)
-    },
-    () => ({
-      snapshotRefresh: {
-        created: demoSnapshots.length,
-        deleted: 0,
-        processed: demoSnapshots.length,
-        skipped: 0,
-        updated: 0,
-      },
-      snapshotsCreated: demoSnapshots.length,
-      snapshotsDeleted: 0,
-      snapshotsProcessed: demoSnapshots.length,
-      snapshotsSkipped: 0,
-      snapshotsUpdated: 0,
-      status: "completed" as const,
-    })
-  )
-}
-
-async function pollSnapshotRefresh(taskId: string): Promise<RefreshSnapshotsResult> {
-  for (let attempt = 0; attempt < refreshPollMaxAttempts; attempt += 1) {
-    await delay(refreshPollIntervalMs)
-
-    const result = await requestJson<RefreshSnapshotsResult>(
-      `/snapshots/refresh/${taskId}`
-    )
-
-    if (result.status === "completed") {
-      return result
-    }
-
-    if (result.status === "failed") {
-      throw new Error(result.error ?? "Snapshot refresh failed")
-    }
-  }
-
-  throw new Error("Snapshot refresh did not complete in time")
-}
-
-function delay(milliseconds: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }

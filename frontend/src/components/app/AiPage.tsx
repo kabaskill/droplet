@@ -1,4 +1,5 @@
 import { AiBrain01Icon, MapsGlobal01Icon } from "@hugeicons/core-free-icons"
+import { Link } from "@tanstack/react-router"
 import { useState } from "react"
 
 import { AiAnalysisPanel } from "@/components/app/AiAnalysisPanel"
@@ -6,9 +7,12 @@ import { useDashboardData } from "@/components/app/dashboard-data"
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/features/auth/auth-store"
-import type { AuthUser, DropletRole } from "@/features/auth/types"
 import { useAiAnalyses, useAiAnalysis } from "@/hooks/use-droplet-data"
-import type { AiAnalysisRecord, AiAnalysisRequest, Region } from "@/services/types"
+import type {
+  AiAnalysisRecord,
+  AiAnalysisRequest,
+  Region,
+} from "@/services/types"
 import { waterSystems } from "@/services/water-systems"
 
 type AiScopeType = "region" | "state"
@@ -17,35 +21,46 @@ export function AiPage() {
   const { regionReadModelLoading, regions, snapshots } = useDashboardData()
   const [scopeType, setScopeType] = useState<AiScopeType>("state")
   const [selectedStateId, setSelectedStateId] = useState("")
-  const [selectedRegionId, setSelectedRegionId] = useState(waterSystems[0]?.id ?? "")
-  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(null)
+  const [selectedRegionId, setSelectedRegionId] = useState(
+    waterSystems[0]?.id ?? ""
+  )
+  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(
+    null
+  )
   const analysis = useAiAnalysis()
   const analysisHistory = useAiAnalyses()
-  const user = useAuthStore((state) => state.user)
-  const activeRole = activePersonaRole(user) ?? "citizen"
+  const isAuthenticated = useAuthStore(
+    (state) => state.status === "authenticated"
+  )
   const effectiveStateId = selectedStateId || regions[0]?.id || ""
-  const selectedWaterSystem = waterSystems.find((system) => system.id === selectedRegionId) ?? waterSystems[0]
+  const selectedWaterSystem =
+    waterSystems.find((system) => system.id === selectedRegionId) ??
+    waterSystems[0]
   const stateIdsSet = new Set(selectedWaterSystem?.stateIds ?? [])
-  const selectedRegions = scopeType === "state"
-    ? regions.filter((region) => region.id === effectiveStateId)
-    : regions.filter((region) => stateIdsSet.has(region.id))
-  const selectedSnapshots =
-      selectedRegions
-        .map((region) => snapshots.find((snapshot) => snapshot.regionId === region.id))
-        .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
-          Boolean(snapshot)
-        )
-  
+  const selectedRegions =
+    scopeType === "state"
+      ? regions.filter((region) => region.id === effectiveStateId)
+      : regions.filter((region) => stateIdsSet.has(region.id))
+  const selectedSnapshots = selectedRegions
+    .map((region) =>
+      snapshots.find((snapshot) => snapshot.regionId === region.id)
+    )
+    .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
+      Boolean(snapshot)
+    )
+
   const analysisRequest = buildAnalysisRequest(
     scopeType,
     selectedRegions,
     selectedSnapshots,
     selectedWaterSystem,
-    effectiveStateId,
-    activeRole
+    effectiveStateId
   )
   const canAnalyze =
-    Boolean(analysisRequest) && !regionReadModelLoading && !analysis.isPending
+    isAuthenticated &&
+    Boolean(analysisRequest) &&
+    !regionReadModelLoading &&
+    !analysis.isPending
   const historyItems = analysisHistory.data ?? []
   const selectedHistory =
     historyItems.find((item) => item.id === selectedHistoryId) ?? null
@@ -61,10 +76,21 @@ export function AiPage() {
             <div className="min-w-0">
               <h1 className="text-lg font-semibold">AI</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Select one state or a full water region. Droplet will package the
-                latest water-source, rainfall, evaporation, confidence, and weather
-                signals, then ask Gemini for a short role-aware analysis.
+                Select one state or a full water region. Droplet will package
+                the latest water-source, rainfall, evaporation, confidence, and
+                weather signals, then ask Gemini for a short practical analysis.
               </p>
+              {!isAuthenticated ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  <Link
+                    className="font-medium text-primary hover:underline"
+                    to="/login"
+                  >
+                    Create a free account
+                  </Link>{" "}
+                  to run AI analyses and save your history.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -142,7 +168,7 @@ export function AiPage() {
             )}
 
             <div className="rounded-md border bg-background p-3">
-              <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+              <div className="mb-2 text-xs font-medium text-muted-foreground uppercase">
                 Included states
               </div>
               <div className="flex flex-wrap gap-2">
@@ -168,7 +194,9 @@ export function AiPage() {
               }}
             >
               <ProductIcon icon={AiBrain01Icon} size={19} />
-              {analysis.isPending ? "Analyzing water state" : "Start AI analysis"}
+              {analysis.isPending
+                ? "Analyzing water state"
+                : "Start AI analysis"}
             </Button>
           </section>
 
@@ -184,7 +212,9 @@ export function AiPage() {
               History
               <select
                 className="h-11 rounded-md border bg-background px-3 text-sm font-normal"
-                disabled={analysisHistory.isPending || historyItems.length === 0}
+                disabled={
+                  analysisHistory.isPending || historyItems.length === 0
+                }
                 value={selectedHistoryId ?? ""}
                 onChange={(event) =>
                   setSelectedHistoryId(
@@ -202,7 +232,11 @@ export function AiPage() {
             </label>
 
             <div className="grid max-h-[420px] gap-2 overflow-y-auto">
-              {analysisHistory.isPending ? (
+              {!isAuthenticated ? (
+                <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                  Sign in to view saved analyses
+                </div>
+              ) : analysisHistory.isPending ? (
                 <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
                   Loading history
                 </div>
@@ -212,7 +246,9 @@ export function AiPage() {
                     aria-pressed={selectedHistoryId === item.id}
                     className={[
                       "rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
-                      selectedHistoryId === item.id ? "border-primary bg-accent" : "",
+                      selectedHistoryId === item.id
+                        ? "border-primary bg-accent"
+                        : "",
                     ].join(" ")}
                     key={item.id}
                     onClick={() => setSelectedHistoryId(item.id)}
@@ -222,7 +258,8 @@ export function AiPage() {
                       {item.scope.label}
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      {formatHistoryDate(item.createdAt)} · {item.regionCount} state
+                      {formatHistoryDate(item.createdAt)} · {item.regionCount}{" "}
+                      state
                       {item.regionCount === 1 ? "" : "s"}
                     </span>
                   </button>
@@ -239,7 +276,8 @@ export function AiPage() {
         <div className="min-w-0">
           {selectedHistory ? (
             <div className="mb-3 rounded-md border bg-card px-3 py-2 text-sm text-muted-foreground">
-              Viewing saved analysis from {formatHistoryDate(selectedHistory.createdAt)}
+              Viewing saved analysis from{" "}
+              {formatHistoryDate(selectedHistory.createdAt)}
             </div>
           ) : null}
           <AiAnalysisPanel
@@ -268,49 +306,20 @@ function formatHistoryDate(timestamp: string) {
   })
 }
 
-function activePersonaRole(user: AuthUser | null): DropletRole | null {
-  if (!user) {
-    return null
-  }
-
-  const identity = `${user.email ?? ""} ${user.name}`.toLowerCase()
-
-  if (identity.includes("municipality") && user.roles.includes("municipality")) {
-    return "municipality"
-  }
-
-  if (identity.includes("analyst") && user.roles.includes("analyst")) {
-    return "analyst"
-  }
-
-  if (user.roles.includes("municipality")) {
-    return "municipality"
-  }
-
-  if (user.roles.includes("analyst")) {
-    return "analyst"
-  }
-
-  if (user.roles.includes("citizen")) {
-    return "citizen"
-  }
-
-  return null
-}
-
 function buildAnalysisRequest(
   scopeType: AiScopeType,
   selectedRegions: Region[],
   selectedSnapshots: AiAnalysisRequest["snapshots"],
   selectedWaterSystem: (typeof waterSystems)[number] | undefined,
-  selectedStateId: string,
-  activeRole: DropletRole
+  selectedStateId: string
 ): AiAnalysisRequest | null {
   if (!selectedRegions.length || !selectedSnapshots.length) {
     return null
   }
 
-  const selectedState = selectedRegions.find((region) => region.id === selectedStateId)
+  const selectedState = selectedRegions.find(
+    (region) => region.id === selectedStateId
+  )
   const scope =
     scopeType === "state"
       ? {
@@ -326,7 +335,6 @@ function buildAnalysisRequest(
 
   return {
     generatedAt: new Date().toISOString(),
-    requestedRole: activeRole,
     regions: selectedRegions.map((region) => ({
       basin: region.basin,
       federalState: region.federalState,

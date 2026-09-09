@@ -4,7 +4,7 @@ Droplet is Germany's Platform: an operational dashboard for monitoring regional 
 
 ## Documents
 
-- [How to Use Droplet](./docs/usage.md): user-facing guide for navigation, roles, refreshes, and AI analysis.
+- [How to Use Droplet](./docs/usage.md): user-facing guide for navigation, refreshes, accounts, and AI analysis.
 - [Data Flow](./docs/dataflow.md): how environmental data moves from sources into snapshots, read models, caches, and the frontend.
 - [Source Normalization](./docs/source-normalization.md): backend-only climate source normalization for water/weather, sunlight, air quality, and exploratory CO2 context.
 - [Snapshot Model And Calculations](./docs/snapshot-model-and-calculations.md): transparent explanation of source handling, snapshot structures, scoring formulas, and known limitations.
@@ -23,8 +23,8 @@ flowchart LR
   DB --> API[Flask API]
   API <--> Cache[(Redis)]
   API --> Frontend[React workspace]
-  Keycloak[Keycloak or demo auth] --> API
-  Frontend --> Keycloak
+  Keycloak[Optional account sign-in] --> API
+  Frontend -. AI sign-in .-> Keycloak
 ```
 
-Droplet stores normalized reservoir snapshots in PostgreSQL. The backend builds stable read models from those snapshots, caches frequently used responses in Redis, and serves them to the React app through authenticated API endpoints.
+Droplet stores normalized reservoir snapshots in PostgreSQL. The backend builds stable read models from those snapshots, caches frequently used responses in Redis, and serves the public dashboard through the React app. Optional accounts unlock AI analysis and saved history.

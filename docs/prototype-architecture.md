@@ -41,7 +41,7 @@ refresh receives updated state. Manual snapshot ingestion and read-model retry
 remain separate operations: ingestion changes environmental state, while retry
 only reloads already-computed read models.
 
-The prototype runs in demo auth mode by default. Keycloak realm, client, roles,
-and local test users are included so the app can be switched to OIDC validation
-by setting `VITE_AUTH_MODE=keycloak` and `AUTH_MODE=keycloak`. See
-`docs/auth.md` for local users and role behavior.
+The dashboard is public, while AI analysis and saved history require a Keycloak
+account. An explicit demo mode provides a built-in local identity. The imported
+realm allows self-registration and has no application roles. See `docs/auth.md`
+for the account behavior.

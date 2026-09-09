@@ -66,6 +66,9 @@ export function AppShell({
   syncing,
 }: AppShellProps) {
   const user = useAuthStore((state) => state.user)
+  const isAuthenticated = useAuthStore(
+    (state) => state.status === "authenticated"
+  )
   const sidebarOpen = useAppStore((state) => state.sidebarOpen)
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen)
   const searchQuery = useAppStore((state) => state.searchQuery)
@@ -81,7 +84,7 @@ export function AppShell({
     input?.blur()
     setSearchQuery("")
   }, [searchOpen, setSearchQuery])
-    
+
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -201,16 +204,18 @@ export function AppShell({
 
           <SidebarMenuButton
             asChild
-            isActive={isNavActive(pathname, "/account")}
-            tooltip={"User Profile"}
+            isActive={isAuthenticated && isNavActive(pathname, "/account")}
+            tooltip={isAuthenticated ? "User profile" : "Sign in for AI"}
             size={"lg"}
           >
-            <Link to={"/account"}>
+            <Link to={isAuthenticated ? "/account" : "/login"}>
               <ProductIcon icon={UserShieldIcon} />
               <div className="group-data-[collapsible=icon]:hidden">
-                <p className="truncate text-xs font-medium">{user?.name}</p>
+                <p className="truncate text-xs font-medium">
+                  {user?.name ?? "Sign in for AI"}
+                </p>
                 <p className="truncate text-xs text-sidebar-foreground/60">
-                  {user?.email}
+                  {user?.email ?? "Free account · saved history"}
                 </p>
               </div>
             </Link>

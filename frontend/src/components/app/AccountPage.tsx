@@ -1,4 +1,8 @@
-import { Logout01Icon, UserShieldIcon } from "@hugeicons/core-free-icons"
+import {
+  Login01Icon,
+  Logout01Icon,
+  UserShieldIcon,
+} from "@hugeicons/core-free-icons"
 
 import { ProductIcon } from "@/components/app/ProductIcon"
 import { Button } from "@/components/ui/button"
@@ -8,9 +12,38 @@ import { openKeycloakAccount } from "@/features/auth/keycloak"
 export function AccountPage() {
   const config = useAuthStore((state) => state.config)
   const logout = useAuthStore((state) => state.logout)
+  const login = useAuthStore((state) => state.login)
   const mode = useAuthStore((state) => state.mode)
+  const isAuthenticated = useAuthStore(
+    (state) => state.status === "authenticated"
+  )
   const user = useAuthStore((state) => state.user)
   const accountAvailable = mode === "keycloak"
+
+  if (!isAuthenticated) {
+    return (
+      <main className="mx-auto grid max-w-4xl gap-4 p-4 pb-24 md:p-6 lg:pb-6">
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <ProductIcon icon={UserShieldIcon} size={18} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold">Your free account</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                The water dashboard is public. Create an account to use Droplet
+                AI and keep your analysis history.
+              </p>
+              <Button className="mt-4" onClick={() => void login()}>
+                <ProductIcon icon={Login01Icon} />
+                Sign in or create account
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className="mx-auto grid max-w-4xl gap-4 p-4 pb-24 md:p-6 lg:pb-6">
@@ -38,11 +71,7 @@ export function AccountPage() {
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
           <AccountField label="Name" value={user?.name ?? "Operator"} />
           <AccountField label="Email" value={user?.email ?? "Not provided"} />
-          <AccountField label="Auth mode" value={mode} />
-          <AccountField
-            label="Roles"
-            value={user?.roles.length ? user.roles.join(", ") : "No roles"}
-          />
+          <AccountField label="Account provider" value={mode} />
           <AccountField label="Subject" value={user?.subject ?? "Unknown"} />
         </dl>
       </section>
@@ -51,7 +80,9 @@ export function AccountPage() {
         <section className="rounded-md border bg-card p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <h2 className="text-sm font-medium">Keycloak account management</h2>
+              <h2 className="text-sm font-medium">
+                Keycloak account management
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Profile and password changes are handled by Keycloak.
               </p>

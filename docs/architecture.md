@@ -25,12 +25,12 @@ flowchart TD
 | Service | Location | Responsibility |
 |---|---|---|
 | `frontend` | `frontend/` | React workspace, routing, panels, query cache, auth client. |
-| `backend` | `backend/` | Flask API, auth enforcement, repositories, read models, AI proxy. |
+| `backend` | `backend/` | Flask API, public read models, account-protected AI, repositories, and AI proxy. |
 | `worker` | `backend/tasks/` | Snapshot refresh, climate context refresh, and cache invalidation. |
 | `scheduler` | `backend/workers/celery_app.py` | Periodic ingestion and climate context refresh schedules. |
 | `postgres` | Docker image | Regions, snapshots, and AI analysis records. |
 | `redis` | Docker image | API read-model cache, Celery broker, Celery result backend. |
-| `keycloak` | `infrastructure/keycloak/` | Local OIDC realm, users, client, and roles. |
+| `keycloak` | `infrastructure/keycloak/` | Optional local OIDC account provider. |
 
 ## Backend Layers
 
@@ -88,20 +88,18 @@ Frontend responsibilities:
 | `GET` | `/healthz` | No | Backend process health. |
 | `GET` | `/api/auth/config` | No | Frontend auth configuration. |
 | `GET` | `/api/auth/me` | Yes | Current user profile. |
-| `GET` | `/api/regions` | Yes | Region metadata. |
-| `GET` | `/api/snapshots` | Yes | Latest snapshot per region. |
-| `GET` | `/api/snapshots/<region_id>` | Yes | Snapshot history with role-aware limit. |
-| `POST` | `/api/snapshots/refresh` | Analyst or municipality | Queue or run snapshot ingestion. |
-| `GET` | `/api/snapshots/refresh/<task_id>` | Analyst or municipality | Poll refresh status. |
-| `GET` | `/api/ingestion/status` | Analyst or municipality | Last ingestion status. |
-| `GET` | `/api/analytics/summary` | Analyst or municipality | Aggregate dashboard metrics. |
-| `GET` | `/api/sources/health` | Analyst or municipality | Source coverage and confidence. |
-| `GET` | `/api/forecasts/outlook` | Analyst or municipality | 48-hour forecast pressure outlook. |
-| `GET` | `/api/climate/regions/<region_id>` | Yes | Selected-region sunlight, air-quality, CO2 source context, and climate refresh metadata. |
+| `GET` | `/api/regions` | No | Region metadata. |
+| `GET` | `/api/snapshots` | No | Latest snapshot per region. |
+| `GET` | `/api/snapshots/<region_id>` | No | Snapshot history, capped at 365 records. |
+| `GET` | `/api/ingestion/status` | No | Last ingestion status. |
+| `GET` | `/api/analytics/summary` | No | Aggregate dashboard metrics. |
+| `GET` | `/api/sources/health` | No | Source coverage and confidence. |
+| `GET` | `/api/forecasts/outlook` | No | 48-hour forecast pressure outlook. |
+| `GET` | `/api/climate/regions/<region_id>` | No | Selected-region sunlight, air-quality, CO2 source context, and climate refresh metadata. |
 | `POST` | `/api/ai/analyze` | Yes | Run AI analysis for one or more snapshots. |
 | `GET` | `/api/ai/analyses` | Yes | List current user's saved analyses. |
 
-Climate context is authenticated but not role-gated beyond sign-in. It is cached per validated region with a configurable fresh window and stale retention, returns compact cache and refresh metadata, queues Celery refreshes on missing or stale reads, and remains separate from persisted reservoir snapshot state. The API route does not fetch upstream climate sources directly.
+Climate context is public. It is cached per validated region with a configurable fresh window and stale retention, returns compact cache and refresh metadata, queues Celery refreshes on missing or stale reads, and remains separate from persisted reservoir snapshot state. The API route does not fetch upstream climate sources directly.
 
 ## Deployment Shape
 
@@ -130,7 +128,7 @@ flowchart LR
 Production-like concerns already represented in the architecture:
 
 - API responses are CORS-limited through `CORS_ORIGINS`.
-- Auth mode can switch from demo to Keycloak.
+- Public data works without an account; auth mode only controls optional AI identity.
 - Redis separates short-lived read-model caching from durable PostgreSQL data.
 - Snapshot ingestion can run asynchronously through Celery or synchronously when the broker is unavailable.
 - Read-model failures are isolated in the frontend so optional panels can fail without taking down the whole workspace.
@@ -143,8 +141,8 @@ Production-like concerns already represented in the architecture:
 | `REDIS_URL` | backend, worker | `redis://localhost:6379/0` | Redis cache fallback URL. |
 | `CELERY_BROKER_URL` | worker, scheduler, backend | Redis DB 0 | Celery task broker. |
 | `CELERY_RESULT_BACKEND` | worker, backend | Redis DB 1 | Celery task status storage. |
-| `AUTH_MODE` | backend | `demo` | Backend auth validation mode. |
-| `VITE_AUTH_MODE` | frontend | `demo` | Frontend auth fallback mode. |
+| `AUTH_MODE` | backend | `keycloak` | Backend auth validation mode; `demo` must be explicit. |
+| `VITE_AUTH_MODE` | frontend | `keycloak` | Frontend auth fallback mode. |
 | `VITE_API_BASE_URL` | frontend | `/api` | API base path for browser requests. |
 | `VITE_CLIMATE_CONTEXT_FRESH_TTL_SECONDS` | frontend | `300` | Lower bound used when deriving selected-region climate query retention. Backend cache metadata remains the freshness authority. |
 | `VITE_CLIMATE_CONTEXT_STALE_TTL_SECONDS` | frontend | `3600` | Browser retention window for selected-region climate context queries. Values below the configured fresh window are raised to the fresh window. |

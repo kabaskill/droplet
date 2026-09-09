@@ -3,19 +3,16 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 
 import { AppShell } from "@/components/app/AppShell"
-import { ProtectedRoute } from "@/features/auth/ProtectedRoute"
 import {
   useAnalyticsSummary,
   useForecastOutlook,
   useIngestionStatus,
   useLatestSnapshots,
-  useRefreshSnapshots,
   useRegions,
   useSourceHealth,
 } from "@/hooks/use-droplet-data"
 import { filterRegions } from "@/services/regional-filters"
 import { useAppStore } from "@/stores/app-store"
-import type { RefreshSnapshotsResult } from "@/services/types"
 import { retryReadModels } from "@/components/app/dashboard-data"
 
 function currentOnlineState() {
@@ -27,14 +24,10 @@ export function WorkspaceLayout() {
     select: (state) => state.location.pathname,
   })
 
-  return (
-    <ProtectedRoute>
-      {pathname === "/account" ? (
-        <AccountWorkspaceShell />
-      ) : (
-        <DataWorkspaceShell />
-      )}
-    </ProtectedRoute>
+  return pathname === "/account" ? (
+    <AccountWorkspaceShell />
+  ) : (
+    <DataWorkspaceShell />
   )
 }
 
@@ -60,7 +53,6 @@ function DataWorkspaceShell() {
   const sourceHealthQuery = useSourceHealth()
   const ingestionStatusQuery = useIngestionStatus()
   const forecastOutlookQuery = useForecastOutlook()
-  const refreshSnapshots = useRefreshSnapshots()
   const queryClient = useQueryClient()
   const [now, setNow] = useState(() => Date.now())
   const [online, setOnline] = useState(currentOnlineState)
@@ -100,22 +92,13 @@ function DataWorkspaceShell() {
     sourceHealthQuery.isFetching ||
     ingestionStatusQuery.isFetching ||
     forecastOutlookQuery.isFetching
-  const refreshMessage = refreshSnapshots.isError
-    ? refreshErrorMessage(refreshSnapshots.error)
-    : refreshResultMessage(refreshSnapshots.data)
-
   const handleRefresh = () => {
-    refreshSnapshots.mutate(undefined, {
-      onSuccess: () => {
-        retryReadModels(queryClient)
-      },
-    })
+    retryReadModels(queryClient)
   }
 
   return (
     <AppShell
-      refreshMessage={refreshMessage}
-      refreshing={refreshSnapshots.isPending}
+      refreshing={syncing}
       searchRegions={searchRegions}
       stale={stale}
       syncing={syncing}
@@ -124,18 +107,4 @@ function DataWorkspaceShell() {
       <Outlet />
     </AppShell>
   )
-}
-
-function refreshResultMessage(result: RefreshSnapshotsResult | undefined) {
-  if (!result?.snapshotRefresh || result.status !== "completed") {
-    return null
-  }
-
-  const { created, deleted, skipped, updated } = result.snapshotRefresh
-
-  return `Created ${created} · Updated ${updated} · Skipped ${skipped} · Deleted ${deleted}`
-}
-
-function refreshErrorMessage(error: Error | null) {
-  return error?.message ?? "Refresh failed"
 }

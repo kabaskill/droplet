@@ -9,9 +9,7 @@ from backend.auth.keycloak import AuthError, auth_mode, demo_user, validate_acce
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def require_auth(roles: list[str] | None = None) -> Callable[[F], F]:
-    required_roles = set(roles or [])
-
+def require_auth() -> Callable[[F], F]:
     def decorator(view: F) -> F:
         @wraps(view)
         def wrapped(*args: Any, **kwargs: Any):
@@ -28,9 +26,6 @@ def require_auth(roles: list[str] | None = None) -> Callable[[F], F]:
                     current_user = validate_access_token(token)
                 except AuthError as exc:
                     return jsonify({"code": "unauthenticated", "error": str(exc)}), 401
-
-            if required_roles and not required_roles.intersection(current_user["roles"]):
-                return jsonify({"code": "forbidden", "error": "insufficient role"}), 403
 
             g.current_user = current_user
             return view(*args, **kwargs)
