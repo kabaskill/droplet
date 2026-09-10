@@ -1,0 +1,26 @@
+[Unit]
+Description=Droplet Flask API
+Requires=projects-network.service droplet-postgres.service droplet-redis.service
+After=projects-network.service droplet-postgres.service droplet-redis.service
+
+[Container]
+Image=localhost/droplet-backend:latest
+ContainerName=droplet-backend
+Pull=never
+Network=projects.network
+EnvironmentFile=%h/services/config/droplet/backend.env
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp:rw,nodev,nosuid,size=64m
+LogDriver=journald
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+MemoryMax=768M
+TasksMax=512
+
+[Install]
+WantedBy=default.target

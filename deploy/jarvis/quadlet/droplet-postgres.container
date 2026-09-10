@@ -1,0 +1,30 @@
+[Unit]
+Description=Droplet PostgreSQL database
+Requires=projects-network.service
+After=projects-network.service
+
+[Container]
+Image=docker.io/library/postgres:16-alpine
+ContainerName=droplet-postgres
+Pull=never
+Network=projects.network
+EnvironmentFile=%h/services/config/droplet/postgres.env
+Volume=droplet-postgres.volume:/var/lib/postgresql/data:Z
+HealthCmd=pg_isready -U droplet -d droplet
+HealthInterval=30s
+HealthRetries=5
+HealthStartPeriod=20s
+HealthTimeout=10s
+NoNewPrivileges=true
+LogDriver=journald
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+MemoryMax=768M
+TasksMax=512
+
+[Install]
+WantedBy=default.target

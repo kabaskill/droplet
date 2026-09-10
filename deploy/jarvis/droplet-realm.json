@@ -1,0 +1,29 @@
+{
+  "realm": "droplet",
+  "enabled": true,
+  "displayName": "Droplet",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "clients": [
+    {
+      "clientId": "droplet-frontend",
+      "name": "Droplet Frontend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "baseUrl": "https://droplet.oguzkabasakal.com/",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "https://droplet.oguzkabasakal.com/*"
+      ],
+      "webOrigins": [
+        "https://droplet.oguzkabasakal.com"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ]
+}

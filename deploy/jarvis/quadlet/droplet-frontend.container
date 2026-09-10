@@ -1,0 +1,32 @@
+[Unit]
+Description=Droplet production frontend
+Requires=projects-network.service droplet-backend.service
+After=projects-network.service droplet-backend.service
+
+[Container]
+Image=localhost/droplet-frontend:latest
+ContainerName=droplet-frontend
+Pull=never
+Network=projects.network
+DropCapability=all
+AddCapability=NET_BIND_SERVICE
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp:rw,nodev,nosuid,size=32m
+HealthCmd=/usr/bin/wget -q -O /dev/null http://127.0.0.1:8080/
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=10s
+HealthTimeout=10s
+LogDriver=journald
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=90
+TimeoutStopSec=20
+MemoryMax=192M
+TasksMax=256
+
+[Install]
+WantedBy=default.target

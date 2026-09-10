@@ -1,0 +1,5 @@
+[Unit]
+Description=Droplet Keycloak data
+
+[Volume]
+VolumeName=droplet-keycloak

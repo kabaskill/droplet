@@ -1,0 +1,27 @@
+[Unit]
+Description=Droplet Celery scheduler
+Requires=projects-network.service droplet-redis.service droplet-worker.service
+After=projects-network.service droplet-redis.service droplet-worker.service
+
+[Container]
+Image=localhost/droplet-backend:latest
+ContainerName=droplet-scheduler
+Pull=never
+Network=projects.network
+EnvironmentFile=%h/services/config/droplet/backend.env
+Exec=celery -A backend.workers.celery_app.celery_app beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp:rw,nodev,nosuid,size=64m
+LogDriver=journald
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+MemoryMax=384M
+TasksMax=256
+
+[Install]
+WantedBy=default.target

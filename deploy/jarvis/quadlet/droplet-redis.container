@@ -1,0 +1,30 @@
+[Unit]
+Description=Droplet Redis cache and task broker
+Requires=projects-network.service
+After=projects-network.service
+
+[Container]
+Image=docker.io/library/redis:7-alpine
+ContainerName=droplet-redis
+Pull=never
+Network=projects.network
+Volume=droplet-redis.volume:/data:Z
+Exec=redis-server --appendonly yes --save 60 1
+HealthCmd=redis-cli ping
+HealthInterval=30s
+HealthRetries=5
+HealthStartPeriod=10s
+HealthTimeout=10s
+NoNewPrivileges=true
+LogDriver=journald
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=90
+TimeoutStopSec=30
+MemoryMax=384M
+TasksMax=256
+
+[Install]
+WantedBy=default.target
