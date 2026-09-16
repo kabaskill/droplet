@@ -13,24 +13,24 @@ type RegionComparisonPanelProps = {
 type LayerComparator = {
   description: string
   label: string
-  metric: (region: RegionWithSnapshot) => number
+  metric: (region: RegionWithSnapshot) => number | null
 }
 
 const layerComparators: Record<MapLayer, LayerComparator> = {
   confidence: {
     description: "Ranks states by confidence quality in the latest read model.",
     label: "Confidence",
-    metric: ({ snapshot }) => snapshot?.confidenceScore ?? 0,
+    metric: ({ snapshot }) => snapshot?.confidenceScore ?? null,
   },
   rainfall: {
     description: "Ranks states by rainfall availability in the latest read model.",
     label: "Rainfall",
-    metric: ({ snapshot }) => snapshot?.rainfallIndex ?? 0,
+    metric: ({ snapshot }) => snapshot?.rainfallIndex ?? null,
   },
   "water-level": {
-    description: "Ranks states by normalized water level in the latest read model.",
-    label: "Water level",
-    metric: ({ snapshot }) => snapshot?.waterLevel ?? 0,
+    description: "Relative gauge index, not reservoir capacity. Zero can mean at or below the low-water reference; it does not mean an empty river.",
+    label: "Water-level index",
+    metric: ({ snapshot }) => snapshot?.waterLevel ?? null,
   },
 }
 
@@ -53,7 +53,9 @@ export function RegionComparisonPanel({
       ...regionWithSnapshot,
       metric: comparator.metric(regionWithSnapshot),
     }))
-    .sort((first, second) => second.metric - first.metric)
+    .sort((first, second) => (second.metric ?? -1) - (first.metric ?? -1))
+
+  const unit = activeLayer === "water-level" ? "/100" : "%"
 
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
@@ -93,7 +95,7 @@ export function RegionComparisonPanel({
         <div className="grid gap-2">
           {rows.map(({ metric, region, snapshot }, index) => (
             <button
-              aria-label={`Select ${region.name}; rank ${index + 1}; ${comparator.label} ${metric} percent`}
+              aria-label={`Select ${region.name}; ${metric === null ? "no data" : `rank ${index + 1}; ${comparator.label} ${metric} ${activeLayer === "water-level" ? "out of 100" : "percent"}`}`}
               aria-pressed={selectedRegionId === region.id}
               className={cn(
                 "grid gap-3 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent/60 sm:grid-cols-[40px_minmax(0,1fr)_72px_minmax(96px,160px)] sm:items-center",
@@ -104,7 +106,7 @@ export function RegionComparisonPanel({
               type="button"
             >
               <span className="text-xs font-medium text-muted-foreground">
-                #{index + 1}
+                {metric === null ? "—" : `#${index + 1}`}
               </span>
               <span className="min-w-0">
                 <span className="block truncate font-medium">{region.name}</span>
@@ -112,14 +114,14 @@ export function RegionComparisonPanel({
                   {region.basin} system · {region.code}
                 </span>
               </span>
-              <span className="font-semibold">{metric}%</span>
+              <span className="font-semibold">{metric === null ? "No data" : `${metric}${unit}`}</span>
               <span className="h-2 overflow-hidden rounded-full bg-muted">
                 <span
                   className={cn(
                     "block h-full rounded-full",
-                    comparisonTone(metric, activeLayer)
+                    metric === null ? "bg-muted" : comparisonTone(metric, activeLayer)
                   )}
-                  style={{ width: `${metric}%` }}
+                  style={{ width: `${metric ?? 0}%` }}
                 />
               </span>
               {snapshot ? null : (

@@ -393,7 +393,7 @@ function StateSearchDialog({ onClose, open, regions }: StateSearchDialogProps) {
                   </span>
                   <span className="text-right text-xs text-muted-foreground">
                     <span className="block font-medium text-foreground">
-                      {snapshot?.waterLevel ?? 0}%
+                      {snapshot ? `${snapshot.waterLevel}/100` : "No data"}
                     </span>
                     <span>{snapshot?.trend ?? "pending"}</span>
                   </span>

@@ -86,9 +86,9 @@ export function RegionDetailPanel({
           />
           <MetricTile
             icon={Activity02Icon}
-            label="Water level"
+            label="Water-level index"
             tone={availabilityTone(snapshot.waterLevel)}
-            value={`${snapshot.waterLevel}%`}
+            value={`${snapshot.waterLevel}/100`}
           />
           <MetricTile
             icon={ThermometerIcon}
@@ -106,8 +106,8 @@ export function RegionDetailPanel({
 
         <div className="mt-4 rounded-md border bg-background p-3">
           <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-            <span className="font-medium text-muted-foreground">Reservoir fill</span>
-            <span className="font-semibold">{snapshot.waterLevel}%</span>
+            <span className="font-medium text-muted-foreground">Water-level index</span>
+            <span className="font-semibold">{snapshot.waterLevel}/100</span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-muted">
             <div
@@ -124,6 +124,11 @@ export function RegionDetailPanel({
               style={{ width: `${snapshot.waterLevel}%` }}
             />
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Relative gauge level on a 0–100 scale, not reservoir capacity.
+            With station reference values, zero means at or below the low-water
+            reference, not an empty river. Modeled readings use a fallback scale.
+          </p>
           <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2 text-xs text-muted-foreground">
             <span className="min-w-0 break-words">Rain {snapshot.rainfallIndex}%</span>
             <span className="min-w-0 break-words">

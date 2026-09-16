@@ -646,7 +646,11 @@ function StateHoverTooltip({
           <div className="text-[10px] text-muted-foreground uppercase">
             Signal
           </div>
-          <div className="mt-0.5 text-sm font-semibold">{state.metric}%</div>
+          <div className="mt-0.5 text-sm font-semibold">
+            {state.regions.some(({ snapshot }) => snapshot)
+              ? `${state.metric}${activeLayer === "water" ? "/100" : "%"}`
+              : "No data"}
+          </div>
         </div>
         <div className="rounded-md border bg-card px-2 py-1.5">
           <div className="text-[10px] text-muted-foreground uppercase">
@@ -699,11 +703,11 @@ function stateAriaLabel(
   state: GermanyStateMetric | undefined,
   activeLayer: HomeLayer
 ) {
-  if (!state) {
+  if (!state || !state.regions.some(({ snapshot }) => snapshot)) {
     return `${shape.title}, no current observations`
   }
 
-  return `${state.title}, ${homeLayerLabel(activeLayer)} ${state.metric} percent, ${state.status}`
+  return `${state.title}, ${homeLayerLabel(activeLayer)} ${state.metric} ${activeLayer === "water" ? "out of 100" : "percent"}, ${state.status}`
 }
 
 function parseGermanySvg(markup: string) {

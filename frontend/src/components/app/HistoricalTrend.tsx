@@ -20,7 +20,7 @@ const metrics: {
 }[] = [
   {
     key: "waterLevel",
-    label: "Water",
+    label: "Water index",
     tone: "bg-primary",
   },
   {
@@ -83,7 +83,7 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
             <div className="rounded-md border bg-card px-2 py-1 text-xs text-muted-foreground">
               Latest{" "}
               <span className="font-medium text-foreground">
-                {latestPoint?.[metric] ?? 0}%
+                {latestPoint?.[metric] ?? 0}{metric === "waterLevel" ? "/100" : "%"}
               </span>
             </div>
           </div>
@@ -98,7 +98,7 @@ export function HistoricalTrend({ history }: HistoricalTrendProps) {
                   <div
                     className="flex w-7 flex-none flex-col items-center gap-1"
                     key={point.id ?? `${point.regionId}-${point.timestamp}-${index}`}
-                    title={`${activeMetric.label}: ${value}% · ${freshnessLabel(point)}`}
+                    title={`${activeMetric.label}: ${value}${metric === "waterLevel" ? "/100" : "%"} · ${freshnessLabel(point)}`}
                   >
                     <div className="relative flex h-36 w-full items-end rounded-sm bg-muted lg:h-52">
                       <div

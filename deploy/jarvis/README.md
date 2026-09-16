@@ -16,3 +16,19 @@ the Doner route.
 
 The Gemini key is intentionally omitted at first. Add authentication controls
 and request limiting before enabling a paid AI endpoint on a public hostname.
+
+## Frontend runtime storage
+
+The frontend container keeps its root filesystem read-only. Its Caddyfile
+disables configuration autosave (`persist_config off`) and places Caddy runtime
+storage in `/tmp/caddy`, using the Quadlet's existing writable `/tmp` tmpfs.
+This prevents autosave, instance ID, and storage-clean lock errors without
+making the image filesystem writable. Ephemeral storage is appropriate here
+because this internal HTTP server does not manage TLS certificates. TLS is
+handled upstream. The internal listener explicitly uses HTTP/1 to avoid the
+HTTP/2 and HTTP/3 TLS warnings.
+
+Rebuild and redeploy the frontend image to apply the Caddyfile and UI changes.
+No database migration or snapshot recalculation is needed: water-level indices
+at zero can be valid readings below their station's low-water reference, and
+the UI now identifies them as indices rather than reservoir fill percentages.

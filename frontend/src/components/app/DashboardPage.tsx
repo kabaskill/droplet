@@ -417,7 +417,9 @@ function SelectedStateSummary({
                     {layer.label}
                   </div>
                   <div className="mt-1 text-xl font-semibold">
-                    {selectedStateMetric?.layerValues[layer.id] ?? 0}%
+                    {selectedStateMetric
+                      ? `${selectedStateMetric.layerValues[layer.id]}${layer.id === "water" ? "/100" : "%"}`
+                      : "No data"}
                   </div>
                 </div>,
               ]
@@ -465,7 +467,7 @@ function MobileSelectedStateAction({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{region.name}</div>
           <div className="truncate text-xs text-muted-foreground">
-            Water {snapshot.waterLevel}% · Confidence {snapshot.confidenceScore}
+            Water index {snapshot.waterLevel}/100 · Confidence {snapshot.confidenceScore}
             %
           </div>
         </div>

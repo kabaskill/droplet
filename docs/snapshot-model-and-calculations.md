@@ -166,6 +166,25 @@ If Pegelonline provides a normalized water level based on station characteristic
 water_level = clamp(reading.normalized_water_level)
 ```
 
+The source adapter selects the first available valid reference pair in this order:
+`MNW/MHW` (mean low/high water), `NNW/HHW` (historical low/high water),
+then `GlW/HSW` (navigation reference levels). It calculates:
+
+```python
+normalized_water_level = clamp((water_level_cm - low) / (high - low) * 100)
+```
+
+The UI displays this as a **water-level index out of 100**, not a reservoir
+fill percentage. Zero means the gauge reading is at or below the selected
+low-water reference; it does not mean the river is empty. For example, a
+Passau reading of 395 cm with MNW 404 cm and MHW 841 cm produces an index of
+zero. Multiple states can therefore have zero indices despite valid, nonzero
+gauge measurements. A missing snapshot is displayed as `No data`.
+
+The configured gauge is a regional proxy, not an aggregate of all water in a
+state. Different reference pairs and fallback scales also limit comparisons
+between states.
+
 Otherwise it falls back to a simple centimeter scale:
 
 ```python

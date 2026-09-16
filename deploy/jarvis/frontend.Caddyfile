@@ -1,6 +1,13 @@
 {
 	auto_https off
 	admin off
+	persist_config off
+	storage file_system {
+		root /tmp/caddy
+	}
+	servers {
+		protocols h1
+	}
 }
 
 :8080 {

@@ -38,9 +38,9 @@ export const homeLayerConfigs: HomeLayerConfig[] = [
     shortLabel: "All",
   },
   {
-    description: "Latest normalized water availability",
+    description: "Relative gauge index, not reservoir capacity; zero can mean at or below the low-water reference",
     id: "water",
-    label: "Water",
+    label: "Water index",
     shortLabel: "Water",
   },
   {
