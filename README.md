@@ -1,3 +1,8 @@
+> **17 October 2026:** Production now uses raw measured water/rainfall data.
+> The older index/AI/climate architecture below is retained as historical context.
+> See [the measured-water release](docs/water-implementation.md) and
+> [deployment instructions](deploy/jarvis/README.md) for the current app.
+
 # Droplet Docs
 
 Droplet is Germany's Platform: an operational dashboard for monitoring regional water conditions, source freshness, forecast pressure, and AI-assisted observations.

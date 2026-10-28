@@ -11,7 +11,7 @@ COPY frontend/src ./src
 
 ENV VITE_API_BASE_URL=/api \
     VITE_AUTH_MODE=keycloak \
-    VITE_DEMO_FALLBACK=true \
+    VITE_DEMO_FALLBACK=false \
     VITE_KEYCLOAK_CLIENT_ID=droplet-frontend \
     VITE_KEYCLOAK_REALM=droplet \
     VITE_KEYCLOAK_URL=https://droplet.oguzkabasakal.com/auth

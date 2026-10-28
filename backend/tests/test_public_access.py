@@ -50,29 +50,12 @@ class PublicAccessTest(unittest.TestCase):
 
         self.assertNotIn("roles", demo_user())
 
-    def test_core_api_routes_are_public_and_ai_routes_are_protected(self):
-        routes_path = Path(__file__).parents[1] / "api" / "routes.py"
-        module = ast.parse(routes_path.read_text())
-        decorators = {
-            node.name: [ast.unparse(decorator) for decorator in node.decorator_list]
-            for node in module.body
-            if isinstance(node, ast.FunctionDef)
-        }
-
-        for route_name in (
-            "analytics_summary",
-            "forecast_outlook",
-            "ingestion_status",
-            "region_climate",
-            "region_snapshots",
-            "regions",
-            "snapshots",
-            "source_health",
-        ):
-            self.assertNotIn("require_auth()", decorators[route_name])
-
-        self.assertIn("require_auth()", decorators["ai_analyze"])
-        self.assertIn("require_auth()", decorators["ai_analyses"])
+    def test_legacy_data_and_ai_routes_are_retired(self):
+        from backend.api.routes import api_bp
+        self.app.register_blueprint(api_bp, url_prefix="/api")
+        for route in ("/snapshots", "/analytics/summary", "/forecasts/outlook", "/ai/analyses"):
+            self.assertEqual(410, self.client.get("/api" + route).status_code)
+        self.assertEqual(410, self.client.post("/api/ai/analyze", json={}).status_code)
 
 
 if __name__ == "__main__":

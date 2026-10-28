@@ -1,11 +1,12 @@
 import json
+import importlib.util
 import sys
 import types
 import unittest
 from datetime import UTC, datetime, timedelta
 
 
-if "redis" not in sys.modules:
+if "redis" not in sys.modules and importlib.util.find_spec("redis") is None:
     redis_module = types.ModuleType("redis")
     redis_exceptions = types.ModuleType("redis.exceptions")
 

@@ -1,36 +1,20 @@
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister"
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
-import type { ReactNode } from "react"
-
+import { QueryClientProvider } from "@tanstack/react-query"
+import { useEffect, type ReactNode } from "react"
 import { queryClient } from "@/app/query-client"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AuthProvider } from "@/features/auth/AuthProvider"
-
-const readModelVersion = "state-model-v2"
-const persistenceVersion = `${readModelVersion}-climate-model-v3`
-
-const persister = createSyncStoragePersister({
-  key: `droplet-query-cache-${persistenceVersion}`,
-  storage: window.localStorage,
-})
-
-type AppProvidersProps = {
-  children: ReactNode
-}
-
-export function AppProviders({ children }: AppProvidersProps) {
+export function AppProviders({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    for (const key of Object.keys(window.localStorage)) {
+      if (key.startsWith("droplet-query-cache-"))
+        window.localStorage.removeItem(key)
+    }
+  }, [])
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        buster: persistenceVersion,
-        maxAge: 1000 * 60 * 60 * 24,
-        persister,
-      }}
-    >
+    <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>{children}</AuthProvider>
       </TooltipProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   )
 }

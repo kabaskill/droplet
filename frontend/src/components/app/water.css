@@ -1,0 +1,536 @@
+.water-app {
+  --ink: #183a34;
+  --muted: #667b76;
+  --line: #dfe8e4;
+  --paper: #fbfcfa;
+  min-height: 100svh;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+}
+.water-app button,
+.water-app a,
+.water-app select {
+  cursor: pointer;
+}
+.water-app button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.water-app :focus-visible {
+  outline: 3px solid #299680;
+  outline-offset: 4px;
+}
+.place-row {
+  display: block;
+  width: 100%;
+  padding: 17px 24px;
+  text-align: left;
+  border-top: 1px solid #edf1ee;
+  border-left: 3px solid transparent;
+}
+.place-row:hover {
+  background: #f6f9f6;
+}
+.place-row.active {
+  background: #eef6f1;
+  border-left-color: #16806d;
+}
+.place-row-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.place-row-title > span {
+  white-space: nowrap;
+}
+.place-row small {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.place-station {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin: 6px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.condition {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  gap: 6px;
+  color: #577e98;
+}
+.condition:before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.condition-low {
+  color: #9c6616;
+}
+.condition-normal {
+  color: #16806d;
+}
+.condition-high {
+  color: #b74449;
+}
+.water-map {
+  height: 100svh;
+  min-height: 420px;
+  position: relative;
+  overflow: hidden;
+  background: #fafcfb;
+}
+.water-map > svg {
+  width: 100%;
+  height: 100%;
+  padding: 24px 20px 72px;
+  touch-action: none;
+  cursor: grab;
+}
+.water-map > svg:active {
+  cursor: grabbing;
+}
+.map-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 16px;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px #183a3410;
+}
+.water-map > svg path {
+  fill: #e0eae1;
+  stroke: #fbfcfa;
+  stroke-width: 1.2;
+  cursor: pointer;
+  transition: fill 0.15s;
+}
+.water-map > svg path:hover {
+  fill: #c9ddd1;
+}
+.water-map > svg path.selected-state {
+  fill: #c0d9cc;
+}
+.gauge-marker {
+  cursor: pointer;
+}
+.gauge-marker:focus {
+  outline: none;
+}
+.gauge-marker:focus circle:first-child {
+  opacity: 0.7;
+}
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  font-size: 10px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 8px 12px;
+  background: #ffffffeb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.map-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.map-legend i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.water-detail {
+  position: relative;
+  height: 100svh;
+  overflow: auto;
+  padding: 34px 28px;
+  background: white;
+  border-left: 1px solid var(--line);
+}
+.detail-close {
+  position: absolute;
+  top: 13px;
+  right: 15px;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--muted);
+  padding: 5px;
+}
+.water-detail h2 {
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+  margin: 12px 0 5px;
+  max-width: 95%;
+}
+.river-name {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
+.save-button {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
+  margin-top: 15px;
+  background: white;
+}
+.default-button {
+  margin-left: 12px;
+  font-size: 10px;
+}
+.water-reading {
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.section-heading h3,
+.rain-reading h3 {
+  font-size: 12px;
+  font-weight: 500;
+}
+.reading-number {
+  font-size: 64px;
+  letter-spacing: -3px;
+  line-height: 1.2;
+  margin: 12px 0 4px;
+  font-weight: 450;
+}
+.reading-number span {
+  font-size: 22px;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.observation-time {
+  font-size: 10px;
+  color: var(--muted);
+}
+.mean-comparison {
+  background: #f1f6f2;
+  border-radius: 8px;
+  padding: 13px 14px;
+  margin: 18px 0 13px;
+  line-height: 1.6;
+}
+.mean-comparison strong {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+}
+.mean-comparison span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+.daily-change {
+  font-size: 11px;
+  color: #386b5b;
+  margin-top: 12px;
+}
+.rain-reading {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 20px 0;
+  margin: 23px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  align-items: center;
+}
+.rain-number {
+  font-size: 30px;
+  line-height: 1.5;
+}
+.rain-number span {
+  font-size: 14px;
+  color: var(--muted);
+}
+.rain-reading > div + div {
+  font-size: 10px;
+  line-height: 1.7;
+}
+.quiet {
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 7px 0;
+}
+.history-section {
+  margin-top: 8px;
+}
+.history-section select {
+  font-size: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px;
+  background: white;
+  max-width: 135px;
+}
+.range-controls {
+  display: flex;
+  background: #f2f6f2;
+  padding: 3px;
+  border-radius: 7px;
+  margin: 15px 0 8px;
+  gap: 2px;
+}
+.range-controls button {
+  flex: 1;
+  padding: 6px 3px;
+  font-size: 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.range-controls button[aria-pressed="true"] {
+  background: white;
+  box-shadow: 0 1px 3px #183a3420;
+}
+.history-chart {
+  width: 100%;
+  margin: 5px 0;
+}
+.history-chart text {
+  font-size: 9px;
+  fill: #667b76;
+}
+.empty-history {
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 24px;
+  color: var(--muted);
+}
+.text-button {
+  color: #16806d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.reading-details,
+.observation-table {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 18px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.reading-details summary,
+.observation-table summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+.reading-details p {
+  margin: 12px 0;
+  color: var(--muted);
+}
+.reading-details a {
+  display: block;
+  color: #16806d;
+  margin-top: 7px;
+}
+.observation-table > div {
+  overflow: auto;
+  max-height: 240px;
+}
+.observation-table table {
+  font-size: 10px;
+  width: 100%;
+  text-align: left;
+  margin-top: 10px;
+}
+.observation-table th,
+.observation-table td {
+  padding: 7px;
+  border-bottom: 1px solid var(--line);
+}
+.water-account {
+  max-width: 750px;
+  padding: 70px 30px;
+  margin: 0 auto;
+}
+.water-account h1 {
+  font-size: 36px;
+  margin: 15px 0;
+  letter-spacing: -1px;
+}
+.water-account > p {
+  line-height: 1.8;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.account-card {
+  padding: 25px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  margin: 30px 0;
+}
+.account-card h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+.account-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.primary-button {
+  display: inline-block;
+  background: #16806d;
+  color: white;
+  border-radius: 7px;
+  padding: 12px 17px;
+  font-size: 12px;
+  margin-top: 15px;
+}
+.water-alert {
+  padding: 13px 25px;
+  background: #fff5df;
+  font-size: 12px;
+  border-bottom: 1px solid #eddbac;
+}
+.water-alert button {
+  text-decoration: underline;
+  margin-left: 8px;
+}
+
+.water-main {
+  min-width: 0;
+}
+.water-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 100svh;
+}
+.water-workspace.has-selection {
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+[data-slot="sidebar"][data-mobile="true"],
+.water-sidebar {
+  --ink: #183a34;
+  --muted: #667b76;
+  --line: #dfe8e4;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"])
+  [data-slot="sidebar-inner"] {
+  background: #f8faf9;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"])
+  [data-slot="sidebar-content"] {
+  overflow: hidden;
+}
+
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"]) .place-list {
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"]) .place-row {
+  padding: 12px 10px;
+  border-radius: 6px;
+  border-top: 0;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"])
+  .place-row-title {
+  font-size: 12px;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"]) .place-station {
+  margin: 4px 0;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"])
+  [data-slot="sidebar-group"]:has([data-slot="collapsible"]) {
+  overflow: hidden;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"]) .empty-history {
+  padding: 16px 8px;
+}
+:is(.water-sidebar, [data-slot="sidebar"][data-mobile="true"])
+  [data-slot="collapsible"] {
+  max-height: 100%;
+}
+.water-mobile-toolbar {
+  display: none;
+}
+.eyebrow {
+  font-size: 11px;
+  color: var(--muted);
+}
+@media (min-width: 1600px) {
+  .water-workspace.has-selection {
+    grid-template-columns: minmax(0, 1fr) 440px;
+  }
+  .water-detail {
+    padding: 40px 36px;
+  }
+}
+@media (max-width: 1100px) {
+  .water-workspace.has-selection {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+  .water-detail {
+    padding: 32px 22px;
+  }
+  .map-legend {
+    gap: 8px;
+    font-size: 9px;
+  }
+}
+@media (max-width: 767px) {
+  .water-mobile-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 48px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .water-workspace,
+  .water-workspace.has-selection {
+    display: block;
+    min-height: calc(100svh - 48px);
+  }
+  .water-map {
+    height: calc(100svh - 48px);
+  }
+  .has-selection .map-container {
+    display: none;
+  }
+  .water-detail {
+    height: calc(100svh - 48px);
+    border-left: 0;
+    padding: 34px 24px;
+  }
+  .water-account {
+    padding: 24px;
+  }
+}

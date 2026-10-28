@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-17
+
+- Released the measured-water experience with verified gauge identities, raw water levels, source reference comparisons, recent changes, and complete observed rainfall windows.
+- Added measured observation storage and migrations, verified historical backfill, public recent history, authenticated extended history, and saved/default places.
+- Retired the production index, synthetic/demo, AI, and broader climate routes while preserving existing account identity.
+- Restored the Droplet icon and shadcn sidebar, mobile navigation, place selection in URLs, and map pan/zoom, keyboard controls, and session viewport state.
+- Updated the Podman deployment definitions and measured-water release notes. The deployed source and running frontend/backend were verified against the local implementation on 28 October 2026 before recording this release in Git.
+
 ## 2026-06-10
 
 - Continued selected-region climate refresh and source hardening:

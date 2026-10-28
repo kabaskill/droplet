@@ -37,11 +37,11 @@ export function LoginPage() {
               <ProductIcon icon={SparklesIcon} />
             </span>
             <div className="min-w-0">
-              <h2 className="font-medium">Unlock Droplet AI</h2>
+              <h2 className="font-medium">Sign in</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {mode === "demo"
                   ? "Continue with the local demo account."
-                  : "Sign in or create a free account for AI analysis and saved history. The dashboard remains public."}
+                  : "Save places and access longer history."}
               </p>
             </div>
           </div>

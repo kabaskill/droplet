@@ -25,6 +25,10 @@ def init_database() -> None:
     _ = entities
     Base.metadata.create_all(bind=engine)
 
+    from backend.models.water_migrations import migrate_water_schema
+
+    migrate_water_schema(engine)
+
 
 @contextmanager
 def session_scope() -> Generator[Session, None, None]:

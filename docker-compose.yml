@@ -6,7 +6,7 @@ services:
       VITE_API_BASE_URL: /api
       VITE_API_PROXY_TARGET: http://backend:5000
       VITE_AUTH_MODE: ${VITE_AUTH_MODE:-keycloak}
-      VITE_DEMO_FALLBACK: "true"
+      VITE_DEMO_FALLBACK: "false"
       VITE_KEYCLOAK_CLIENT_ID: droplet-frontend
       VITE_KEYCLOAK_REALM: droplet
       VITE_KEYCLOAK_URL: http://localhost:8080
@@ -23,18 +23,13 @@ services:
       AUTH_MODE: ${AUTH_MODE:-keycloak}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      CLIMATE_SOURCE_TIMEOUT_SECONDS: "8"
       CORS_ORIGINS: http://localhost:5173
       DATABASE_URL: postgresql+psycopg://droplet:droplet@postgres:5432/droplet
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       KEYCLOAK_CLIENT_ID: droplet-frontend
       KEYCLOAK_PUBLIC_URL: http://localhost:8080
       KEYCLOAK_REALM: droplet
       KEYCLOAK_URL: http://keycloak:8080
       REDIS_URL: redis://redis:6379/0
-      DEMO_HISTORY_DAYS: "365"
-      SNAPSHOT_RETENTION_DAYS: "395"
     ports:
       - "5000:5000"
     depends_on:
@@ -51,10 +46,8 @@ services:
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      CLIMATE_SOURCE_TIMEOUT_SECONDS: "8"
       DATABASE_URL: postgresql+psycopg://droplet:droplet@postgres:5432/droplet
       REDIS_URL: redis://redis:6379/0
-      SNAPSHOT_RETENTION_DAYS: "395"
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,8 +62,7 @@ services:
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      CLIMATE_CONTEXT_REFRESH_INTERVAL_MINUTES: "30"
-      SNAPSHOT_REFRESH_INTERVAL_MINUTES: "30"
+      WATER_REFRESH_INTERVAL_MINUTES: "30"
     depends_on:
       redis:
         condition: service_healthy
