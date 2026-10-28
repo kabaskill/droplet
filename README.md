@@ -5,6 +5,8 @@
 
 # Droplet Docs
 
+The [current implementation plan](docs/implementation-plan.md) describes the proposed local overhaul, review/commit checkpoints, and Podman workflow. It is a draft for review; Jarvis is outside its implementation scope. The [source research](docs/environmental-data-research-2026-10-28.md) records data options and limitations.
+
 Droplet is Germany's Platform: an operational dashboard for monitoring regional water conditions, source freshness, forecast pressure, and AI-assisted observations.
 
 ## Documents

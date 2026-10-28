@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added a draft implementation plan for the environmental-data overhaul, with eight local checkpoints, per-source commit stops, early English/German localization, and Podman-based verification.
+- Replaced the older water-focused roadmap; retained source research and historical release notes as reference material.
+- Recorded that the map source remains undecided and that Jarvis work is excluded from the local implementation plan. These entries describe planning changes, not implemented product features.
+- Reconciled the measured-water implementation with the verified running Jarvis release, preserved it in Git, and updated the plan's preflight to use the recovered `main` baseline instead of treating deployed source as unexplained local work.
+
 ## 2026-10-17
 
 - Released the measured-water experience with verified gauge identities, raw water levels, source reference comparisons, recent changes, and complete observed rainfall windows.
